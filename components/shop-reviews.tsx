@@ -68,37 +68,3 @@ function Stars({ count }: { count: number }) {
   );
 }
 
-export function ShopReviews() {
-  return (
-    <section className="bg-gray-50 py-16 px-4">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-600 text-xs font-semibold px-3 py-1 rounded-full mb-4 tracking-widest uppercase">
-            ⭐ Відгуки клієнтів
-          </div>
-          <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">Що кажуть наші покупці</h2>
-          <p className="text-gray-500">500+ задоволених клієнтів по всій Україні</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {reviews.map((r, i) => (
-            <div key={i} className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 ${r.color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                  {r.avatar}
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900 text-sm">{r.name}</div>
-                  <div className="text-gray-400 text-xs">{r.date}</div>
-                </div>
-              </div>
-              <Stars count={r.rating} />
-              <p className="text-gray-600 text-sm mt-2 leading-relaxed">{r.text}</p>
-              <div className="mt-3 text-xs text-rose-400 font-semibold">📦 {r.product}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}

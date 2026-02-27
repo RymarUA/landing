@@ -1,0 +1,48 @@
+# Ignore large image files to speed up template copying
+# These files are not essential for development
+
+# NOTE: public/_kleap/ scripts are NOW included in template
+# They are essential for error capture and live editing
+# Protection is enforced via AI_RULES.md instead
+
+# Blog thumbnails (346KB each)
+app/blog/*/thumbnail.jpeg
+
+# Public images that are large
+public/banner.png
+public/tyler.jpeg
+public/skeleton-one.png
+public/header.png
+public/noise.webp
+
+# Large logo files
+public/logos/meta.png
+public/logos/uber.png
+
+# Lock files (not needed in sandbox)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build artifacts (should not be copied)
+.next/
+.next/*
+dist/
+build/
+out/
+
+# Environment variables (managed separately via env_vars table)
+# 🚫 CRITICAL: AI cannot create/modify .env files
+# All env vars MUST be managed through UI → Settings → Environment Variables
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Other non-essential files
+.DS_Store
+Thumbs.db
+*.log
+tsconfig.tsbuildinfo

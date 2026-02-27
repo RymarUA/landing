@@ -1,0 +1,46 @@
+# Development files
+.env.local
+.env.development
+.env.test
+*.log
+.DS_Store
+Thumbs.db
+
+# Source maps (build faster without them)
+*.map
+
+# Test files
+*.test.*
+*.spec.*
+__tests__
+__mocks__
+coverage
+cypress
+playwright
+
+# Docs
+README.md
+CHANGELOG.md
+LICENSE
+docs
+
+# IDEs
+.vscode
+.idea
+*.sublime-*
+
+# Caches
+.cache
+.turbo
+.swc
+node_modules/.cache
+
+# Optional heavy dependencies
+node_modules/@swc
+node_modules/esbuild
+node_modules/sharp
+
+# Git
+.git
+.gitignore
+.github

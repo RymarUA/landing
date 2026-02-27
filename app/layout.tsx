@@ -3,7 +3,6 @@ import "./globals.css";
 import { GeistSans } from "geist/font/sans";
 import { cn } from "@/lib/utils";
 import { NavBar } from "@/components/navbar";
-import { KleapScripts } from "@/components/kleap-scripts";
 import { DevToolsGuard } from "./devtools-guard";
 import { TailwindCDNClient } from "@/components/tailwind-cdn-client";
 import { siteConfig } from "@/lib/site-config";
@@ -77,31 +76,6 @@ export default function RootLayout({
         {/* Force light mode — prevents OS dark theme from bleeding into the preview/screenshots */}
         <meta name="color-scheme" content="light only" />
         {/* Schema.org: associate this site with Kleap for Knowledge Graph */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              name: siteConfig.name,
-              url: siteConfig.url,
-              description: siteConfig.description,
-              creator: {
-                "@type": "Organization",
-                name: "Kleap",
-                url: "https://kleap.co",
-                logo: "https://kleap.co/icon.png",
-              },
-              isPartOf: {
-                "@type": "WebApplication",
-                name: "Kleap AI Website Builder",
-                url: "https://kleap.co",
-                applicationCategory: "WebApplication",
-                operatingSystem: "All",
-              },
-            }),
-          }}
-        />
         {/*
           CRITICAL: Base styles to prevent FOUC and hydration errors
           ⚠️ DO NOT REMOVE OR MODIFY WITHOUT CAREFUL TESTING ⚠️
@@ -159,7 +133,6 @@ export default function RootLayout({
       >
         <TailwindCDNClient />
         <DevToolsGuard />
-        <KleapScripts />
         <main className={siteConfig.showNavbar !== false ? "pt-24" : ""}>
           {siteConfig.showNavbar !== false && <NavBar />}
           {children}

@@ -8,6 +8,9 @@ import { TailwindCDNClient } from "@/components/tailwind-cdn-client";
 import { siteConfig } from "@/lib/site-config";
 import { CartProvider } from "@/components/cart-context";
 import { CartWidget } from "@/components/cart-widget";
+import { StickyHeader } from "@/components/sticky-header";
+import { AnnouncementBar } from "@/components/announcement-bar";
+import { CookieBanner } from "@/components/cookie-banner";
 
 export const metadata: Metadata = {
   title: {
@@ -136,11 +139,14 @@ export default function RootLayout({
         <TailwindCDNClient />
         <DevToolsGuard />
         <CartProvider>
+          <AnnouncementBar />
+          <StickyHeader />
           <main className={siteConfig.showNavbar !== false ? "pt-24" : ""}>
             {siteConfig.showNavbar !== false && <NavBar />}
             {children}
           </main>
           <CartWidget />
+          <CookieBanner />
         </CartProvider>
       </body>
     </html>

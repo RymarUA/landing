@@ -241,6 +241,16 @@ export default function CheckoutPage() {
                   />
                 </Field>
 
+                <Field label="Email для підтвердження (необов'язково)" error={(errors as Record<string, {message?: string}>).email?.message}>
+                  <input
+                    {...register("email")}
+                    type="email"
+                    placeholder="your@email.com"
+                    autoComplete="email"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition hover:border-gray-300"
+                  />
+                </Field>
+
                 <Field label="Коментар до замовлення" error={errors.comment?.message}>
                   <textarea
                     {...register("comment")}

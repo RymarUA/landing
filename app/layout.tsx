@@ -11,6 +11,7 @@ import { CartWidget } from "@/components/cart-widget";
 import { StickyHeader } from "@/components/sticky-header";
 import { AnnouncementBar } from "@/components/announcement-bar";
 import { CookieBanner } from "@/components/cookie-banner";
+import { WishlistProvider } from "@/components/wishlist-context";
 
 export const metadata: Metadata = {
   title: {
@@ -139,14 +140,16 @@ export default function RootLayout({
         <TailwindCDNClient />
         <DevToolsGuard />
         <CartProvider>
-          <AnnouncementBar />
-          <StickyHeader />
-          <main className={siteConfig.showNavbar !== false ? "pt-24" : ""}>
-            {siteConfig.showNavbar !== false && <NavBar />}
-            {children}
-          </main>
-          <CartWidget />
-          <CookieBanner />
+          <WishlistProvider>
+            <AnnouncementBar />
+            <StickyHeader />
+            <main className={siteConfig.showNavbar !== false ? "pt-24" : ""}>
+              {siteConfig.showNavbar !== false && <NavBar />}
+              {children}
+            </main>
+            <CartWidget />
+            <CookieBanner />
+          </WishlistProvider>
         </CartProvider>
       </body>
     </html>

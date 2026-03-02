@@ -9,6 +9,11 @@ import {
 } from "@/lib/instagram-catalog";
 import { AddToCartButton } from "./add-to-cart-button";
 import { siteConfig } from "@/lib/site-config";
+import {
+  JsonLd,
+  generateProductSchema,
+  generateBreadcrumbSchema,
+} from "@/components/seo/JsonLd";
 
 /* ─────────────────────────────────────────────────────────────────────────
    Static params — pre-render all product pages at build time
@@ -81,8 +86,32 @@ export default async function ProductPage({
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
 
+  /* ── Schema.org structured data ── */
+  const productSchema = generateProductSchema({
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    oldPrice: product.oldPrice,
+    image: product.image,
+    category: product.category,
+    rating: product.rating,
+    reviews: product.reviews,
+    stock: product.stock,
+    badge: product.badge,
+  });
+
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: "Головна", url: siteConfig.url },
+    { name: "Каталог", url: `${siteConfig.url}/#catalog` },
+    { name: product.name, url: `${siteConfig.url}/product/${product.id}` },
+  ]);
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <JsonLd id="product-schema" data={productSchema} />
+      <JsonLd id="breadcrumb-schema" data={breadcrumbSchema} />
+
       {/* ── Breadcrumb ── */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2 text-sm text-gray-500">

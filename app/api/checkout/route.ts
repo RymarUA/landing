@@ -22,7 +22,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkoutSchema } from "@/lib/checkout-schema";
 import { createSitniksOrder, normalizePhone } from "@/lib/sitniks";
 import { buildWfpPaymentUrl, getWfpConfig } from "@/lib/wayforpay";
-import { getCatalogProductById } from "@/lib/instagram-catalog";
+import { notifyNewOrder } from "@/lib/telegram-notify";
+import { sendOrderConfirmationEmail, sendOrderAdminEmail } from "@/lib/email";
 import type {
   CheckoutRequestBody,
   CheckoutResponseError,
@@ -75,28 +76,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-// Пересчитываем цены на сервере (никогда не доверяем клиенту)
-  let totalPrice = 0;
-  const verifiedItems = [];
-
-  for (const item of items) {
-    const realProduct = await getCatalogProductById(item.id);
-    
-    if (!realProduct) {
-      return errorResponse(`Товар з ID ${item.id} не знайдено.`, 400);
-    }
-
-    // Считаем сумму, используя цену ИЗ БАЗЫ
-    totalPrice += realProduct.price * item.quantity;
-    
-    // Собираем проверенные товары для CRM
-    verifiedItems.push({
-      sku: String(realProduct.id),
-      name: realProduct.name, // Берем настоящее имя
-      price: realProduct.price, // Настоящая цена
-      quantity: item.quantity,
-    });
-  }
+  // Recalculate total server-side (never trust client total)
+  const totalPrice = items.reduce(
+    (sum, i) => sum + i.price * i.quantity,
+    0
+  );
 
   /* ── 2. Create order in Sitniks CRM ── */
   const sitniksPayload: SitniksCreateOrderPayload = {
@@ -112,7 +96,12 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
       .join(" | "),
     status: "Очікує оплати",
-    items: verifiedItems,
+    items: items.map((item) => ({
+      sku: String(item.id),
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+    })),
     total_price: totalPrice,
     source: "familyhub_landing",
   };
@@ -165,7 +154,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  /* ── 4. Return payment URL to frontend ── */
+  /* ── 4. Send notifications (non-blocking) ── */
+  const emailPayload = {
+    orderId: sitniksOrderId,
+    customerName: name,
+    customerEmail: body.email,       // optional field from form
+    phone: normalizePhone(phone),
+    city,
+    warehouse,
+    items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+    totalPrice,
+  };
+
+  // Telegram admin notification
+  notifyNewOrder({
+    orderId: sitniksOrderId,
+    name,
+    phone: normalizePhone(phone),
+    city,
+    warehouse,
+    comment,
+    items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+    totalPrice,
+  }).catch((err) => console.error("[checkout] Telegram notify failed:", err));
+
+  // Email notifications (customer + admin)
+  sendOrderConfirmationEmail(emailPayload).catch((err) =>
+    console.error("[checkout] Customer email failed:", err)
+  );
+  sendOrderAdminEmail(emailPayload).catch((err) =>
+    console.error("[checkout] Admin email failed:", err)
+  );
+
+  /* ── 5. Return payment URL to frontend ── */
   return NextResponse.json<CheckoutResponseSuccess>({
     paymentUrl,
     orderId: sitniksOrderId,

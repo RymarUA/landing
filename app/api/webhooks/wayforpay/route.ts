@@ -25,6 +25,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWfpWebhookSignature, buildWfpResponseSignature } from "@/lib/wayforpay";
 import { updateSitniksOrderStatus } from "@/lib/sitniks";
+import { notifyPaymentConfirmed } from "@/lib/telegram-notify";
 import type { WayForPayWebhookPayload, WayForPayWebhookResponse } from "@/lib/types";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -92,6 +93,10 @@ export async function POST(req: NextRequest) {
       // Log but don't fail — we must still return acceptance to WayForPay
       console.error(`[wfp-webhook] Sitniks update failed for order #${orderReference}:`, msg);
     }
+
+    // Notify admin via Telegram (non-blocking)
+    notifyPaymentConfirmed(orderReference, amount, payload.paymentSystem ?? "WayForPay")
+      .catch((err) => console.error("[wfp-webhook] Telegram notify failed:", err));
   } else if (transactionStatus === "Declined" || transactionStatus === "Expired") {
     // Optionally update Sitniks status to "Скасовано"
     try {

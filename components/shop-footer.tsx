@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Instagram, Facebook, MapPin, Phone, Mail, ChevronRight, Check } from "lucide-react";
+import Link from "next/link";
+import { Instagram, Facebook, MapPin, Phone, Mail, ChevronRight, Check, Heart, Loader2 } from "lucide-react";
 
 function TikTokIcon({ size = 20 }: { size?: number }) {
   return (
@@ -30,12 +31,31 @@ const infoLinks = [
 export function ShopFooter() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState("");
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim()) {
-      setSubscribed(true);
-      setEmail("");
+    if (!email.trim()) return;
+    setSubLoading(true);
+    setSubError("");
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setSubscribed(true);
+        setEmail("");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setSubError(data.error ?? "Помилка. Спробуйте ще раз.");
+      }
+    } catch {
+      setSubError("Помилка мережі. Спробуйте ще раз.");
+    } finally {
+      setSubLoading(false);
     }
   };
 
@@ -161,16 +181,25 @@ export function ShopFooter() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setSubError(""); }}
                   placeholder="your@email.com"
                   required
-                  className="w-full bg-white/10 border border-white/20 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-colors"
+                  disabled={subLoading}
+                  className="w-full bg-white/10 border border-white/20 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-colors disabled:opacity-60"
                 />
+                {subError && (
+                  <p className="text-red-400 text-xs px-1">{subError}</p>
+                )}
                 <button
                   type="submit"
-                  className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl text-sm transition-colors"
+                  disabled={subLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors"
                 >
-                  Підписатися
+                  {subLoading ? (
+                    <><Loader2 size={15} className="animate-spin" /> Завантаження…</>
+                  ) : (
+                    "Підписатися"
+                  )}
                 </button>
               </form>
             )}
@@ -178,6 +207,15 @@ export function ShopFooter() {
             <p className="text-gray-600 text-xs mt-3">
               Без спаму. Відписатися можна будь-коли.
             </p>
+
+            {/* Wishlist shortcut */}
+            <Link
+              href="/wishlist"
+              className="mt-4 flex items-center gap-2 text-gray-400 hover:text-rose-400 text-sm transition-colors group"
+            >
+              <Heart size={14} className="text-rose-500 group-hover:fill-rose-400 transition-all" />
+              Список бажань
+            </Link>
           </div>
         </div>
 

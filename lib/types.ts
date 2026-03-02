@@ -33,6 +33,8 @@ export interface CheckoutRequestBody {
   warehouse: string;
   /** Optional free-text comment */
   comment?: string;
+  /** Optional customer email for confirmation */
+  email?: string;
   /** Cart items */
   items: Array<Pick<CartItem, "id" | "name" | "price" | "quantity">>;
   /** Pre-calculated total (used as a double-check; server recalculates anyway) */

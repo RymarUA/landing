@@ -45,6 +45,9 @@ export const checkoutSchema = z.object({
 
   /** Optional free-text comment to the order */
   comment: z.string().trim().max(500, "Коментар занадто довгий").optional(),
+
+  /** Optional customer email for order confirmation */
+  email: z.string().trim().email("Невірний формат email").optional().or(z.literal("")),
 });
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>;

@@ -1,34 +1,45 @@
 import { MetadataRoute } from "next";
+import { getCatalogProducts } from "@/lib/instagram-catalog";
+import { siteConfig } from "@/lib/site-config";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_URL || "https://kleap.co";
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = siteConfig.url;
 
-  // Add your static pages here
-  const staticPages = [
-    "",
-    // Uncomment pages as you enable them:
-    // '/pricing',
-    // '/blog',
-    // '/contact',
-    // '/login',
-    // '/signup',
+  /* ── Static pages ── */
+  const staticRoutes: MetadataRoute.Sitemap = [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 1.0,
+    },
+    {
+      url: `${baseUrl}/checkout`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/wishlist`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.4,
+    },
   ];
 
-  const staticRoutes = staticPages.map((route) => ({
-    url: `${baseUrl}${route}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: route === "" ? 1 : 0.8,
-  }));
+  /* ── Dynamic product pages ── */
+  let productRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const products = await getCatalogProducts();
+    productRoutes = products.map((p) => ({
+      url: `${baseUrl}/product/${p.id}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    }));
+  } catch (err) {
+    console.error("[sitemap] Failed to fetch products:", err);
+  }
 
-  // Add dynamic routes here (e.g., blog posts)
-  // const blogPosts = await getBlogPosts()
-  // const dynamicRoutes = blogPosts.map((post) => ({
-  //   url: `${baseUrl}/blog/${post.slug}`,
-  //   lastModified: post.updatedAt,
-  //   changeFrequency: 'weekly' as const,
-  //   priority: 0.6,
-  // }))
-
-  return [...staticRoutes];
+  return [...staticRoutes, ...productRoutes];
 }

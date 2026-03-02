@@ -1,46 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ShoppingCart,
-  ChevronLeft,
-  Trash2,
-  Loader2,
-  CreditCard,
-  ExternalLink,
+  ShoppingCart, ChevronLeft, Trash2, Loader2,
+  CreditCard, ExternalLink, Shield, Truck, Video, Search, MapPin
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { checkoutSchema, type CheckoutFormData } from "@/lib/checkout-schema";
+import { useSavedAddresses } from "@/lib/use-saved-addresses";
+import { trackInitiateCheckout } from "@/components/analytics";
 import type { CheckoutResponseSuccess, CheckoutResponseError } from "@/lib/types";
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Reusable field wrapper
-   ───────────────────────────────────────────────────────────────────────── */
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
+/* ─── API Helpers (вынесены наружу для чистоты) ─── */
+const fetchNPCities = async (query: string) => {
+  const res = await fetch("/api/novaposhta", {
+    method: "POST",
+    body: JSON.stringify({
+      modelName: "Address",
+      calledMethod: "getCities",
+      methodProperties: { FindByString: query, Limit: "20" },
+    }),
+  });
+  const json = await res.json();
+  return json.success ? json.data : [];
+};
+
+const fetchNPWarehouses = async (cityRef: string, query: string) => {
+  const res = await fetch("/api/novaposhta", {
+    method: "POST",
+    body: JSON.stringify({
+      modelName: "Address",
+      calledMethod: "getWarehouses",
+      methodProperties: { CityRef: cityRef, FindByString: query, Limit: "50" },
+    }),
+  });
+  const json = await res.json();
+  return json.success ? json.data : [];
+};
+
+/* ─── Field wrapper ─── */
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 relative">
       <label className="text-sm font-semibold text-gray-700">{label}</label>
       {children}
-      {error && <p className="text-xs text-rose-500 font-medium mt-0.5">{error}</p>}
+      {error && <p className="text-xs text-orange-500 font-medium mt-0.5">{error}</p>}
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Empty cart state
-   ───────────────────────────────────────────────────────────────────────── */
+/* ─── Screens (Empty/Redirect) ─── */
 function EmptyCartScreen() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
@@ -49,337 +62,305 @@ function EmptyCartScreen() {
           <ShoppingCart size={40} className="text-gray-300" />
         </div>
         <h1 className="text-2xl font-black text-gray-900 mb-2">Кошик порожній</h1>
-        <p className="text-gray-500 mb-8 text-sm">
-          Додайте товари до кошика, щоб перейти до оплати.
-        </p>
-        <Link
-          href="/#catalog"
-          className="inline-flex items-center justify-center gap-2 bg-rose-500 text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-rose-600 transition-colors"
-        >
-          <ShoppingCart size={18} />
-          До каталогу
+        <p className="text-gray-500 mb-8 text-sm">Додайте товари до кошика, щоб перейти до оплати.</p>
+        <Link href="/#catalog" className="inline-flex items-center justify-center gap-2 bg-orange-500 text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-orange-600 transition-colors shadow-lg">
+          <ShoppingCart size={18} /> До каталогу
         </Link>
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Redirecting to WayForPay screen
-   ───────────────────────────────────────────────────────────────────────── */
 function RedirectingScreen() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
       <div className="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
-        <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Loader2 size={40} className="text-rose-500 animate-spin" />
+        <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Loader2 size={40} className="text-orange-500 animate-spin" />
         </div>
         <h1 className="text-2xl font-black text-gray-900 mb-2">Замовлення створено!</h1>
-        <p className="text-gray-500 text-sm leading-relaxed">
-          Перенаправляємо вас на сторінку оплати WayForPay…
-        </p>
+        <p className="text-gray-500 text-sm leading-relaxed">Перенаправляємо вас на сторінку оплати WayForPay…</p>
         <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400">
-          <ExternalLink size={13} />
-          secure.wayforpay.com
+          <ExternalLink size={13} /> secure.wayforpay.com
         </div>
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Main checkout page
-   ───────────────────────────────────────────────────────────────────────── */
+/* ─── Main Component ─── */
 export default function CheckoutPage() {
-  const { items, totalCount, totalPrice, removeItem, clearCart } = useCart();
+  const { items, totalCount, totalPrice, removeItem } = useCart();
+  const { saved: savedAddress, save: saveAddress, hydrated: addressHydrated } = useSavedAddresses();
   const [submitting, setSubmitting] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  // Состояние Новой Почты
+  const [cities, setCities] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedCityRef, setSelectedCityRef] = useState<string>("");
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
+  const [showCityResults, setShowCityResults] = useState(false);
+
+  const sessionId = useRef<string>("");
+  const abandonedRegistered = useRef(false);
 
   const {
     register,
     handleSubmit,
+    watch,
+    setValue, // ИЗВЛЕКАЕМ setValue
     formState: { errors },
-  } = useForm<CheckoutFormData>({
-    resolver: zodResolver(checkoutSchema),
-  });
+  } = useForm<CheckoutFormData>({ resolver: zodResolver(checkoutSchema) });
+
+  const nameValue = watch("name") ?? "";
+  const phoneValue = watch("phone") ?? "";
+  const cityValue = watch("city") ?? "";
+
+  useEffect(() => {
+    setMounted(true);
+    sessionId.current = crypto.randomUUID();
+  }, []);
+
+  // Поиск города
+  const onCitySearch = async (val: string) => {
+    if (val.length < 2) {
+      setCities([]);
+      setShowCityResults(false);
+      return;
+    }
+    setLoadingCities(true);
+    const data = await fetchNPCities(val);
+    setCities(data);
+    setShowCityResults(true);
+    setLoadingCities(false);
+  };
+
+  // Выбор города
+  const onCitySelect = async (city: any) => {
+    setSelectedCityRef(city.Ref);
+    setValue("city", city.Description, { shouldValidate: true });
+    setShowCityResults(false);
+    
+    setLoadingWarehouses(true);
+    const data = await fetchNPWarehouses(city.Ref, "");
+    setWarehouses(data);
+    setLoadingWarehouses(false);
+  };
+
+  const registerAbandonedCart = useCallback(
+    async (name: string, phone: string) => {
+      if (abandonedRegistered.current || !phone || items.length === 0) return;
+      abandonedRegistered.current = true;
+      try {
+        await fetch("/api/abandoned-cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sessionId.current,
+            name: name || "—",
+            phone,
+            items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+            totalPrice,
+          }),
+        });
+      } catch {}
+    },
+    [items, totalPrice]
+  );
+
+  const cancelAbandonedCart = useCallback(async () => {
+    if (!abandonedRegistered.current) return;
+    try {
+      await fetch("/api/abandoned-cart", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sessionId.current }),
+      });
+    } catch {}
+  }, []);
 
   const onSubmit = async (data: CheckoutFormData) => {
     setSubmitting(true);
     setServerError(null);
+    trackInitiateCheckout({ value: totalPrice, numItems: totalCount });
 
     try {
+      await cancelAbandonedCart();
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          items: items.map((i) => ({
-            id: i.id,
-            name: i.name,
-            price: i.price,
-            quantity: i.quantity,
-          })),
+          items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
           totalPrice,
         }),
       });
 
-      const json: CheckoutResponseSuccess | CheckoutResponseError = await res.json();
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Помилка");
 
-      if (!res.ok || "error" in json) {
-        throw new Error((json as CheckoutResponseError).error ?? "Помилка оформлення замовлення");
-      }
+      saveAddress({ city: data.city, warehouse: data.warehouse, cityRef: selectedCityRef });
 
-      const { paymentUrl } = json as CheckoutResponseSuccess;
-
-      // Show redirecting screen, then send user to WayForPay
       setRedirecting(true);
-      setTimeout(() => {
-        clearCart(); // <-- Очищаем корзину перед переходом на оплату
-        window.location.href = paymentUrl;
-      }, 800);
-      // Small delay lets the UI flash the "redirecting" state before navigation
-      // В onSubmit:
-      setTimeout(() => {
-        clearCart(); // Очищаем корзину перед редиректом
-        window.location.href = paymentUrl;
-      }, 800);
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Сталася помилка. Спробуйте ще раз.";
-      setServerError(msg);
+      setTimeout(() => { window.location.href = json.paymentUrl; }, 800);
+    } catch (err: any) {
+      setServerError(err.message);
       setSubmitting(false);
     }
   };
 
-// Show redirecting screen while navigating to WayForPay
+  if (!mounted) return null;
+  if (totalCount === 0) return <EmptyCartScreen />;
   if (redirecting) return <RedirectingScreen />;
 
-  // Защита от Hydration Mismatch (ждем монтирования компонента)
-  if (!mounted) return null; 
-
-  // Show empty cart state
-  if (totalCount === 0) return <EmptyCartScreen />;
-
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-5xl mx-auto">
-
-        {/* ── Back link ── */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-8"
-        >
-          <ChevronLeft size={16} />
-          Повернутись до магазину
+        <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-6 transition-colors">
+          <ChevronLeft size={16} /> Назад до магазину
         </Link>
 
-        <h1 className="text-3xl font-black text-gray-900 mb-8">Оформлення замовлення</h1>
+        <h1 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-3">
+          Оформлення замовлення
+          <span className="text-sm font-semibold bg-orange-100 text-orange-600 px-3 py-1 rounded-full">{totalCount}</span>
+        </h1>
 
         <div className="grid lg:grid-cols-5 gap-8">
-
-          {/* ─────────────────────────────────────────
-              Left column: contact + delivery form
-              ───────────────────────────────────────── */}
-          <div className="lg:col-span-3 flex flex-col gap-6">
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
-
-              {/* Contact info */}
-              <div className="bg-white rounded-3xl shadow-sm p-6 flex flex-col gap-5">
-                <h2 className="text-lg font-black text-gray-900">Контактні дані</h2>
-
+          {/* LEFT: FORM */}
+          <div className="lg:col-span-3 flex flex-col gap-5">
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+              
+              {/* 1. Contacts */}
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 bg-orange-100 rounded-full flex items-center justify-center text-xs font-black text-orange-600">1</div>
+                  <h2 className="text-lg font-black text-gray-900">Контактні дані</h2>
+                </div>
                 <Field label="Ваше ім'я *" error={errors.name?.message}>
-                  <input
-                    {...register("name")}
-                    placeholder="Наприклад: Олена Коваль"
-                    autoComplete="name"
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
-                      errors.name ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  />
+                  <input {...register("name")} placeholder="Наприклад: Олена Коваль" className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition" />
                 </Field>
-
                 <Field label="Телефон *" error={errors.phone?.message}>
-                  <input
-                    {...register("phone")}
-                    placeholder="+380671234567"
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
-                      errors.phone ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  />
+                  <input {...register("phone")} onBlur={() => registerAbandonedCart(nameValue, phoneValue)} placeholder="+380..." className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition" />
                 </Field>
               </div>
 
-              {/* Delivery */}
-              <div className="bg-white rounded-3xl shadow-sm p-6 flex flex-col gap-5">
-                <h2 className="text-lg font-black text-gray-900">Доставка Новою Поштою</h2>
+              {/* 2. Delivery */}
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-5 overflow-visible">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 bg-orange-100 rounded-full flex items-center justify-center text-xs font-black text-orange-600">2</div>
+                  <h2 className="text-lg font-black text-gray-900">Доставка Новою Поштою</h2>
+                </div>
 
+                {addressHydrated && savedAddress && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setValue("city", savedAddress.city, { shouldValidate: true });
+                      setValue("warehouse", savedAddress.warehouse, { shouldValidate: true });
+                      if (savedAddress.cityRef) {
+                        setSelectedCityRef(savedAddress.cityRef);
+                        setLoadingWarehouses(true);
+                        const list = await fetchNPWarehouses(savedAddress.cityRef, "");
+                        setWarehouses(list);
+                        setLoadingWarehouses(false);
+                      }
+                    }}
+                    className="flex items-center gap-2 text-sm font-semibold text-orange-600 hover:text-orange-700"
+                  >
+                    <MapPin size={16} />
+                    Використати збережену адресу
+                  </button>
+                )}
+
+                {/* City Search */}
                 <Field label="Місто *" error={errors.city?.message}>
-                  <input
-                    {...register("city")}
-                    placeholder="Наприклад: Одеса"
-                    autoComplete="address-level2"
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
-                      errors.city ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  />
+                  <div className="relative">
+                    <input
+                      value={cityValue}
+                      placeholder="Почніть вводити назву міста..."
+                      autoComplete="off"
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setValue("city", v, { shouldValidate: true });
+                        onCitySearch(v);
+                      }}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition"
+                    />
+                    {loadingCities && <Loader2 className="absolute right-3 top-3 animate-spin text-orange-500" size={18} />}
+                    
+                    {showCityResults && cities.length > 0 && (
+                      <div className="absolute z-[100] w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden">
+                        {cities.map((city) => (
+                          <div 
+                            key={city.Ref} 
+                            onClick={() => onCitySelect(city)} 
+                            className="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm border-b border-gray-50 last:border-none transition-colors flex items-center gap-2"
+                          >
+                            <MapPin size={14} className="text-gray-400" />
+                            {city.Description}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </Field>
 
-                <Field label="Відділення / поштомат *" error={errors.warehouse?.message}>
-                  <input
-                    {...register("warehouse")}
-                    placeholder="Наприклад: Відділення №5 або Поштомат №2345"
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
-                      errors.warehouse ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  />
-                </Field>
-
-                <Field label="Email для підтвердження (необов'язково)" error={(errors as Record<string, {message?: string}>).email?.message}>
-                  <input
-                    {...register("email")}
-                    type="email"
-                    placeholder="your@email.com"
-                    autoComplete="email"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition hover:border-gray-300"
-                  />
-                </Field>
-
-                <Field label="Коментар до замовлення" error={errors.comment?.message}>
-                  <textarea
-                    {...register("comment")}
-                    rows={3}
-                    placeholder="Додаткові побажання або уточнення (необов'язково)"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition hover:border-gray-300 resize-none"
-                  />
+                {/* Warehouse Select */}
+                <Field label="Відділення або поштомат *" error={errors.warehouse?.message}>
+                  <div className="relative">
+                    <select
+                      {...register("warehouse")}
+                      disabled={!selectedCityRef || loadingWarehouses}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:ring-2 focus:ring-orange-400 outline-none disabled:bg-gray-50 transition appearance-none cursor-pointer"
+                    >
+                      <option value="">{loadingWarehouses ? "Завантаження..." : "Оберіть відділення"}</option>
+                      {warehouses.map((wh) => (
+                        <option key={wh.Ref} value={wh.Description}>{wh.Description}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
+                  </div>
                 </Field>
               </div>
 
-              {/* Payment info banner */}
-              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
-                <CreditCard size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-bold text-blue-800 mb-0.5">Безпечна оплата через WayForPay</p>
-                  <p className="text-xs text-blue-600 leading-relaxed">
-                    Після підтвердження замовлення ви будете перенаправлені на захищену сторінку
-                    оплати WayForPay. Підтримуються Visa, Mastercard, Apple Pay, Google Pay.
-                  </p>
-                </div>
-              </div>
-
-              {/* Server error */}
               {serverError && (
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm font-medium">
-                  ⚠️ {serverError}
-                </div>
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm font-medium">⚠️ {serverError}</div>
               )}
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex items-center justify-center gap-3 bg-rose-500 hover:bg-rose-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-base py-4 rounded-2xl transition-colors shadow-lg shadow-rose-200"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" />
-                    Оформлюємо…
-                  </>
-                ) : (
-                  <>
-                    <CreditCard size={20} />
-                    Перейти до оплати
-                  </>
-                )}
+              <button type="submit" disabled={submitting} className="flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98]">
+                {submitting ? <Loader2 size={20} className="animate-spin" /> : <><CreditCard size={20} /> Оплатити {totalPrice.toLocaleString()} грн</>}
               </button>
-
-              <p className="text-xs text-gray-400 text-center leading-relaxed">
-                Натискаючи кнопку, ви погоджуєтесь з умовами доставки та оплати.
-                <br />
-                Оплата здійснюється через захищений шлюз WayForPay.
-              </p>
             </form>
           </div>
 
-          {/* ─────────────────────────────────────────
-              Right column: order summary
-              ───────────────────────────────────────── */}
+          {/* RIGHT: SUMMARY */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-3xl shadow-sm p-6 sticky top-24">
-              <h2 className="text-lg font-black text-gray-900 mb-5">
-                Ваше замовлення{" "}
-                <span className="text-rose-500">
-                  ({totalCount} {totalCount === 1 ? "товар" : totalCount < 5 ? "товари" : "товарів"})
-                </span>
-              </h2>
-
-              {/* Items list */}
-              <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1 mb-5">
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sticky top-24">
+              <h2 className="text-base font-black text-gray-900 mb-4">Ваше замовлення</h2>
+              <div className="flex flex-col gap-3 max-h-72 overflow-y-auto mb-5 scrollbar-thin">
                 {items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3">
-                    <div className="relative w-14 h-14 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        sizes="56px"
-                        className="object-cover"
-                      />
+                  <div key={`${item.id}-${item.size ?? ""}`} className="flex items-center gap-3 group">
+                    <div className="relative w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                      <Image src={item.image} alt={item.name} fill sizes="48px" className="object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2">
-                        {item.name}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">× {item.quantity}</p>
+                      <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                      <p className="text-xs text-gray-400">× {item.quantity}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className="text-sm font-black text-gray-900 whitespace-nowrap">
-                        {(item.price * item.quantity).toLocaleString("uk-UA")} грн
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeItem(item.id)}
-                        className="text-gray-300 hover:text-rose-500 transition-colors"
-                        title="Видалити товар"
-                        aria-label="Видалити товар"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                    <div className="text-sm font-black text-gray-900">{(item.price * item.quantity).toLocaleString()} грн</div>
                   </div>
                 ))}
               </div>
-
-              {/* Totals */}
-              <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>Доставка</span>
-                  <span className="text-green-600 font-semibold">За тарифами НП</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-black text-gray-900">Разом:</span>
-                  <span className="text-2xl font-black text-rose-500">
-                    {totalPrice.toLocaleString("uk-UA")} грн
-                  </span>
-                </div>
-              </div>
-
-              {/* WayForPay badge */}
-              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
-                <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-400" fill="currentColor">
-                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4l6 2.67V11c0 4.12-2.79 7.96-6 9.12C8.79 18.96 6 15.12 6 11V7.67L12 5zm-1 4v4h2V9h-2zm0 5v2h2v-2h-2z" />
-                </svg>
-                Захищено WayForPay SSL
+              <div className="border-t border-gray-100 pt-4 space-y-2">
+                <div className="flex justify-between text-sm text-gray-500"><span>Доставка</span><span className="text-green-600 font-semibold">За тарифами НП</span></div>
+                <div className="flex justify-between items-center"><span className="font-black text-gray-900">Разом:</span><span className="text-xl font-black text-orange-500">{totalPrice.toLocaleString()} грн</span></div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>

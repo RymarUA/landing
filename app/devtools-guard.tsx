@@ -40,9 +40,11 @@ export function DevToolsGuard() {
       hook.supportsFiber = true;
     }
 
-    console.log(
-      "✅ DevTools guard active - protected against broken extensions",
-    );
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "✅ DevTools guard active - protected against broken extensions",
+      );
+    }
   }, []);
 
   return null; // This component renders nothing

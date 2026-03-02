@@ -18,7 +18,7 @@ export function AnnouncementBar() {
   if (!visible) return null;
 
   return (
-    <div className="relative bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white text-sm font-semibold py-2.5 px-4 text-center">
+    <div className="relative bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 text-white text-sm font-semibold py-2.5 px-4 text-center">
       {/* Marquee text on mobile, static on desktop */}
       <div className="flex items-center justify-center gap-3 flex-wrap">
         <span className="text-amber-100">🔥</span>

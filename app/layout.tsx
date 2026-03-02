@@ -12,6 +12,9 @@ import { StickyHeader } from "@/components/sticky-header";
 import { AnnouncementBar } from "@/components/announcement-bar";
 import { CookieBanner } from "@/components/cookie-banner";
 import { WishlistProvider } from "@/components/wishlist-context";
+import { Analytics } from "@/components/analytics";
+import { DiscountPopup } from "@/components/discount-popup";
+import { MotionWrapper } from "@/components/motion-wrapper";
 
 export const metadata: Metadata = {
   title: {
@@ -62,7 +65,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${siteConfig.name} - ${siteConfig.tagline}`,
     description: siteConfig.description,
-    creator: siteConfig.twitter,
+    creator: "@familyhub_market",
     ...(siteConfig.ogImage ? { images: [siteConfig.ogImage] } : {}),
   },
   metadataBase: new URL(siteConfig.url),
@@ -77,7 +80,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="uk" suppressHydrationWarning>
       <head suppressHydrationWarning>
         {/* Force light mode — prevents OS dark theme from bleeding into the preview/screenshots */}
         <meta name="color-scheme" content="light only" />
@@ -137,17 +140,24 @@ export default function RootLayout({
         )}
         suppressHydrationWarning // Prevents browser extension conflicts
       >
+        <Analytics />
         <TailwindCDNClient />
         <DevToolsGuard />
         <CartProvider>
           <WishlistProvider>
             <AnnouncementBar />
             <StickyHeader />
-            <main className={siteConfig.showNavbar !== false ? "pt-24" : ""}>
+            <MotionWrapper
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className={siteConfig.showNavbar !== false ? "pt-24" : ""}
+            >
               {siteConfig.showNavbar !== false && <NavBar />}
               {children}
-            </main>
+            </MotionWrapper>
             <CartWidget />
+            <DiscountPopup />
             <CookieBanner />
           </WishlistProvider>
         </CartProvider>

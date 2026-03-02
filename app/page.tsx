@@ -16,8 +16,12 @@ import { ShopFaq } from "@/components/shop-faq";
 import { ShopFooter } from "@/components/shop-footer";
 import { ScrollReveal } from "@/components/scroll-reveal";
 
-export default async function Home() {
-  // Server-side catalog fetch (mock → real IG when INSTAGRAM_ACCESS_TOKEN is set)
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ ttn?: string }>;
+}) {
+  const params = await searchParams;
   const products = await getCatalogProducts();
 
   return (
@@ -30,7 +34,7 @@ export default async function Home() {
       </ScrollReveal>
 
       <ScrollReveal direction="up" delay={100}>
-        <ShopNovaPoshta />
+        <ShopNovaPoshta initialTtn={params.ttn} />
       </ScrollReveal>
 
       <ScrollReveal direction="up" delay={80}>

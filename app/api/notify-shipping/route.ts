@@ -1,42 +1,27 @@
 /**
  * POST /api/notify-shipping
  *
- * Internal admin endpoint to notify a customer that their order was shipped.
- * Protected by ADMIN_SECRET env var (passed as Authorization: Bearer <secret>).
+ * Admin-only: notify about shipment, update Sitniks to "shipped".
+ * Protected by x-admin-secret header.
  *
- * Body:
- *   { orderId, customerName, customerPhone, trackingNumber, estimatedDelivery? }
- *
- * ENV VARS:
- *   ADMIN_SECRET        — a random secret string set in Vercel to protect this endpoint
- *   TELEGRAM_BOT_TOKEN  — used by telegram-notify
- *   TELEGRAM_CHAT_ID    — used by telegram-notify
+ * Body: { phone, orderReference, ttn, estimatedDate? }
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { notifyOrderShipped, notifyAdmin } from "@/lib/telegram-notify";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const shippingSchema = z.object({
-  orderId: z.union([z.string().min(1), z.number()]),
-  customerName: z.string().min(1),
-  customerPhone: z.string().min(7),
-  trackingNumber: z.string().min(10, "Невірний формат ТТН"),
-  estimatedDelivery: z.string().optional(),
-});
+import { NextRequest, NextResponse } from "next/server";
+import { sendTelegramNotification } from "@/lib/telegram";
+import { updateSitniksOrder } from "@/lib/sitniks";
 
 export async function POST(req: NextRequest) {
-  /* ── Auth ── */
   const adminSecret = process.env.ADMIN_SECRET;
-  if (adminSecret) {
-    const auth = req.headers.get("authorization") ?? "";
-    const token = auth.replace(/^Bearer\s+/i, "");
-    if (token !== adminSecret) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const sent = req.headers.get("x-admin-secret") ?? "";
+
+  if (!adminSecret || sent !== adminSecret) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  /* ── Parse body ── */
   let body: unknown;
   try {
     body = await req.json();
@@ -44,31 +29,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const parsed = shippingSchema.safeParse(body);
-  if (!parsed.success) {
+  const b = body as Record<string, unknown>;
+  const phone = typeof b.phone === "string" ? b.phone.trim() : "";
+  const orderReference = typeof b.orderReference === "string" ? b.orderReference.trim() : "";
+  const ttn = typeof b.ttn === "string" ? b.ttn.trim() : "";
+  const estimatedDate = typeof b.estimatedDate === "string" ? b.estimatedDate.trim() : undefined;
+
+  if (!orderReference || !ttn) {
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
-      { status: 422 }
+      { error: "Потрібні orderReference та ttn" },
+      { status: 400 }
     );
   }
 
-  const data = parsed.data;
+  const msg = [
+    "📦 Замовлення " + orderReference + " відправлено",
+    "ТТН: " + ttn,
+    estimatedDate ? "Очікувана доставка: " + estimatedDate : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-  /* ── Send Telegram notification ── */
-  try {
-    await notifyOrderShipped({
-      orderId: data.orderId,
-      customerName: data.customerName,
-      customerPhone: data.customerPhone,
-      trackingNumber: data.trackingNumber,
-      estimatedDelivery: data.estimatedDelivery,
-    });
+  sendTelegramNotification(msg).catch((err) =>
+    console.error("[notify-shipping] Telegram failed:", err)
+  );
 
-    console.info(`[notify-shipping] Shipping notification sent for order #${data.orderId}`);
-    return NextResponse.json({ success: true, message: "Сповіщення надіслано" });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[notify-shipping] Failed:", msg);
-    return NextResponse.json({ error: "Помилка надсилання сповіщення", detail: msg }, { status: 500 });
-  }
+  await updateSitniksOrder(orderReference, "shipped");
+
+  return NextResponse.json({ ok: true });
 }

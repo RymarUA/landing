@@ -8,6 +8,10 @@ import {
   getCatalogProductById,
 } from "@/lib/instagram-catalog";
 import { AddToCartButton } from "./add-to-cart-button";
+import { MobileStickyBar } from "./mobile-sticky-bar";
+import { ProductImageLightbox } from "./product-image-lightbox";
+import { ShareButton } from "./share-button";
+import { RecentlyViewedBlock } from "./recently-viewed-block";
 import { siteConfig } from "@/lib/site-config";
 import {
   JsonLd,
@@ -15,17 +19,11 @@ import {
   generateBreadcrumbSchema,
 } from "@/components/seo/JsonLd";
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Static params — pre-render all product pages at build time
-   ───────────────────────────────────────────────────────────────────────── */
 export async function generateStaticParams() {
   const products = await getCatalogProducts();
   return products.map((p) => ({ id: String(p.id) }));
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Dynamic metadata per product (SEO)
-   ───────────────────────────────────────────────────────────────────────── */
 export async function generateMetadata({
   params,
 }: {
@@ -64,9 +62,6 @@ export async function generateMetadata({
   };
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Product Page (Server Component)
-   ───────────────────────────────────────────────────────────────────────── */
 export default async function ProductPage({
   params,
 }: {
@@ -80,13 +75,11 @@ export default async function ProductPage({
     ? Math.round((1 - product.price / product.oldPrice) * 100)
     : null;
 
-  // Related products: same category, excluding current
   const allProducts = await getCatalogProducts();
   const related = allProducts
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
 
-  /* ── Schema.org structured data ── */
   const productSchema = generateProductSchema({
     id: product.id,
     name: product.name,
@@ -108,16 +101,16 @@ export default async function ProductPage({
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-28 md:pb-0">
       <JsonLd id="product-schema" data={productSchema} />
       <JsonLd id="breadcrumb-schema" data={breadcrumbSchema} />
 
       {/* ── Breadcrumb ── */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2 text-sm text-gray-500">
-          <Link href="/" className="hover:text-rose-500 transition-colors">Головна</Link>
+          <Link href="/" className="hover:text-orange-500 transition-colors">Головна</Link>
           <span>/</span>
-          <Link href="/#catalog" className="hover:text-rose-500 transition-colors">Каталог</Link>
+          <Link href="/#catalog" className="hover:text-orange-500 transition-colors">Каталог</Link>
           <span>/</span>
           <span className="text-gray-900 font-medium truncate max-w-[200px]">{product.name}</span>
         </div>
@@ -135,17 +128,8 @@ export default async function ProductPage({
         {/* ── Main Product Card ── */}
         <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
           <div className="grid md:grid-cols-2 gap-0">
-
-            {/* Image */}
-            <div className="relative h-80 md:h-auto min-h-[360px]">
-              <Image
-                src={product.image}
-                alt={product.name}
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover"
-                priority
-              />
+            {/* Image with lightbox */}
+            <ProductImageLightbox src={product.image} alt={product.name}>
               <div className="absolute top-4 left-4 flex flex-col gap-2">
                 {product.badge && (
                   <span className={`${product.badgeColor} text-white text-sm font-black px-3 py-1.5 rounded-full flex items-center gap-1.5`}>
@@ -160,7 +144,7 @@ export default async function ProductPage({
                   </span>
                 )}
               </div>
-              {product.stock <= 5 && (
+              {product.stock <= 5 && product.stock > 0 && (
                 <div className="absolute bottom-4 left-4 right-4">
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-amber-700 text-sm font-semibold flex items-center gap-2">
                     <Flame size={14} />
@@ -168,12 +152,12 @@ export default async function ProductPage({
                   </div>
                 </div>
               )}
-            </div>
+            </ProductImageLightbox>
 
             {/* Info */}
             <div className="p-8 flex flex-col gap-5">
               <div>
-                <p className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-1">{product.category}</p>
+                <p className="text-xs font-bold text-orange-500 uppercase tracking-widest mb-1">{product.category}</p>
                 <h1 className="text-2xl font-black text-gray-900 leading-tight">{product.name}</h1>
               </div>
 
@@ -202,16 +186,21 @@ export default async function ProductPage({
 
               <p className="text-gray-600 leading-relaxed text-sm">{product.description}</p>
 
-              {/* Add to cart + Buy now (client component) */}
-              <AddToCartButton product={product} />
+              <div data-main-cta>
+                <AddToCartButton product={product} />
+              </div>
 
-              {/* IG fallback (only if product originated from Instagram) */}
+              <div className="flex gap-3">
+                <ShareButton title={product.name} path={`/product/${product.id}`} />
+              </div>
+
+              {/* IG fallback */}
               {product.instagramPermalink && (
                 <a
                   href={product.instagramPermalink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 border border-gray-200 text-gray-500 hover:border-rose-300 hover:text-rose-500 font-semibold py-3 rounded-2xl transition-all text-sm"
+                  className="flex items-center justify-center gap-2 border border-gray-200 text-gray-500 hover:border-orange-300 hover:text-orange-500 font-semibold py-3 rounded-2xl transition-all text-sm"
                 >
                   Переглянути пост в Instagram
                 </a>
@@ -225,7 +214,9 @@ export default async function ProductPage({
           </div>
         </div>
 
-        {/* ── Related Products ── */}
+        <RecentlyViewedBlock products={allProducts} currentId={product.id} />
+
+        {/* Related Products */}
         {related.length > 0 && (
           <div className="mt-14">
             <h2 className="text-2xl font-black text-gray-900 mb-6">Схожі товари</h2>
@@ -259,9 +250,11 @@ export default async function ProductPage({
                       <span className="text-xs text-gray-400 ml-0.5">({rp.reviews})</span>
                     </div>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-rose-500 font-black">{rp.price.toLocaleString("uk-UA")} грн</span>
+                      <span className="text-orange-500 font-black">{rp.price.toLocaleString("uk-UA")} грн</span>
                       {rp.oldPrice && (
-                        <span className="text-gray-400 text-xs line-through">{rp.oldPrice} грн</span>
+                        <span className="text-gray-400 text-xs line-through">
+                          {rp.oldPrice.toLocaleString("uk-UA")} грн
+                        </span>
                       )}
                     </div>
                   </div>
@@ -271,6 +264,9 @@ export default async function ProductPage({
           </div>
         )}
       </div>
+
+      {/* ── Mobile Sticky Bar — client component with shared state ── */}
+      <MobileStickyBar product={product} />
     </div>
   );
 }

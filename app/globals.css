@@ -427,12 +427,12 @@ html {
 }
 
 /* Prose size variants */
-.prose-lg {
+.porange-lg {
   font-size: 1.25rem;
   line-height: 1.8;
 }
 
-.prose-xl {
+.porange-xl {
   font-size: 1.375rem;
   line-height: 1.8;
 }

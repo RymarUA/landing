@@ -14,20 +14,27 @@ interface Props {
 export function WishlistPageClient({ allProducts }: Props) {
   const { ids, toggle, hydrated } = useWishlist();
   const { addItem } = useCart();
-  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  const [selectedSizes, setSelectedSizes] = useState<Record<number, string>>({});
 
   const items = allProducts.filter((p) => ids.has(p.id));
 
+  const getSize = (product: CatalogProduct) =>
+    selectedSizes[product.id] ?? product.sizes[0] ?? "";
+
   const handleAddToCart = (product: CatalogProduct) => {
-    addItem({ id: product.id, name: product.name, price: product.price, image: product.image });
-    setAddedIds((prev) => new Set(prev).add(product.id));
-    setTimeout(() => {
-      setAddedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(product.id);
-        return next;
-      });
-    }, 1200);
+    const size = product.sizes.length > 0 ? getSize(product) : undefined;
+    const key = `${product.id}-${size ?? ""}`;
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      size: size ?? null,
+      oldPrice: product.oldPrice ?? null,
+    });
+    setAddedIds((prev) => new Set(prev).add(key));
+    setTimeout(() => setAddedIds((prev) => { const n = new Set(prev); n.delete(key); return n; }), 1200);
   };
 
   if (!hydrated) {
@@ -44,7 +51,7 @@ export function WishlistPageClient({ allProducts }: Props) {
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Heart className="text-rose-500" size={24} fill="currentColor" />
+            <Heart className="text-orange-500" size={24} fill="currentColor" />
             <div>
               <h1 className="text-xl font-black text-gray-900">Список бажань</h1>
               <p className="text-sm text-gray-400">{items.length} товар{items.length === 1 ? "" : items.length >= 5 ? "ів" : "и"}</p>
@@ -52,7 +59,7 @@ export function WishlistPageClient({ allProducts }: Props) {
           </div>
           <Link
             href="/#catalog"
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-rose-500 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-orange-500 transition-colors"
           >
             <ArrowLeft size={16} />
             До каталогу
@@ -64,8 +71,8 @@ export function WishlistPageClient({ allProducts }: Props) {
         {items.length === 0 ? (
           /* ── Empty state ── */
           <div className="flex flex-col items-center justify-center py-24 gap-5 text-center">
-            <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center">
-              <PackageOpen size={36} className="text-rose-300" />
+            <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center">
+              <PackageOpen size={36} className="text-orange-300" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-800 mb-1">Список бажань порожній</h2>
@@ -75,7 +82,7 @@ export function WishlistPageClient({ allProducts }: Props) {
             </div>
             <Link
               href="/#catalog"
-              className="bg-rose-500 hover:bg-rose-600 text-white font-bold px-6 py-3 rounded-2xl transition-colors"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3 rounded-2xl transition-colors"
             >
               Переглянути каталог
             </Link>
@@ -96,9 +103,10 @@ export function WishlistPageClient({ allProducts }: Props) {
                   <button
                     onClick={() => toggle(product.id)}
                     title="Видалити зі списку бажань"
-                    className="absolute top-2 right-2 z-10 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow hover:bg-rose-50 transition-colors"
+                    aria-label="Видалити зі списку бажань"
+                    className="absolute top-2 right-2 z-10 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow hover:bg-orange-50 transition-colors"
                   >
-                    <Trash2 size={14} className="text-rose-400" />
+                    <Trash2 size={14} className="text-orange-400" />
                   </button>
 
                   {/* Image */}
@@ -128,28 +136,49 @@ export function WishlistPageClient({ allProducts }: Props) {
                   <div className="p-3">
                     <p className="text-xs text-gray-400 mb-0.5">{product.category}</p>
                     <Link href={`/product/${product.id}`}>
-                      <p className="text-sm font-bold text-gray-900 leading-tight mb-1.5 line-clamp-2 hover:text-rose-500 transition-colors">
+                      <p className="text-sm font-bold text-gray-900 leading-tight mb-1.5 line-clamp-2 hover:text-orange-500 transition-colors">
                         {product.name}
                       </p>
                     </Link>
 
                     <div className="flex items-baseline gap-2 mb-3">
-                      <span className="text-rose-500 font-black">{product.price.toLocaleString("uk-UA")} грн</span>
+                      <span className="text-orange-500 font-black">{product.price.toLocaleString("uk-UA")} грн</span>
                       {product.oldPrice && (
                         <span className="text-gray-400 text-xs line-through">{product.oldPrice} грн</span>
                       )}
                     </div>
 
+                    {product.sizes.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Розмір</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {product.sizes.map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => setSelectedSizes((prev) => ({ ...prev, [product.id]: s }))}
+                              className={`w-8 h-8 rounded-lg text-xs font-bold border-2 transition-all ${
+                                getSize(product) === s
+                                  ? "border-orange-500 bg-orange-500 text-white"
+                                  : "border-gray-200 text-gray-600 hover:border-orange-300"
+                              }`}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <button
                       onClick={() => handleAddToCart(product)}
                       className={`w-full flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-xl transition-all duration-200 ${
-                        addedIds.has(product.id)
+                        addedIds.has(`${product.id}-${getSize(product)}`)
                           ? "bg-green-500 text-white"
                           : "bg-gray-900 hover:bg-gray-800 text-white"
                       }`}
                     >
-                      <ShoppingCart size={13} className={addedIds.has(product.id) ? "animate-bounce" : ""} />
-                      {addedIds.has(product.id) ? "Додано!" : "До кошика"}
+                      <ShoppingCart size={13} className={addedIds.has(`${product.id}-${getSize(product)}`) ? "animate-bounce" : ""} />
+                      {addedIds.has(`${product.id}-${getSize(product)}`) ? "Додано!" : "До кошика"}
                     </button>
                   </div>
                 </div>

@@ -1,68 +1,105 @@
 /**
- * app/api/checkout/route.ts
- *
  * POST /api/checkout
  *
- * Checkout flow:
- *   1. Validate request body (zod)
- *   2. Create order in Sitniks CRM with status "Очікує оплати"
- *   3. Build WayForPay payment URL using the new Sitniks order ID as orderReference
- *   4. Return { paymentUrl, orderId } → frontend redirects user to paymentUrl
- *
- * ENV VARS:
- *   SITNIKS_API_URL              — e.g. https://my-store.sitniks.com/api/v1
- *   SITNIKS_API_KEY              — Bearer token from Sitniks Settings → API
- *   WAYFORPAY_MERCHANT_ACCOUNT   — WayForPay merchant account name
- *   WAYFORPAY_MERCHANT_DOMAIN    — your store domain
- *   WAYFORPAY_SECRET_KEY         — WayForPay HMAC-MD5 secret key
- *   NEXT_PUBLIC_SITE_URL         — public base URL (e.g. https://familyhubmarket.com)
+ * Creates payment: orderReference = FHM-{Date.now()}, creates Sitniks order,
+ * builds WayForPay form/redirect, sends Telegram + email in parallel.
+ * Returns { orderReference, wayforpay, paymentUrl }.
  */
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { checkoutSchema } from "@/lib/checkout-schema";
 import { createSitniksOrder, normalizePhone } from "@/lib/sitniks";
-import { buildWfpPaymentUrl, getWfpConfig } from "@/lib/wayforpay";
-import { notifyNewOrder } from "@/lib/telegram-notify";
-import { sendOrderConfirmationEmail, sendOrderAdminEmail } from "@/lib/email";
-import type {
-  CheckoutRequestBody,
-  CheckoutResponseError,
-  CheckoutResponseSuccess,
-  SitniksCreateOrderPayload,
-  WayForPayPaymentParams,
-} from "@/lib/types";
+import { buildWfpSignature, buildWfpPaymentUrl, getWfpConfig } from "@/lib/wayforpay";
+import { sendTelegramNotification } from "@/lib/telegram";
+import { sendOrderConfirmation, sendAdminOrderCopy } from "@/lib/email";
+import type { CheckoutResponseError, WayForPayPaymentParams } from "@/lib/types";
 
-/* ─────────────────────────────────────────────────────────────────────────
-   POST handler
-   ───────────────────────────────────────────────────────────────────────── */
+interface CheckoutItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  size?: string | null;
+}
+
+function normalizeBody(body: unknown): {
+  items: CheckoutItem[];
+  customer: { name: string; phone: string; email?: string };
+  delivery: { city: string; warehouse: string };
+} | null {
+  if (!body || typeof body !== "object") return null;
+  const b = body as Record<string, unknown>;
+  const items = Array.isArray(b.items) ? b.items : [];
+  const customer = b.customer && typeof b.customer === "object"
+    ? (b.customer as Record<string, unknown>)
+    : null;
+  const delivery = b.delivery && typeof b.delivery === "object"
+    ? (b.delivery as Record<string, unknown>)
+    : null;
+
+  if (customer && delivery) {
+    const name = String(customer.name ?? "").trim();
+    const phone = String(customer.phone ?? "").trim();
+    const email = customer.email != null ? String(customer.email).trim() : undefined;
+    const city = String(delivery.city ?? "").trim();
+    const warehouse = String(delivery.warehouse ?? "").trim();
+    if (!name || !phone || !city || !warehouse) return null;
+    return {
+      items: items as CheckoutItem[],
+      customer: { name, phone, email: email || undefined },
+      delivery: { city, warehouse },
+    };
+  }
+
+  const parsed = checkoutSchema.safeParse(body);
+  if (!parsed.success) return null;
+  const { name, phone, city, warehouse } = parsed.data;
+  const email = (b.email != null && b.email !== "") ? String(b.email).trim() : undefined;
+  return {
+    items: items as CheckoutItem[],
+    customer: { name, phone, email },
+    delivery: { city, warehouse },
+  };
+}
 
 export async function POST(req: NextRequest) {
-  /* ── 1. Parse & validate request body ── */
-  let body: CheckoutRequestBody;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return errorResponse("Невалідний JSON у тілі запиту", 400);
+    return NextResponse.json<CheckoutResponseError>(
+      { error: "Невалідний JSON у тілі запиту" },
+      { status: 400 }
+    );
   }
 
-  // Validate contact/delivery fields via zod
-  const parsed = checkoutSchema.safeParse(body);
-  if (!parsed.success) {
+  const data = normalizeBody(body);
+  if (!data) {
     return NextResponse.json<CheckoutResponseError>(
-      { error: "Невалідні дані форми", details: parsed.error.flatten().fieldErrors },
+      { error: "Невалідні дані форми" },
       { status: 422 }
     );
   }
 
-  const { name, phone, city, warehouse, comment } = parsed.data;
+  const { items, customer, delivery } = data;
 
-  // Validate cart items
-  const items = Array.isArray(body.items) ? body.items : [];
   if (items.length === 0) {
-    return errorResponse("Кошик порожній. Додайте товари перед оформленням.", 400);
+    return NextResponse.json<CheckoutResponseError>(
+      { error: "Кошик порожній. Додайте товари перед оформленням." },
+      { status: 400 }
+    );
   }
 
-  // Validate each item has required numeric fields
+  if (!customer.phone) {
+    return NextResponse.json<CheckoutResponseError>(
+      { error: "Вкажіть номер телефону" },
+      { status: 400 }
+    );
+  }
+
   for (const item of items) {
     if (
       typeof item.id !== "number" ||
@@ -72,131 +109,170 @@ export async function POST(req: NextRequest) {
       item.price <= 0 ||
       item.quantity <= 0
     ) {
-      return errorResponse("Один або більше товарів мають невірний формат.", 400);
+      return NextResponse.json<CheckoutResponseError>(
+        { error: "Один або більше товарів мають невірний формат." },
+        { status: 400 }
+      );
     }
   }
 
-  // Recalculate total server-side (never trust client total)
-  const totalPrice = items.reduce(
-    (sum, i) => sum + i.price * i.quantity,
-    0
-  );
+  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const orderReference = `FHM-${Date.now()}`;
 
-  /* ── 2. Create order in Sitniks CRM ── */
-  const sitniksPayload: SitniksCreateOrderPayload = {
-    contact_name: name,
-    contact_phone: normalizePhone(phone),
-    // delivery_address = city + warehouse for NovaPoshta
-    delivery_address: `${city}, ${warehouse}`,
-    comment: [
-      `Нова Пошта: ${city}, ${warehouse}`,
-      comment ? `Коментар покупця: ${comment}` : null,
-      `Оплата: WayForPay (online)`,
-    ]
-      .filter(Boolean)
-      .join(" | "),
-    status: "Очікує оплати",
-    items: items.map((item) => ({
-      sku: String(item.id),
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
+  const checkoutPayload = {
+    orderReference,
+    customer: {
+      name: customer.name,
+      phone: normalizePhone(customer.phone),
+      email: customer.email,
+    },
+    delivery: { city: delivery.city, warehouse: delivery.warehouse },
+    items: items.map((i) => ({
+      name: i.name,
+      price: i.price,
+      quantity: i.quantity,
+      size: i.size ?? null,
     })),
-    total_price: totalPrice,
-    source: "familyhub_landing",
+    total,
   };
 
-  let sitniksOrderId: string | number;
+  const WFP_RETRY_ATTEMPTS = 3;
+  const WFP_STEP_MS = 2000;
+  const CHECKOUT_TIMEOUT_MS = 20000;
+
+  const runCreateAndConfig = async () => {
+    let sitniksResult: { id: string | number } | null = null;
+    for (let attempt = 0; attempt < WFP_RETRY_ATTEMPTS; attempt++) {
+      sitniksResult = await createSitniksOrder(checkoutPayload);
+      if (sitniksResult) {
+        console.info("[checkout] Sitniks order created for", orderReference);
+        break;
+      }
+      if (attempt === WFP_RETRY_ATTEMPTS - 1) {
+        throw new Error("Sitniks create failed after " + WFP_RETRY_ATTEMPTS + " attempts");
+      }
+      await new Promise((r) => setTimeout(r, WFP_STEP_MS * (attempt + 1)));
+    }
+    return getWfpConfig();
+  };
+
+  let wfpConfig;
   try {
-    const sitniksOrder = await createSitniksOrder(sitniksPayload);
-    sitniksOrderId = sitniksOrder.id;
-    console.info(`[checkout] Sitniks order created: #${sitniksOrderId}`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Sitniks error";
-    console.error("[checkout] Sitniks createOrder failed:", msg);
-    return errorResponse(
-      "Помилка створення замовлення у CRM. Спробуйте пізніше або зверніться до нас в Instagram.",
-      502
+    wfpConfig = await Promise.race([
+      runCreateAndConfig(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Checkout timeout")), CHECKOUT_TIMEOUT_MS)
+      ),
+    ]);
+  } catch (err) {
+    console.error("[checkout]", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg === "Checkout timeout") {
+      return NextResponse.json<CheckoutResponseError>(
+        { error: "Час очікування вичерпано. Спробуйте ще раз." },
+        { status: 504 }
+      );
+    }
+    return NextResponse.json<CheckoutResponseError>(
+      { error: "Тимчасово не вдалося створити замовлення. Спробуйте ще раз або зверніться до нас." },
+      { status: 502 }
     );
   }
 
-  /* ── 3. Build WayForPay payment URL ── */
-  let paymentUrl: string;
-  try {
-    const wfp = getWfpConfig();
+  const siteUrl = wfpConfig.siteUrl;
+  const returnUrl = `${siteUrl}/checkout/success`;
+  const serviceUrl = `${siteUrl}/api/checkout/callback`;
 
-    const wfpParams: WayForPayPaymentParams = {
-      merchantAccount: wfp.merchantAccount,
-      merchantDomainName: wfp.merchantDomainName,
-      // Use Sitniks order ID as the unique order reference
-      orderReference: String(sitniksOrderId),
-      // Unix timestamp in seconds
-      orderDate: Math.floor(Date.now() / 1000),
-      amount: totalPrice,
-      currency: "UAH",
-      productName: items.map((i) => i.name),
-      productPrice: items.map((i) => i.price),
-      productCount: items.map((i) => i.quantity),
-      // After successful payment, WayForPay redirects to /checkout/success
-      returnUrl: `${wfp.siteUrl}/checkout/success?orderId=${sitniksOrderId}`,
-      // Async webhook for status updates
-      serviceUrl: `${wfp.siteUrl}/api/webhooks/wayforpay`,
-    };
+  const productName = items.map((i) => (i.size ? `${i.name} (розм. ${i.size})` : i.name));
+  const productPrice = items.map((i) => i.price);
+  const productCount = items.map((i) => i.quantity);
+  const orderDate = Math.floor(Date.now() / 1000);
 
-    paymentUrl = buildWfpPaymentUrl(wfpParams, wfp.secretKey);
-    console.info(`[checkout] WayForPay URL built for order #${sitniksOrderId}`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "WayForPay config error";
-    console.error("[checkout] WayForPay build failed:", msg);
-    return errorResponse(
-      "Помилка підключення платіжного шлюзу. Зверніться до підтримки.",
-      500
-    );
-  }
-
-  /* ── 4. Send notifications (non-blocking) ── */
-  const emailPayload = {
-    orderId: sitniksOrderId,
-    customerName: name,
-    customerEmail: body.email,       // optional field from form
-    phone: normalizePhone(phone),
-    city,
-    warehouse,
-    items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
-    totalPrice,
+  const wfpParams: WayForPayPaymentParams = {
+    merchantAccount: wfpConfig.merchantAccount,
+    merchantDomainName: wfpConfig.merchantDomainName,
+    orderReference,
+    orderDate,
+    amount: total,
+    currency: "UAH",
+    productName,
+    productPrice,
+    productCount,
+    returnUrl,
+    serviceUrl,
   };
 
-  // Telegram admin notification
-  notifyNewOrder({
-    orderId: sitniksOrderId,
-    name,
-    phone: normalizePhone(phone),
-    city,
-    warehouse,
-    comment,
-    items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
-    totalPrice,
-  }).catch((err) => console.error("[checkout] Telegram notify failed:", err));
+  const merchantSignature = buildWfpSignature(wfpParams, wfpConfig.secretKey);
+  const paymentUrl = buildWfpPaymentUrl(wfpParams, wfpConfig.secretKey);
 
-  // Email notifications (customer + admin)
-  sendOrderConfirmationEmail(emailPayload).catch((err) =>
-    console.error("[checkout] Customer email failed:", err)
-  );
-  sendOrderAdminEmail(emailPayload).catch((err) =>
-    console.error("[checkout] Admin email failed:", err)
+  const wayforpay = {
+    merchantAccount: wfpParams.merchantAccount,
+    merchantDomainName: wfpParams.merchantDomainName,
+    orderReference: wfpParams.orderReference,
+    orderDate: wfpParams.orderDate,
+    amount: wfpParams.amount,
+    currency: wfpParams.currency,
+    productName: wfpParams.productName,
+    productPrice: wfpParams.productPrice,
+    productCount: wfpParams.productCount,
+    merchantSignature,
+    language: "UA" as const,
+    returnUrl,
+    serviceUrl,
+  };
+
+  const phoneNorm = normalizePhone(customer.phone);
+
+  const telegramMessage = [
+    "🛒 Нове замовлення " + orderReference,
+    "",
+    "👤 " + customer.name,
+    "📞 " + phoneNorm,
+    customer.email ? "📧 " + customer.email : "",
+    "",
+    "📦 Товари:",
+    ...items.map(
+      (i) =>
+        `• ${i.size ? `${i.name} (розм. ${i.size})` : i.name} × ${i.quantity} — ${(i.price * i.quantity).toLocaleString("uk-UA")} грн`
+    ),
+    "",
+    "🏙 Доставка: " + delivery.city + ", Нова Пошта, " + delivery.warehouse,
+    "💰 Сума: " + total.toLocaleString("uk-UA") + " грн",
+    "",
+    "🔗 Статус оплати: очікується",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  sendTelegramNotification(telegramMessage).catch((err) =>
+    console.error("[checkout] Telegram failed:", err)
   );
 
-  /* ── 5. Return payment URL to frontend ── */
-  return NextResponse.json<CheckoutResponseSuccess>({
+  if (customer.email) {
+    sendOrderConfirmation({
+      to: customer.email,
+      customerName: customer.name,
+      orderReference,
+      items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity, size: i.size ?? null })),
+      total,
+      delivery: { city: delivery.city, warehouse: delivery.warehouse },
+    }).catch((err) => console.error("[checkout] Customer email failed:", err));
+  }
+
+  sendAdminOrderCopy({
+    customerName: customer.name,
+    phone: phoneNorm,
+    email: customer.email,
+    orderReference,
+    items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity, size: i.size ?? null })),
+    total,
+    delivery: { city: delivery.city, warehouse: delivery.warehouse },
+  }).catch((err) => console.error("[checkout] Admin email failed:", err));
+
+  return NextResponse.json({
+    orderReference,
+    wayforpay,
     paymentUrl,
-    orderId: sitniksOrderId,
+    orderId: orderReference,
   });
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
-   HELPERS
-   ───────────────────────────────────────────────────────────────────────── */
-
-function errorResponse(error: string, status: number) {
-  return NextResponse.json<CheckoutResponseError>({ error }, { status });
 }

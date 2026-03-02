@@ -103,7 +103,7 @@ export default async function OGImage() {
             zIndex: 1,
           }}
         >
-          Built with Kleap
+          FamilyHub Market · familyhubmarket.com
         </div>
       </div>
     ),

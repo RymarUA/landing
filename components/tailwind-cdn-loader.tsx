@@ -17,7 +17,9 @@ export function TailwindCDNLoader() {
     // If this code runs, we're in preview/development - ALWAYS load CDN
     // On Vercel, webpack replaces this file so this code never executes
     if (typeof window !== "undefined") {
-      console.log("🎨 [Tailwind] Loading CDN for preview/development");
+      if (process.env.NODE_ENV === "development") {
+        console.log("🎨 [Tailwind] Loading CDN for preview/development");
+      }
 
       // CRITICAL: Load Tailwind config BEFORE the CDN script
       const tailwindStyle = document.createElement("style");

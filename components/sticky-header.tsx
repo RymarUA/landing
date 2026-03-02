@@ -1,20 +1,23 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { ShoppingCart, Menu, X, Heart, Search } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ShoppingCart, Menu, X, Heart, Search, User } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
 
 export function StickyHeader() {
+  const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const { totalCount } = useCart();
+  const { totalCount, openCart } = useCart();
   const { count: wishlistCount, hydrated } = useWishlist();
+
+  const isWishlistActive = pathname === "/wishlist";
 
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > 80);
@@ -43,16 +46,16 @@ export function StickyHeader() {
     return () => document.removeEventListener("keydown", handler);
   }, []);
 
+  const router = useRouter();
   const handleSearchSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
       if (query.trim()) {
-        // Navigate to catalog section with search param
-        window.location.href = `/#catalog?search=${encodeURIComponent(query.trim())}`;
+        router.push(`/#catalog?search=${encodeURIComponent(query.trim())}`);
         setSearchOpen(false);
       }
     },
-    [query]
+    [query, router]
   );
 
   const navLinks = [
@@ -74,17 +77,16 @@ export function StickyHeader() {
         <a href="#" className="flex items-center gap-2 flex-shrink-0">
           <img src="/logo.png" alt="FamilyHub Market" className="h-8 w-auto" />
           <span className="font-black text-gray-900 text-lg hidden sm:block">
-            FamilyHub<span className="text-rose-500">Market</span>
+            FamilyHub<span className="text-orange-500">Market</span>
           </span>
         </a>
 
-        {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6">
           {navLinks.map((l) => (
             <a
               key={l.href}
               href={l.href}
-              className="text-sm font-medium text-gray-600 hover:text-rose-500 transition-colors"
+              className="text-sm font-medium text-gray-600 hover:text-orange-500 transition-colors"
             >
               {l.label}
             </a>
@@ -96,24 +98,34 @@ export function StickyHeader() {
           {/* Search toggle */}
           <button
             onClick={() => setSearchOpen((v) => !v)}
-            className="p-2 rounded-xl bg-gray-100 hover:bg-rose-50 hover:text-rose-500 transition-colors text-gray-600"
+            className="p-2 rounded-xl bg-gray-100 hover:bg-orange-50 hover:text-orange-500 transition-colors text-gray-600"
             title="Пошук"
+            aria-label="Пошук"
           >
             <Search size={18} />
           </button>
 
-          {/* Wishlist */}
+          {/* Profile */}
+          <Link
+            href="/profile"
+            className="p-2 rounded-xl bg-gray-100 hover:bg-orange-50 hover:text-orange-500 transition-colors text-gray-600"
+            title="Особистий кабінет"
+          >
+            <User size={18} />
+          </Link>
+
           <Link
             href="/wishlist"
-            className="relative p-2 rounded-xl bg-gray-100 hover:bg-rose-50 transition-colors"
+            className={`relative p-2 rounded-xl transition-colors ${isWishlistActive ? "bg-orange-100 text-orange-600" : "bg-gray-100 hover:bg-orange-50"}`}
             title="Список бажань"
+            aria-label="Список бажань"
           >
             <Heart
               size={18}
-              className={wishlistCount > 0 && hydrated ? "text-rose-500 fill-rose-500" : "text-gray-600"}
+              className={wishlistCount > 0 && hydrated ? "text-orange-500 fill-orange-500" : "text-gray-600"}
             />
             {hydrated && wishlistCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-0.5">
+              <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-0.5">
                 {wishlistCount}
               </span>
             )}
@@ -121,25 +133,29 @@ export function StickyHeader() {
 
           <a
             href="#catalog"
-            className="hidden sm:flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors"
+            className="hidden sm:flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors"
           >
             Замовити
           </a>
 
-          {/* Cart indicator */}
-          <a href="#" className="relative p-2 rounded-xl bg-gray-100 hover:bg-rose-50 transition-colors">
+          <button
+            type="button"
+            onClick={openCart}
+            className="relative p-2 rounded-xl bg-gray-100 hover:bg-orange-50 transition-colors"
+            aria-label="Відкрити кошик"
+          >
             <ShoppingCart size={20} className="text-gray-600" />
             {totalCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-0.5">
+              <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-0.5">
                 {totalCount}
               </span>
             )}
-          </a>
+          </button>
 
-          {/* Mobile menu toggle */}
           <button
             className="md:hidden p-2 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
             onClick={() => setMenuOpen((v) => !v)}
+            aria-label={menuOpen ? "Закрити меню" : "Відкрити меню"}
           >
             {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -156,11 +172,11 @@ export function StickyHeader() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Пошук товарів… (напр. «Nike», «дитячі»)"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-400"
+              className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400"
             />
             <button
               type="submit"
-              className="bg-rose-500 hover:bg-rose-600 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
             >
               Знайти
             </button>
@@ -183,20 +199,28 @@ export function StickyHeader() {
               key={l.href}
               href={l.href}
               onClick={() => setMenuOpen(false)}
-              className="text-sm font-semibold text-gray-700 hover:text-rose-500 transition-colors py-1"
+              className="text-sm font-semibold text-gray-700 hover:text-orange-500 transition-colors py-1"
             >
               {l.label}
             </a>
           ))}
           <Link
+            href="/profile"
+            onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-orange-500 transition-colors py-1"
+          >
+            <User size={16} />
+            Особистий кабінет
+          </Link>
+          <Link
             href="/wishlist"
             onClick={() => setMenuOpen(false)}
-            className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-rose-500 transition-colors py-1"
+            className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-orange-500 transition-colors py-1"
           >
-            <Heart size={16} className={wishlistCount > 0 ? "text-rose-500 fill-rose-500" : ""} />
+            <Heart size={16} className={wishlistCount > 0 ? "text-orange-500 fill-orange-500" : ""} />
             Список бажань
             {hydrated && wishlistCount > 0 && (
-              <span className="bg-rose-500 text-white text-xs font-black rounded-full px-1.5 py-0.5 leading-none">
+              <span className="bg-orange-500 text-white text-xs font-black rounded-full px-1.5 py-0.5 leading-none">
                 {wishlistCount}
               </span>
             )}
@@ -204,7 +228,7 @@ export function StickyHeader() {
           <a
             href="#catalog"
             onClick={() => setMenuOpen(false)}
-            className="mt-2 flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold px-4 py-3 rounded-xl transition-colors"
+            className="mt-2 flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-3 rounded-xl transition-colors"
           >
             Замовити зараз
           </a>

@@ -36,7 +36,7 @@ const WFP_PAYMENT_PAGE = "https://secure.wayforpay.com/pay";
  * with semicolons (";"), in EXACTLY this order:
  *
  *   merchantAccount;merchantDomainName;orderReference;orderDate;amount;currency;
- *   productName[0];...productName[n];productCount[0];...productCount[n];productPrice[0];...productPrice[n]
+ *   productName[0];...;productPrice[0];...;productCount[0];...
  *
  * Reference: https://wiki.wayforpay.com/en/view/852115 §"Purchase"
  *
@@ -48,9 +48,6 @@ export function buildWfpSignature(
   params: WayForPayPaymentParams,
   secret: string
 ): string {
-  // Construct the signature string following WayForPay specification:
-  // merchantAccount;merchantDomainName;orderReference;orderDate;amount;currency;
-  // productName[0];...;productCount[0];...;productPrice[0];...
   const parts: (string | number)[] = [
     params.merchantAccount,
     params.merchantDomainName,
@@ -59,8 +56,8 @@ export function buildWfpSignature(
     params.amount,
     params.currency,
     ...params.productName,
-    ...params.productCount,
     ...params.productPrice,
+    ...params.productCount,
   ];
 
   const signatureString = parts.join(";");

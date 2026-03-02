@@ -24,8 +24,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWfpWebhookSignature, buildWfpResponseSignature } from "@/lib/wayforpay";
-import { updateSitniksOrderStatus } from "@/lib/sitniks";
-import { notifyPaymentConfirmed } from "@/lib/telegram-notify";
+import { updateSitniksOrder, updateSitniksOrderStatus } from "@/lib/sitniks";
+import { sendTelegramNotification } from "@/lib/telegram";
 import type { WayForPayWebhookPayload, WayForPayWebhookResponse } from "@/lib/types";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -80,35 +80,45 @@ export async function POST(req: NextRequest) {
   }
 
   /* ── 3. Process payment result ── */
+  const isFhmRef = orderReference.startsWith("FHM-");
   if (transactionStatus === "Approved") {
     try {
-      await updateSitniksOrderStatus(
-        orderReference,
-        "Оплачено",
-        `WayForPay Approved | authCode: ${authCode} | card: ${cardPan} | amount: ${amount} ${currency}`
-      );
+      if (isFhmRef) {
+        await updateSitniksOrder(orderReference, "paid");
+      } else {
+        await updateSitniksOrderStatus(
+          orderReference,
+          "Оплачено",
+          `WayForPay Approved | authCode: ${authCode} | card: ${cardPan} | amount: ${amount} ${currency}`
+        );
+      }
       console.info(`[wfp-webhook] Sitniks order #${orderReference} marked as Оплачено`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      // Log but don't fail — we must still return acceptance to WayForPay
       console.error(`[wfp-webhook] Sitniks update failed for order #${orderReference}:`, msg);
     }
-
-    // Notify admin via Telegram (non-blocking)
-    notifyPaymentConfirmed(orderReference, amount, payload.paymentSystem ?? "WayForPay")
-      .catch((err) => console.error("[wfp-webhook] Telegram notify failed:", err));
+    const cardMask = cardPan ? `${cardPan.slice(0, 4)}****${cardPan.slice(-4)}` : "—";
+    const msg = [
+      "✅ Оплата підтверджена!",
+      "",
+      `📋 Замовлення: ${orderReference}`,
+      `💰 Сума: ${amount.toLocaleString("uk-UA")} грн`,
+      `💳 Картка: ${cardMask}`,
+    ].join("\n");
+    sendTelegramNotification(msg).catch((err) => console.error("[wfp-webhook] Telegram failed:", err));
   } else if (transactionStatus === "Declined" || transactionStatus === "Expired") {
-    // Optionally update Sitniks status to "Скасовано"
     try {
-      await updateSitniksOrderStatus(
-        orderReference,
-        "Скасовано",
-        `WayForPay ${transactionStatus} | reason: ${reasonCode} | amount: ${amount} ${currency}`
-      );
-      console.info(`[wfp-webhook] Sitniks order #${orderReference} marked as Скасовано`);
+      if (isFhmRef) {
+        await updateSitniksOrder(orderReference, "cancelled");
+      } else {
+        await updateSitniksOrderStatus(
+          orderReference,
+          "Скасовано",
+          `WayForPay ${transactionStatus} | reason: ${reasonCode} | amount: ${amount} ${currency}`
+        );
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[wfp-webhook] Sitniks status update failed (${transactionStatus}):`, msg);
+      console.error(`[wfp-webhook] Sitniks status update failed (${transactionStatus}):`, err);
     }
   } else {
     // InProcessing, Waiting, Refunded, Voided — no action needed

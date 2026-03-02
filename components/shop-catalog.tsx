@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -19,21 +20,11 @@ import {
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
+import { ProductModal } from "@/components/product-modal";
+import { ALL_CATEGORIES, SORT_OPTIONS, type SortKey } from "@/lib/catalog-config";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
 
 export type { Product };
-
-const ALL_CATEGORIES = ["Всі", "Для чоловіків", "Для жінок", "Для дітей", "Іграшки", "Дім", "Авто"];
-
-type SortKey = "default" | "price_asc" | "price_desc" | "rating" | "newest";
-
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "default", label: "За замовчуванням" },
-  { value: "newest", label: "Спочатку нові" },
-  { value: "price_asc", label: "Від дешевих" },
-  { value: "price_desc", label: "Від дорогих" },
-  { value: "rating", label: "За рейтингом" },
-];
 
 /* ─── Highlight matched text ─────────────────────────── */
 function Highlight({ text, query }: { text: string; query: string }) {
@@ -80,157 +71,15 @@ function WishlistButton({ product }: { product: Product }) {
     <button
       onClick={(e) => { e.stopPropagation(); toggle(product.id); }}
       title={isWished ? "Видалити зі списку бажань" : "Додати до бажань"}
+      aria-label={isWished ? "Видалити зі списку бажань" : "Додати до бажань"}
       className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center shadow transition-all duration-200 z-10 ${
         isWished
-          ? "bg-rose-500 text-white"
-          : "bg-white/80 backdrop-blur-sm text-gray-400 hover:text-rose-400"
+          ? "bg-orange-500 text-white"
+          : "bg-white/80 backdrop-blur-sm text-gray-400 hover:text-orange-400"
       }`}
     >
       <Heart size={14} className={isWished ? "fill-white" : ""} />
     </button>
-  );
-}
-
-/* ─── Product Modal ───────────────────────────────── */
-function ProductModal({
-  product,
-  onClose,
-  onAddToCart,
-  searchQuery,
-}: {
-  product: Product;
-  onClose: () => void;
-  onAddToCart: (p: Product) => void;
-  searchQuery?: string;
-}) {
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0] ?? null);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", handler);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handler);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
-  const discount = product.oldPrice
-    ? Math.round((1 - product.price / product.oldPrice) * 100)
-    : null;
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative bg-white w-full sm:max-w-2xl sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors"
-        >
-          <X size={18} className="text-gray-600" />
-        </button>
-
-        <div className="flex flex-col sm:flex-row overflow-y-auto">
-          {/* ── Image ── */}
-          <div className="relative sm:w-80 h-60 sm:h-auto flex-shrink-0">
-            <Image
-              src={product.image}
-              alt={product.name}
-              fill
-              sizes="(max-width: 640px) 100vw, 320px"
-              className="object-cover"
-              priority
-            />
-            {product.badge && (
-              <span className={`absolute top-3 left-3 ${product.badgeColor} text-white text-xs font-black px-2.5 py-1 rounded-full`}>
-                {product.badge}
-              </span>
-            )}
-            {discount && (
-              <span className="absolute top-3 right-3 bg-amber-400 text-gray-900 text-xs font-black px-2.5 py-1 rounded-full">
-                -{discount}%
-              </span>
-            )}
-          </div>
-
-          {/* ── Info ── */}
-          <div className="flex-1 p-6 flex flex-col gap-4">
-            <div>
-              <p className="text-xs font-semibold text-rose-500 uppercase tracking-widest mb-1">{product.category}</p>
-              <h2 className="text-xl font-black text-gray-900 leading-snug">
-                <Highlight text={product.name} query={searchQuery ?? ""} />
-              </h2>
-            </div>
-
-            <StarRow rating={product.rating} count={product.reviews} />
-
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-black text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
-              {product.oldPrice && (
-                <span className="text-lg text-gray-400 line-through">{product.oldPrice} грн</span>
-              )}
-            </div>
-
-            {product.stock <= 5 && (
-              <div className="flex items-center gap-2 text-amber-600 text-sm font-semibold bg-amber-50 px-3 py-2 rounded-xl">
-                <Flame size={14} />
-                Залишилось лише {product.stock} шт.!
-              </div>
-            )}
-
-            <p className="text-gray-600 text-sm leading-relaxed">{product.description}</p>
-
-            {product.sizes.length > 0 && (
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Розмір</p>
-                <div className="flex flex-wrap gap-2">
-                  {product.sizes.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setSelectedSize(s)}
-                      className={`w-10 h-10 rounded-xl text-sm font-bold border-2 transition-all ${
-                        selectedSize === s
-                          ? "border-rose-500 bg-rose-500 text-white"
-                          : "border-gray-200 text-gray-600 hover:border-rose-300"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3 mt-auto pt-2">
-              <button
-                onClick={() => { onAddToCart(product); onClose(); }}
-                className="flex-1 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold py-3.5 rounded-2xl transition-colors text-sm"
-              >
-                <ShoppingCart size={16} />
-                До кошика
-              </button>
-              <Link
-                href="/checkout"
-                onClick={onClose}
-                className="flex-1 flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-bold py-3.5 rounded-2xl transition-colors text-sm"
-              >
-                Оформити
-              </Link>
-            </div>
-
-            {/* Link to product page */}
-            <Link
-              href={`/product/${product.id}`}
-              onClick={onClose}
-              className="text-center text-xs text-gray-400 hover:text-rose-500 transition-colors"
-            >
-              Відкрити сторінку товару →
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -244,7 +93,7 @@ function HorizontalScroll({ items, onOpen }: { items: Product[]; onOpen: (p: Pro
     <div className="relative">
       <button
         onClick={() => scroll("left")}
-        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-9 h-9 bg-white shadow-lg rounded-full items-center justify-center hover:bg-rose-50 transition-colors hidden sm:flex"
+        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-9 h-9 bg-white shadow-lg rounded-full items-center justify-center hover:bg-orange-50 transition-colors hidden sm:flex"
       >
         <ChevronLeft size={18} className="text-gray-600" />
       </button>
@@ -271,7 +120,7 @@ function HorizontalScroll({ items, onOpen }: { items: Product[]; onOpen: (p: Pro
               />
               <div className="absolute top-2 left-2 flex gap-1">
                 {product.isNew && (
-                  <span className="bg-rose-500 text-white text-xs font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="bg-orange-500 text-white text-xs font-black px-2 py-0.5 rounded-full flex items-center gap-1">
                     <Sparkles size={9} /> NEW
                   </span>
                 )}
@@ -287,7 +136,7 @@ function HorizontalScroll({ items, onOpen }: { items: Product[]; onOpen: (p: Pro
               <p className="text-sm font-bold text-gray-900 leading-tight mb-1 line-clamp-2">{product.name}</p>
               <StarRow rating={product.rating} count={product.reviews} />
               <div className="flex items-baseline gap-1.5 mt-1.5">
-                <span className="text-rose-500 font-black text-base">{product.price} грн</span>
+                <span className="text-orange-500 font-black text-base">{product.price} грн</span>
                 {product.oldPrice && (
                   <span className="text-gray-400 text-xs line-through">{product.oldPrice} грн</span>
                 )}
@@ -299,7 +148,7 @@ function HorizontalScroll({ items, onOpen }: { items: Product[]; onOpen: (p: Pro
 
       <button
         onClick={() => scroll("right")}
-        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-9 h-9 bg-white shadow-lg rounded-full items-center justify-center hover:bg-rose-50 transition-colors hidden sm:flex"
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-9 h-9 bg-white shadow-lg rounded-full items-center justify-center hover:bg-orange-50 transition-colors hidden sm:flex"
       >
         <ChevronRight size={18} className="text-gray-600" />
       </button>
@@ -312,10 +161,16 @@ interface ShopCatalogProps {
   products: Product[];
 }
 
+const INITIAL_VISIBLE = 12;
+const LOAD_MORE_STEP = 8;
+
 export function ShopCatalog({ products }: ShopCatalogProps) {
   const [active, setActive] = useState("Всі");
-  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [toasts, setToasts] = useState<{ id: number; name: string }[]>([]);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -324,22 +179,58 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const categoryTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const { addItem } = useCart();
 
-  /* Read ?search= from URL hash on mount */
+  const addToast = useCallback((name: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, name }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 2000);
+  }, []);
+
+  /* Read search and category from URL hash */
   useEffect(() => {
-    const tryReadSearch = () => {
+    const syncFromHash = () => {
       const hash = window.location.hash;
-      const match = hash.match(/search=([^&]*)/);
-      if (match) {
-        setSearchQuery(decodeURIComponent(match[1]));
+      const searchMatch = hash.match(/search=([^&]*)/);
+      if (searchMatch) {
+        setSearchQuery(decodeURIComponent(searchMatch[1].replace(/^#/, "")));
         searchInputRef.current?.focus();
       }
+      const catMatch = hash.match(/category=([^&#]*)/);
+      if (catMatch) {
+        const cat = decodeURIComponent(catMatch[1].trim());
+        if (ALL_CATEGORIES.includes(cat as (typeof ALL_CATEGORIES)[number])) setActive(cat);
+      }
     };
-    tryReadSearch();
-    window.addEventListener("hashchange", tryReadSearch);
-    return () => window.removeEventListener("hashchange", tryReadSearch);
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
   }, []);
+
+  /* Scroll active category tab into view on mobile */
+  useEffect(() => {
+    const el = categoryTabRefs.current[active];
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [active]);
+
+  /* Close sort dropdown on click outside */
+  useEffect(() => {
+    if (!sortOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setSortOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [sortOpen]);
+
+  /* Reset visible count when filters/category/search/sort change */
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [active, searchQuery, sortKey, minPrice, maxPrice, onlyInStock]);
 
   const newArrivals = products.filter((p) => p.isNew || p.isHit).slice(0, 6);
 
@@ -373,14 +264,38 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
     }
   });
 
-  const handleAddToCart = useCallback((product: Product) => {
-    addItem({ id: product.id, name: product.name, price: product.price, image: product.image });
-    setAddedIds((prev) => new Set(prev).add(product.id));
-    setTimeout(() => {
-      setAddedIds((prev) => { const n = new Set(prev); n.delete(product.id); return n; });
-    }, 1200);
-  }, [addItem]);
+  const handleAddToCart = useCallback(
+    (product: Product, size?: string | null) => {
+      const key = `${product.id}-${size ?? ""}`;
+      const result = addItem({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        size: size ?? null,
+        oldPrice: product.oldPrice ?? null,
+      });
+      setAddedIds((prev) => new Set(prev).add(key));
+      setTimeout(() => setAddedIds((prev) => { const n = new Set(prev); n.delete(key); return n; }), 1200);
+      if (!result.wasExisting) addToast(product.name);
+    },
+    [addItem, addToast]
+  );
 
+  const handleBuyNow = useCallback(
+    (product: Product, size?: string | null) => {
+      addItem({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        size: size ?? null,
+        oldPrice: product.oldPrice ?? null,
+      });
+      router.push("/checkout");
+    },
+    [addItem, router]
+  );
   const clearFilters = () => {
     setSearchQuery("");
     setMinPrice("");
@@ -395,6 +310,9 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
 
   const activeSortLabel = SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? "Сортування";
 
+  const visibleSorted = sorted.slice(0, visibleCount);
+  const hasMore = visibleCount < sorted.length;
+
   return (
     <>
       {modalProduct && (
@@ -406,20 +324,33 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
         />
       )}
 
+      {/* Toasts: "X додано до кошика" */}
+      <div className="fixed bottom-24 left-4 right-4 sm:left-auto sm:right-24 z-[55] flex flex-col gap-2 max-w-sm pointer-events-none">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className="bg-gray-900 text-white text-sm font-medium py-3 px-4 rounded-2xl shadow-xl animate-in slide-in-from-bottom-4 duration-300"
+            role="status"
+          >
+            «{t.name}» додано до кошика
+          </div>
+        ))}
+      </div>
+
       {/* ── New Arrivals ── */}
       <section id="new-arrivals" className="bg-white py-14 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Sparkles size={18} className="text-rose-500" />
-                <span className="text-xs font-bold text-rose-500 uppercase tracking-widest">Щойно додано</span>
+                <Sparkles size={18} className="text-orange-500" />
+                <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">Щойно додано</span>
               </div>
               <h2 className="text-2xl md:text-3xl font-black text-gray-900">Нові надходження та хіти</h2>
             </div>
             <button
               onClick={() => setActive("Всі")}
-              className="text-sm text-rose-500 font-semibold hover:underline hidden sm:block"
+              className="text-sm text-orange-500 font-semibold hover:underline hidden sm:block"
             >
               Всі товари →
             </button>
@@ -445,7 +376,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Пошук за назвою, категорією…"
-              className="w-full pl-9 pr-10 py-3 rounded-2xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-400 bg-white shadow-sm"
+              className="w-full pl-9 pr-10 py-3 rounded-2xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm"
             />
             {searchQuery && (
               <button
@@ -457,16 +388,17 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
             )}
           </div>
 
-          {/* ── Category tabs ── */}
-          <div className="flex flex-wrap gap-2 justify-center mb-4">
+          {/* ── Category tabs (scrollable on mobile, scrollIntoView for active) ── */}
+          <div className="flex gap-2 justify-center mb-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {ALL_CATEGORIES.map((cat) => (
               <button
                 key={cat}
+                ref={(el) => { categoryTabRefs.current[cat] = el; }}
                 onClick={() => setActive(cat)}
-                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                className={`flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                   active === cat
-                    ? "bg-rose-500 text-white shadow-md shadow-rose-200"
-                    : "bg-white text-gray-600 border border-gray-200 hover:border-rose-300 hover:text-rose-500"
+                    ? "bg-orange-500 text-white shadow-md shadow-orange-200"
+                    : "bg-white text-gray-600 border border-gray-200 hover:border-orange-300 hover:text-orange-500"
                 }`}
               >
                 {cat}
@@ -478,10 +410,10 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div className="flex items-center gap-2">
               {/* Sort dropdown */}
-              <div className="relative">
+              <div className="relative" ref={sortDropdownRef}>
                 <button
                   onClick={() => setSortOpen((v) => !v)}
-                  className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:border-rose-300 transition-colors shadow-sm"
+                  className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:border-orange-300 transition-colors shadow-sm"
                 >
                   <ArrowUpDown size={14} className="text-gray-400" />
                   {activeSortLabel}
@@ -493,8 +425,8 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                       <button
                         key={opt.value}
                         onClick={() => { setSortKey(opt.value); setSortOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-rose-50 hover:text-rose-600 ${
-                          sortKey === opt.value ? "font-bold text-rose-500 bg-rose-50" : "text-gray-700"
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-orange-50 hover:text-orange-600 ${
+                          sortKey === opt.value ? "font-bold text-orange-500 bg-orange-50" : "text-gray-700"
                         }`}
                       >
                         {opt.label}
@@ -509,8 +441,8 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                 onClick={() => setShowFilters((v) => !v)}
                 className={`flex items-center gap-2 border rounded-xl px-3 py-2 text-sm font-semibold transition-colors shadow-sm ${
                   showFilters
-                    ? "bg-rose-500 border-rose-500 text-white"
-                    : "bg-white border-gray-200 text-gray-700 hover:border-rose-300"
+                    ? "bg-orange-500 border-orange-500 text-white"
+                    : "bg-white border-gray-200 text-gray-700 hover:border-orange-300"
                 }`}
               >
                 <SlidersHorizontal size={14} />
@@ -531,7 +463,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
-                  className="flex items-center gap-1 text-xs text-rose-500 hover:text-rose-700 font-semibold transition-colors"
+                  className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-700 font-semibold transition-colors"
                 >
                   <X size={12} />
                   Скинути
@@ -551,7 +483,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                   onChange={(e) => setMinPrice(e.target.value)}
                   placeholder="100"
                   min={0}
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -562,7 +494,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                   onChange={(e) => setMaxPrice(e.target.value)}
                   placeholder="5000"
                   min={0}
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
               </div>
               <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-700 select-none">
@@ -570,26 +502,27 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                   type="checkbox"
                   checked={onlyInStock}
                   onChange={(e) => setOnlyInStock(e.target.checked)}
-                  className="accent-rose-500 w-4 h-4 rounded"
+                  className="accent-orange-500 w-4 h-4 rounded"
                 />
                 Тільки в наявності
               </label>
             </div>
           )}
 
-          {/* ── Grid ── */}
+          {/* ── Grid + Load more ── */}
           {sorted.length === 0 ? (
             <div className="text-center py-20 text-gray-400">
               <Search size={40} className="mx-auto mb-3 opacity-30" />
               <p className="font-bold text-lg text-gray-500">Нічого не знайдено</p>
               <p className="text-sm mt-1">Спробуйте змінити фільтри або пошуковий запит</p>
-              <button onClick={clearFilters} className="mt-4 text-rose-500 font-semibold text-sm hover:underline">
+              <button onClick={clearFilters} className="mt-4 text-orange-500 font-semibold text-sm hover:underline">
                 Скинути фільтри
               </button>
             </div>
           ) : (
+            <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {sorted.map((product) => {
+              {visibleSorted.map((product) => {
                 const discount = product.oldPrice
                   ? Math.round((1 - product.price / product.oldPrice) * 100)
                   : null;
@@ -603,14 +536,16 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                     {/* Wishlist */}
                     <WishlistButton product={product} />
 
-                    {/* Image */}
-                    <div className="relative h-44 overflow-hidden">
+                    {/* Image with skeleton */}
+                    <div className="relative h-44 overflow-hidden bg-gray-100">
+                      <div className="absolute inset-0 bg-gray-100 animate-pulse [.img-loaded_&]:opacity-0 [.img-loaded_&]:pointer-events-none transition-opacity duration-300" aria-hidden />
                       <Image
                         src={product.image}
                         alt={product.name}
                         fill
                         sizes="(max-width: 768px) 50vw, 25vw"
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        onLoad={(e) => (e.currentTarget.closest(".relative") as HTMLElement)?.classList?.add("img-loaded")}
                       />
                       {/* Hover overlay */}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
@@ -654,30 +589,31 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                       )}
 
                       <div className="flex items-baseline gap-2 mt-2 mb-3">
-                        <span className="text-rose-500 font-black text-base">{product.price} грн</span>
+                        <span className="text-orange-500 font-black text-base">{product.price} грн</span>
                         {product.oldPrice && (
                           <span className="text-gray-400 text-xs line-through">{product.oldPrice} грн</span>
                         )}
                       </div>
 
-                      <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-1.5 w-full" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => { handleAddToCart(product); setModalProduct(product); }}
-                          className="flex items-center justify-center gap-1 flex-1 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold py-2.5 rounded-xl transition-all duration-200"
+                          onClick={() => handleBuyNow(product, product.sizes[0] ?? undefined)}
+                          className="flex items-center justify-center gap-1 flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2.5 rounded-xl transition-all duration-200"
                         >
                           <CreditCard size={13} />
                           Купити
                         </button>
                         <button
-                          onClick={() => handleAddToCart(product)}
+                          onClick={() => handleAddToCart(product, product.sizes[0] ?? undefined)}
                           className={`flex items-center justify-center w-9 h-9 rounded-xl text-xs font-bold transition-all duration-200 flex-shrink-0 ${
-                            addedIds.has(product.id)
+                            addedIds.has(`${product.id}-${product.sizes[0] ?? ""}`)
                               ? "bg-green-500 text-white scale-110"
                               : "bg-gray-100 hover:bg-gray-900 text-gray-500 hover:text-white"
                           }`}
                           title="До кошика"
+                          aria-label="Додати до кошика"
                         >
-                          <ShoppingCart size={14} className={addedIds.has(product.id) ? "animate-bounce" : ""} />
+                          <ShoppingCart size={14} className={addedIds.has(`${product.id}-${product.sizes[0] ?? ""}`) ? "animate-bounce" : ""} />
                         </button>
                       </div>
                     </div>
@@ -685,6 +621,20 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                 );
               })}
             </div>
+            <p className="mt-4 text-center text-sm text-gray-500">
+              Показано {visibleSorted.length} з {sorted.length} товарів
+            </p>
+            {hasMore && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={() => setVisibleCount((c) => c + LOAD_MORE_STEP)}
+                  className="px-6 py-3 rounded-2xl border-2 border-orange-500 text-orange-500 font-bold text-sm hover:bg-orange-50 transition-colors"
+                >
+                  Завантажити ще
+                </button>
+              </div>
+            )}
+            </>
           )}
         </div>
       </section>

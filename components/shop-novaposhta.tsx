@@ -1,5 +1,5 @@
 "use client";
-import { useState, KeyboardEvent } from "react";
+import { useState, useEffect, KeyboardEvent } from "react";
 import { Package, Truck, CheckCircle, Clock, MapPin, AlertCircle, Search } from "lucide-react";
 
 /* ─── Ukrainian error messages ───────────────────────── */
@@ -94,11 +94,17 @@ function TrackingResult({ data }: { data: TrackingData }) {
 }
 
 /* ─── Main component ────────────────────────────────── */
-export function ShopNovaPoshta() {
+export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
   const [ttn, setTtn] = useState("");
   const [status, setStatus] = useState<TrackingData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (initialTtn?.trim()) {
+      setTtn(initialTtn.trim());
+    }
+  }, [initialTtn]);
 
   const track = async () => {
     const trimmed = ttn.trim();
@@ -258,7 +264,7 @@ export function ShopNovaPoshta() {
             <h2 className="text-3xl font-black text-gray-900 mb-6">
               Доставка Новою Поштою
               <br />
-              <span className="text-blue-600">з Китаю в Україну</span>
+              <span className="text-blue-600">по Україні</span>
             </h2>
             <div className="space-y-5">
               {steps.map((step, i) => (

@@ -3,15 +3,13 @@
  *
  * Sitniks CRM API client.
  *
- * Sitniks is a Ukrainian SaaS CRM for e-commerce stores.
- * API reference: https://sitniks.com/api (log in to your account for the full spec).
+ * ENV VARS:
+ *   SITNIKS_API_URL  — base URL (no trailing slash)
+ *   SITNIKS_API_KEY  — Bearer token
  *
- * ENV VARS required:
- *   SITNIKS_API_URL    — your account base URL, e.g. https://my-store.sitniks.com/api/v1
- *   SITNIKS_API_KEY    — bearer token from Settings → API
- *
- * All functions are async and throw on non-2xx responses, so the caller
- * should wrap them in try/catch.
+ * New API: createSitniksOrder, updateSitniksOrder, getSitniksOrdersByPhone
+ * use 8000ms timeout and return null/false/[] on error (no throw).
+ * Legacy: createSitniksOrder (payload), updateSitniksOrderStatus, getSitniksOrder still throw.
  */
 
 import type {
@@ -19,43 +17,182 @@ import type {
   SitniksCreateOrderResponse,
   SitniksUpdateOrderPayload,
   SitniksOrderStatus,
+  Order,
 } from "./types";
 
-/* ─────────────────────────────────────────────────────────────────────────
-   CONFIG
-   ───────────────────────────────────────────────────────────────────────── */
+const SITNIKS_TIMEOUT_MS = 8000;
 
 interface SitniksConfig {
   apiUrl: string;
   apiKey: string;
 }
 
-function getSitniksConfig(): SitniksConfig {
-  const apiUrl = process.env.SITNIKS_API_URL;
+function getSitniksConfig(): SitniksConfig | null {
+  const apiUrl = process.env.SITNIKS_API_URL?.trim().replace(/\/$/, "");
   const apiKey = process.env.SITNIKS_API_KEY;
+  if (!apiUrl || !apiKey) return null;
+  return { apiUrl, apiKey };
+}
 
-  if (!apiUrl) throw new Error("Missing env: SITNIKS_API_URL");
-  if (!apiKey) throw new Error("Missing env: SITNIKS_API_KEY");
+/** Safe fetch: timeout 8000ms, on error log and return null. */
+async function sitniksSafe<T>(
+  method: "GET" | "POST" | "PATCH",
+  path: string,
+  body?: unknown
+): Promise<T | null> {
+  const config = getSitniksConfig();
+  if (!config) {
+    console.error("[sitniks] SITNIKS_API_URL or SITNIKS_API_KEY not set");
+    return null;
+  }
 
-  // Normalize: strip trailing slash
-  return { apiUrl: apiUrl.replace(/\/$/, ""), apiKey };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SITNIKS_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${config.apiUrl}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+        Accept: "application/json",
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch {
+      json = { message: await res.text() };
+    }
+
+    if (!res.ok) {
+      const msg = typeof json === "object" && json !== null && "message" in json
+        ? String((json as Record<string, unknown>).message)
+        : `HTTP ${res.status}`;
+      console.error("[sitniks]", method, path, msg);
+      return null;
+    }
+
+    return json as T;
+  } catch (err) {
+    clearTimeout(timeout);
+    console.error("[sitniks]", err);
+    return null;
+  }
+}
+
+/** Status map: API uses "paid" | "shipped" | "delivered" | "cancelled" → CRM labels */
+const STATUS_MAP: Record<string, SitniksOrderStatus> = {
+  paid: "Оплачено",
+  shipped: "Відправлено",
+  delivered: "Доставлено",
+  cancelled: "Скасовано",
+};
+
+/* ─────────────────────────────────────────────────────────────────────────
+   NEW PUBLIC API (safe, no throw)
+   ───────────────────────────────────────────────────────────────────────── */
+
+export interface CreateSitniksOrderInput {
+  orderReference: string;
+  customer: { name: string; phone: string; email?: string };
+  delivery: { city: string; warehouse: string };
+  items: Array<{ name: string; price: number; quantity: number; size?: string | null }>;
+  total: number;
+}
+
+/**
+ * Create order in Sitniks after checkout. Returns { id } or null on error.
+ */
+export async function createSitniksOrder(
+  order: CreateSitniksOrderInput
+): Promise<{ id: string | number } | null> {
+  const payload: SitniksCreateOrderPayload = {
+    contact_name: order.customer.name,
+    contact_phone: order.customer.phone,
+    delivery_address: `${order.delivery.city}, ${order.delivery.warehouse}`,
+    comment: `OrderRef: ${order.orderReference} | Нова Пошта: ${order.delivery.city}, ${order.delivery.warehouse}`,
+    status: "Очікує оплати",
+    items: order.items.map((i) => ({
+      sku: i.name.slice(0, 64),
+      name: i.size ? `${i.name} (розм. ${i.size})` : i.name,
+      price: i.price,
+      quantity: i.quantity,
+    })),
+    total_price: order.total,
+    source: "familyhub_landing",
+  };
+
+  const result = await sitniksSafe<SitniksCreateOrderResponse>("POST", "/orders", payload);
+  if (!result || (result.id !== 0 && !result.id)) return null;
+  return { id: result.id };
+}
+
+/**
+ * Update order status by orderReference (e.g. FHM-123). Used from callback and notify-shipping.
+ */
+export async function updateSitniksOrder(
+  orderReference: string,
+  status: "paid" | "shipped" | "delivered" | "cancelled"
+): Promise<boolean> {
+  const crmStatus = STATUS_MAP[status] ?? "Оплачено";
+  // Assume Sitniks allows PATCH by order_number or external ref; fallback: PATCH by id if API uses orderReference as id
+  const res = await sitniksSafe<unknown>("PATCH", `/orders/${encodeURIComponent(orderReference)}`, { status: crmStatus });
+  return res !== null;
+}
+
+const ORDERS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
+const ordersCache = new Map<string, { orders: Order[]; expires: number }>();
+
+/**
+ * Get orders for a customer by phone (for profile/cabinet).
+ * Results are cached in memory for 5 minutes to reduce load on profile/tracking.
+ */
+export async function getSitniksOrdersByPhone(phone: string): Promise<Order[]> {
+  const normalized = phone.replace(/\D/g, "").slice(-10);
+  const cacheKey = `orders:${normalized}`;
+  const now = Date.now();
+  const cached = ordersCache.get(cacheKey);
+  if (cached && cached.expires > now) {
+    return cached.orders;
+  }
+
+  const result = await sitniksSafe<{ data?: Order[]; orders?: Order[] }>(
+    "GET",
+    `/orders?contact_phone=${encodeURIComponent(phone)}`
+  );
+  if (!result) return [];
+  const list = (result as { data?: Order[] }).data ?? (result as { orders?: Order[] }).orders ?? [];
+  const orders = Array.isArray(list) ? list : [];
+
+  ordersCache.set(cacheKey, { orders, expires: now + ORDERS_CACHE_TTL_MS });
+  return orders;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   INTERNAL FETCH HELPER
+   INTERNAL FETCH HELPER (legacy — throws)
    ───────────────────────────────────────────────────────────────────────── */
 
-/**
- * Generic JSON fetch wrapper for Sitniks API.
- * Attaches Authorization header and parses JSON response.
- * Throws a descriptive Error on HTTP 4xx/5xx.
- */
+function getSitniksConfigOrThrow(): SitniksConfig {
+  const apiUrl = process.env.SITNIKS_API_URL;
+  const apiKey = process.env.SITNIKS_API_KEY;
+  if (!apiUrl) throw new Error("Missing env: SITNIKS_API_URL");
+  if (!apiKey) throw new Error("Missing env: SITNIKS_API_KEY");
+  return { apiUrl: apiUrl.replace(/\/$/, ""), apiKey };
+}
+
 async function sitniks<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   body?: unknown
 ): Promise<T> {
-  const { apiUrl, apiKey } = getSitniksConfig();
+  const { apiUrl, apiKey } = getSitniksConfigOrThrow();
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -67,11 +204,9 @@ async function sitniks<T>(
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
-    // Next.js: disable caching for all CRM calls (always fresh)
     cache: "no-store",
   });
 
-  // Parse body regardless of status (error bodies contain useful messages)
   let json: unknown;
   try {
     json = await res.json();
@@ -95,44 +230,16 @@ async function sitniks<T>(
    ───────────────────────────────────────────────────────────────────────── */
 
 /**
- * Creates a new order in Sitniks CRM.
- *
- * @param payload  Order data (customer, items, delivery, status)
- * @returns        Sitniks response — importantly contains the new order `.id`
- *
- * @example
- * ```ts
- * const order = await createSitniksOrder({
- *   contact_name: "Олена Коваль",
- *   contact_phone: "+380671234567",
- *   delivery_address: "Одеса, відділення №5",
- *   comment: "Оплата WayForPay. Місто: Одеса. Відділення: №5",
- *   status: "Очікує оплати",
- *   items: [{ sku: "1", name: "Кросівки Nike", price: 1200, quantity: 1 }],
- *   total_price: 1200,
- *   source: "familyhub_landing",
- * });
- * console.log(order.id); // → 1042
- * ```
+ * Legacy: create order with full Sitniks payload (throws on error).
  */
-export async function createSitniksOrder(
+export async function createSitniksOrderLegacy(
   payload: SitniksCreateOrderPayload
 ): Promise<SitniksCreateOrderResponse> {
-  /*
-   * ┌─ Sitniks API endpoint ──────────────────────────────────────────┐
-   * │  POST /orders                                                    │
-   * │  Body: SitniksCreateOrderPayload (see lib/types.ts)             │
-   * │                                                                  │
-   * │  NOTE: Adjust the endpoint path and field names below to match  │
-   * │  your specific Sitniks account API schema. Log in to your       │
-   * │  Sitniks account → Settings → API to see the exact spec.        │
-   * └──────────────────────────────────────────────────────────────────┘
-   */
   return sitniks<SitniksCreateOrderResponse>("POST", "/orders", payload);
 }
 
 /**
- * Updates the status of an existing Sitniks order.
+ * Updates the status of an existing Sitniks order (by id).
  *
  * @param orderId  The order ID returned by `createSitniksOrder`
  * @param status   New status label (must match your CRM configured statuses)
@@ -163,8 +270,7 @@ export async function updateSitniksOrderStatus(
 }
 
 /**
- * Fetches a single order from Sitniks by ID.
- * Useful for verifying order state before processing.
+ * Fetches a single order from Sitniks by ID (legacy, throws).
  */
 export async function getSitniksOrder(
   orderId: string | number

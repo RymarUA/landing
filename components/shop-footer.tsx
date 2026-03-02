@@ -59,20 +59,30 @@ export function ShopFooter() {
   };
 
   return (
-    <footer className="bg-gray-950 text-white">
-      {/* Top wave */}
-      <div className="h-px bg-gradient-to-r from-transparent via-rose-500/50 to-transparent" />
+    <footer
+      className="relative overflow-hidden"
+      style={{
+        background: "linear-gradient(160deg, #1c1917 0%, #292524 50%, #1c1917 100%)",
+      }}
+    >
+      {/* Top warm gradient border */}
+      <div className="h-px bg-gradient-to-r from-transparent via-orange-500/60 to-transparent" />
 
-      <div className="max-w-6xl mx-auto px-4 py-16">
+      {/* Warm ambient glow — top right */}
+      <div className="absolute top-0 right-0 w-[500px] h-[300px] rounded-full bg-orange-500/5 blur-3xl pointer-events-none" />
+      {/* Warm ambient glow — bottom left */}
+      <div className="absolute bottom-0 left-0 w-[400px] h-[250px] rounded-full bg-amber-500/5 blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 max-w-6xl mx-auto px-4 py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
 
           {/* ── Brand ── */}
           <div className="sm:col-span-2 lg:col-span-1">
             <img src="/logo.png" alt="FamilyHub Market" className="h-12 w-auto mb-4" />
-            <div className="text-xl font-black mb-3">
-              FamilyHub<span className="text-rose-500">Market</span>
+            <div className="text-xl font-black mb-3 text-white">
+              FamilyHub<span className="text-orange-400">Market</span>
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed mb-5">
+            <p className="text-stone-400 text-sm leading-relaxed mb-5">
               Якісні товари для всієї родини з доставкою Новою Поштою по всій Україні.
             </p>
 
@@ -82,43 +92,43 @@ export function ShopFooter() {
                 href="https://www.instagram.com/familyhub_market/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center hover:scale-110 transition-transform shadow-lg shadow-rose-500/20"
+                className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center hover:scale-110 transition-transform shadow-lg shadow-rose-900/30"
                 title="Instagram"
               >
-                <Instagram size={18} />
+                <Instagram size={17} className="text-white" />
               </a>
               <a
                 href="https://www.facebook.com/familyhubmarketod"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center hover:scale-110 transition-transform shadow-lg shadow-blue-500/20"
+                className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center hover:scale-110 transition-transform shadow-lg shadow-blue-900/30"
                 title="Facebook"
               >
-                <Facebook size={18} />
+                <Facebook size={17} className="text-white" />
               </a>
               <a
                 href="https://www.tiktok.com/@familyhub_market"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center hover:scale-110 hover:bg-white/20 transition-all"
+                className="w-10 h-10 bg-stone-700 hover:bg-stone-600 border border-stone-600 rounded-xl flex items-center justify-center hover:scale-110 transition-all text-white"
                 title="TikTok"
               >
-                <TikTokIcon size={18} />
+                <TikTokIcon size={17} />
               </a>
             </div>
           </div>
 
           {/* ── Catalog ── */}
           <div>
-            <div className="font-bold text-sm mb-4 text-gray-300 uppercase tracking-widest">Каталог</div>
+            <div className="font-bold text-xs mb-5 text-stone-400 uppercase tracking-widest">Каталог</div>
             <ul className="space-y-2.5">
               {catalogLinks.map((l) => (
                 <li key={l.label}>
                   <a
                     href={l.href}
-                    className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors group"
+                    className="flex items-center gap-2 text-stone-400 hover:text-orange-400 text-sm transition-colors group"
                   >
-                    <ChevronRight size={13} className="text-rose-500 opacity-0 group-hover:opacity-100 -ml-1 transition-opacity" />
+                    <ChevronRight size={12} className="text-orange-500/0 group-hover:text-orange-500 transition-all -ml-1 group-hover:ml-0" />
                     {l.label}
                   </a>
                 </li>
@@ -128,35 +138,35 @@ export function ShopFooter() {
 
           {/* ── Info ── */}
           <div>
-            <div className="font-bold text-sm mb-4 text-gray-300 uppercase tracking-widest">Інформація</div>
+            <div className="font-bold text-xs mb-5 text-stone-400 uppercase tracking-widest">Інформація</div>
             <ul className="space-y-2.5">
               {infoLinks.map((l) => (
                 <li key={l.label}>
                   <a
                     href={l.href}
-                    className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors group"
+                    className="flex items-center gap-2 text-stone-400 hover:text-orange-400 text-sm transition-colors group"
                   >
-                    <ChevronRight size={13} className="text-rose-500 opacity-0 group-hover:opacity-100 -ml-1 transition-opacity" />
+                    <ChevronRight size={12} className="text-orange-500/0 group-hover:text-orange-500 transition-all -ml-1 group-hover:ml-0" />
                     {l.label}
                   </a>
                 </li>
               ))}
             </ul>
 
-            <div className="mt-6 space-y-2">
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <MapPin size={14} className="text-rose-500 flex-shrink-0" />
+            <div className="mt-6 space-y-2.5">
+              <div className="flex items-center gap-2 text-stone-400 text-sm">
+                <MapPin size={13} className="text-orange-400 flex-shrink-0" />
                 Одеса, Україна
               </div>
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <Phone size={14} className="text-rose-500 flex-shrink-0" />
-                <a href="tel:+380936174140" className="hover:text-white transition-colors">
+              <div className="flex items-center gap-2 text-stone-400 text-sm">
+                <Phone size={13} className="text-orange-400 flex-shrink-0" />
+                <a href="tel:+380936174140" className="hover:text-orange-400 transition-colors">
                   +38 (093) 617-41-40
                 </a>
               </div>
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <Mail size={14} className="text-rose-500 flex-shrink-0" />
-                <a href="mailto:info@familyhubmarket.ua" className="hover:text-white transition-colors">
+              <div className="flex items-center gap-2 text-stone-400 text-sm">
+                <Mail size={13} className="text-orange-400 flex-shrink-0" />
+                <a href="mailto:info@familyhubmarket.ua" className="hover:text-orange-400 transition-colors">
                   info@familyhubmarket.ua
                 </a>
               </div>
@@ -165,14 +175,14 @@ export function ShopFooter() {
 
           {/* ── Newsletter ── */}
           <div>
-            <div className="font-bold text-sm mb-4 text-gray-300 uppercase tracking-widest">Знижки на пошту</div>
-            <p className="text-gray-400 text-sm mb-4 leading-relaxed">
+            <div className="font-bold text-xs mb-5 text-stone-400 uppercase tracking-widest">Знижки на пошту</div>
+            <p className="text-stone-400 text-sm mb-4 leading-relaxed">
               Підпишіться та першими дізнавайтесь про акції та нові надходження.
             </p>
 
             {subscribed ? (
-              <div className="flex items-center gap-2 bg-green-500/20 border border-green-500/30 text-green-400 rounded-xl px-4 py-3 text-sm font-semibold">
-                <Check size={16} />
+              <div className="flex items-center gap-2 bg-green-500/15 border border-green-500/25 text-green-400 rounded-xl px-4 py-3 text-sm font-semibold">
+                <Check size={15} />
                 Дякуємо за підписку!
               </div>
             ) : (
@@ -184,7 +194,7 @@ export function ShopFooter() {
                   placeholder="your@email.com"
                   required
                   disabled={subLoading}
-                  className="w-full bg-white/10 border border-white/20 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-colors disabled:opacity-60"
+                  className="w-full bg-stone-800 border border-stone-700 text-white placeholder-stone-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/40 transition disabled:opacity-60"
                 />
                 {subError && (
                   <p className="text-red-400 text-xs px-1">{subError}</p>
@@ -192,10 +202,10 @@ export function ShopFooter() {
                 <button
                   type="submit"
                   disabled={subLoading}
-                  className="w-full flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors"
+                  className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-lg shadow-orange-900/30"
                 >
                   {subLoading ? (
-                    <><Loader2 size={15} className="animate-spin" /> Завантаження…</>
+                    <><Loader2 size={14} className="animate-spin" /> Завантаження…</>
                   ) : (
                     "Підписатися"
                   )}
@@ -203,28 +213,27 @@ export function ShopFooter() {
               </form>
             )}
 
-            <p className="text-gray-600 text-xs mt-3">
+            <p className="text-stone-600 text-xs mt-3">
               Без спаму. Відписатися можна будь-коли.
             </p>
 
-            {/* Wishlist shortcut */}
             <Link
               href="/wishlist"
-              className="mt-4 flex items-center gap-2 text-gray-400 hover:text-rose-400 text-sm transition-colors group"
+              className="mt-4 flex items-center gap-2 text-stone-500 hover:text-orange-400 text-sm transition-colors group"
             >
-              <Heart size={14} className="text-rose-500 group-hover:fill-rose-400 transition-all" />
+              <Heart size={13} className="text-orange-500 group-hover:fill-orange-400 transition-all" />
               Список бажань
             </Link>
           </div>
         </div>
 
         {/* ── Bottom bar ── */}
-        <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-gray-600 text-xs">© 2026 FamilyHub Market. Всі права захищені.</p>
-          <div className="flex items-center gap-4 text-gray-600 text-xs">
-            <a href="#" className="hover:text-gray-400 transition-colors">Політика конфіденційності</a>
+        <div className="border-t border-stone-700/50 pt-8 flex flex-col md:flex-row items-center justify-between gap-3">
+          <p className="text-stone-600 text-xs">© 2026 FamilyHub Market. Всі права захищені.</p>
+          <div className="flex items-center gap-4 text-stone-600 text-xs">
+            <a href="#" className="hover:text-stone-400 transition-colors">Політика конфіденційності</a>
             <span>·</span>
-            <a href="#" className="hover:text-gray-400 transition-colors">Умови використання</a>
+            <a href="#" className="hover:text-stone-400 transition-colors">Умови використання</a>
             <span>·</span>
             <span>Доставка по всій Україні</span>
           </div>

@@ -183,6 +183,18 @@ export interface SitniksCreateOrderResponse {
   [key: string]: unknown;
 }
 
+/** Order shape returned by getSitniksOrdersByPhone (for profile/cabinet). */
+export interface Order {
+  id: string | number;
+  orderReference?: string;
+  status: string;
+  total?: number;
+  createdAt?: string;
+  items?: Array<{ name: string; price: number; quantity: number }>;
+  delivery?: { city: string; warehouse: string };
+  [key: string]: unknown;
+}
+
 /* ═══════════════════════════════════════════════════════════
    INSTAGRAM CATALOG
    ═══════════════════════════════════════════════════════════ */

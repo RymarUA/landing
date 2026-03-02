@@ -5,10 +5,10 @@
 
 export const siteConfig = {
   // Basic Info
-  name: "ShopOdessa",
-  tagline: "Кросівки, іграшки, аксесуари — з Китаю в Одесу",
+  name: "FamilyHub Market",
+  tagline: "Одяг, іграшки, аксесуари для всієї родини — доставка по Україні",
   description:
-    "Жіночі кросівки з Китаю, дитячі іграшки, аксесуари для дому та авто. Доставка по всій Україні через Meest. Built with Kleap - the AI website builder.",
+    "Жіночий, чоловічий та дитячий одяг, іграшки, товари для дому та авто. Доставка Новою Поштою по всій Україні. Якість від перевірених постачальників.",
 
   // Site URL (replaced automatically on deploy)
   url: process.env.NEXT_PUBLIC_URL || "https://your-app.kleap.io",
@@ -20,14 +20,11 @@ export const siteConfig = {
   navLinks: [] as { title: string; link: string }[],
 
   // SEO Keywords
-  keywords: ["keyword1", "keyword2", "keyword3"],
+  keywords: ["одяг з Китаю", "дитячі іграшки", "кросівки репліка", "Нова Пошта", "FamilyHub Market", "Одеса"],
 
   // Author/Company
-  author: "Your Name",
-  company: "Your Company",
-
-  // Social
-  twitter: "@yourtwitter",
+  author: "FamilyHub Market",
+  company: "FamilyHub Market",
 
   // OG Image: set to a generated image URL for rich link previews
   ogImage: "",

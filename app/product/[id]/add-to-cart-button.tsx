@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ShoppingCart, CheckCircle } from "lucide-react";
+import { ShoppingCart, CheckCircle, CreditCard } from "lucide-react";
 import { useCart } from "@/components/cart-context";
-import type { Product } from "@/lib/products";
+import type { CatalogProduct } from "@/lib/instagram-catalog";
 
-export function AddToCartButton({ product }: { product: Product }) {
+export function AddToCartButton({ product }: { product: CatalogProduct }) {
   const { addItem } = useCart();
   const [selectedSize, setSelectedSize] = useState<string>(product.sizes[0] ?? "");
   const [added, setAdded] = useState(false);
@@ -68,7 +68,8 @@ export function AddToCartButton({ product }: { product: Product }) {
           href="/checkout"
           className="flex-1 flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-black py-4 rounded-2xl transition-colors shadow-md shadow-rose-200 text-base"
         >
-          Купити зараз
+          <CreditCard size={18} />
+          Оплатити
         </Link>
       </div>
     </div>

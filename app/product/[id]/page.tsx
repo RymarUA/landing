@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Star, ChevronLeft, Instagram, Flame, Sparkles } from "lucide-react";
-import { getAllProducts, getProductById } from "@/lib/products";
+import { Star, ChevronLeft, Flame, Sparkles } from "lucide-react";
+import {
+  getCatalogProducts,
+  getCatalogProductById,
+} from "@/lib/instagram-catalog";
 import { AddToCartButton } from "./add-to-cart-button";
 import { siteConfig } from "@/lib/site-config";
 
@@ -11,12 +14,12 @@ import { siteConfig } from "@/lib/site-config";
    Static params — pre-render all product pages at build time
    ───────────────────────────────────────────────────────────────────────── */
 export async function generateStaticParams() {
-  const products = await getAllProducts();
+  const products = await getCatalogProducts();
   return products.map((p) => ({ id: String(p.id) }));
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Dynamic metadata per product
+   Dynamic metadata per product (SEO)
    ───────────────────────────────────────────────────────────────────────── */
 export async function generateMetadata({
   params,
@@ -24,15 +27,15 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const product = await getProductById(Number(id));
+  const product = await getCatalogProductById(Number(id));
 
   if (!product) {
     return { title: "Товар не знайдено" };
   }
 
   const title = `${product.name} — купити в ${siteConfig.name}`;
-  const description = `${product.description} Ціна: ${product.price.toLocaleString("uk-UA")} грн. ${
-    product.oldPrice ? `Стара ціна: ${product.oldPrice} грн.` : ""
+  const description = `${product.description} Ціна: ${product.price.toLocaleString("uk-UA")} грн.${
+    product.oldPrice ? ` Стара ціна: ${product.oldPrice} грн.` : ""
   } Доставка Новою Поштою по всій Україні.`;
 
   return {
@@ -65,8 +68,7 @@ export default async function ProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const product = await getProductById(Number(id));
-
+  const product = await getCatalogProductById(Number(id));
   if (!product) notFound();
 
   const discount = product.oldPrice
@@ -74,8 +76,10 @@ export default async function ProductPage({
     : null;
 
   // Related products: same category, excluding current
-  const allProducts = await getAllProducts();
-  const related = allProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
+  const allProducts = await getCatalogProducts();
+  const related = allProducts
+    .filter((p) => p.category === product.category && p.id !== product.id)
+    .slice(0, 4);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -91,7 +95,6 @@ export default async function ProductPage({
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-10">
-        {/* Back link */}
         <Link
           href="/#catalog"
           className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-8"
@@ -114,8 +117,6 @@ export default async function ProductPage({
                 className="object-cover"
                 priority
               />
-
-              {/* Badges overlay */}
               <div className="absolute top-4 left-4 flex flex-col gap-2">
                 {product.badge && (
                   <span className={`${product.badgeColor} text-white text-sm font-black px-3 py-1.5 rounded-full flex items-center gap-1.5`}>
@@ -130,7 +131,6 @@ export default async function ProductPage({
                   </span>
                 )}
               </div>
-
               {product.stock <= 5 && (
                 <div className="absolute bottom-4 left-4 right-4">
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-amber-700 text-sm font-semibold flex items-center gap-2">
@@ -171,22 +171,22 @@ export default async function ProductPage({
                 )}
               </div>
 
-              {/* Description */}
-              <p className="text-gray-600 leading-relaxed">{product.description}</p>
+              <p className="text-gray-600 leading-relaxed text-sm">{product.description}</p>
 
-              {/* Add to cart (Client Component) */}
+              {/* Add to cart + Buy now (client component) */}
               <AddToCartButton product={product} />
 
-              {/* Instagram order */}
-              <a
-                href={`https://www.instagram.com/familyhub_market/`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 border-2 border-rose-500 text-rose-500 hover:bg-rose-500 hover:text-white font-bold py-3.5 rounded-2xl transition-all text-sm"
-              >
-                <Instagram size={18} />
-                Замовити через Instagram
-              </a>
+              {/* IG fallback (only if product originated from Instagram) */}
+              {product.instagramPermalink && (
+                <a
+                  href={product.instagramPermalink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 border border-gray-200 text-gray-500 hover:border-rose-300 hover:text-rose-500 font-semibold py-3 rounded-2xl transition-all text-sm"
+                >
+                  Переглянути пост в Instagram
+                </a>
+              )}
 
               {/* Delivery info */}
               <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-800">

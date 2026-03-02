@@ -1,110 +1,181 @@
+/**
+ * app/api/checkout/route.ts
+ *
+ * POST /api/checkout
+ *
+ * Checkout flow:
+ *   1. Validate request body (zod)
+ *   2. Create order in Sitniks CRM with status "Очікує оплати"
+ *   3. Build WayForPay payment URL using the new Sitniks order ID as orderReference
+ *   4. Return { paymentUrl, orderId } → frontend redirects user to paymentUrl
+ *
+ * ENV VARS:
+ *   SITNIKS_API_URL              — e.g. https://my-store.sitniks.com/api/v1
+ *   SITNIKS_API_KEY              — Bearer token from Sitniks Settings → API
+ *   WAYFORPAY_MERCHANT_ACCOUNT   — WayForPay merchant account name
+ *   WAYFORPAY_MERCHANT_DOMAIN    — your store domain
+ *   WAYFORPAY_SECRET_KEY         — WayForPay HMAC-MD5 secret key
+ *   NEXT_PUBLIC_SITE_URL         — public base URL (e.g. https://familyhubmarket.com)
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { checkoutSchema } from "@/lib/checkout-schema";
+import { createSitniksOrder, normalizePhone } from "@/lib/sitniks";
+import { buildWfpPaymentUrl, getWfpConfig } from "@/lib/wayforpay";
+import { getCatalogProductById } from "@/lib/instagram-catalog";
+import type {
+  CheckoutRequestBody,
+  CheckoutResponseError,
+  CheckoutResponseSuccess,
+  SitniksCreateOrderPayload,
+  WayForPayPaymentParams,
+} from "@/lib/types";
 
 /* ─────────────────────────────────────────────────────────────────────────
-   POST /api/checkout
-   Validates order data and sends a notification to Telegram.
-
-   ENV VARS (set in .env.local or Vercel dashboard):
-     TELEGRAM_BOT_TOKEN — token from @BotFather
-     TELEGRAM_CHAT_ID   — your personal or group chat id
+   POST handler
    ───────────────────────────────────────────────────────────────────────── */
 
-async function sendTelegram(text: string): Promise<void> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-
-  if (!token || !chatId) {
-    // Telegram not configured — log in dev, skip silently in preview
-    console.warn("[checkout] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set — skipping notification");
-    return;
-  }
-
-  const url = `https://api.telegram.org/bot${token}/sendMessage`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "HTML",
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    console.error("[checkout] Telegram API error:", body);
-    throw new Error("Telegram notification failed");
-  }
-}
-
-function buildTelegramMessage(
-  order: {
-    name: string;
-    phone: string;
-    city: string;
-    warehouse: string;
-    comment?: string;
-    paymentMethod: "cod" | "prepay";
-    items: Array<{ id: number; name: string; price: number; quantity: number }>;
-    totalPrice: number;
-  }
-): string {
-  const payLabel = order.paymentMethod === "cod" ? "Накладений платіж" : "Передоплата";
-  const itemLines = order.items
-    .map((it) => `  • ${it.name} × ${it.quantity} = ${(it.price * it.quantity).toLocaleString("uk-UA")} грн`)
-    .join("\n");
-
-  return (
-    `🛒 <b>Нове замовлення — FamilyHub Market</b>\n\n` +
-    `👤 <b>Ім'я:</b> ${order.name}\n` +
-    `📞 <b>Телефон:</b> ${order.phone}\n` +
-    `🏙 <b>Місто:</b> ${order.city}\n` +
-    `📦 <b>Відділення НП:</b> ${order.warehouse}\n` +
-    `💳 <b>Оплата:</b> ${payLabel}\n` +
-    (order.comment ? `💬 <b>Коментар:</b> ${order.comment}\n` : "") +
-    `\n<b>Товари:</b>\n${itemLines}\n\n` +
-    `💰 <b>Сума:</b> ${order.totalPrice.toLocaleString("uk-UA")} грн`
-  );
-}
-
 export async function POST(req: NextRequest) {
+  /* ── 1. Parse & validate request body ── */
+  let body: CheckoutRequestBody;
   try {
-    const body = await req.json();
+    body = await req.json();
+  } catch {
+    return errorResponse("Невалідний JSON у тілі запиту", 400);
+  }
 
-    // Validate form fields
-    const parsed = checkoutSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Невалідні дані", details: parsed.error.flatten().fieldErrors },
-        { status: 422 }
-      );
-    }
-
-    const { name, phone, city, warehouse, comment, paymentMethod } = parsed.data;
-
-    // Validate cart items (basic check)
-    const items: Array<{ id: number; name: string; price: number; quantity: number }> =
-      Array.isArray(body.items) ? body.items : [];
-    if (items.length === 0) {
-      return NextResponse.json({ error: "Кошик порожній" }, { status: 400 });
-    }
-
-    const totalPrice: number =
-      typeof body.totalPrice === "number"
-        ? body.totalPrice
-        : items.reduce((s: number, i: { price: number; quantity: number }) => s + i.price * i.quantity, 0);
-
-    const message = buildTelegramMessage({ name, phone, city, warehouse, comment, paymentMethod, items, totalPrice });
-
-    await sendTelegram(message);
-
-    return NextResponse.json({ success: true, orderId: Date.now().toString(36).toUpperCase() });
-  } catch (err: unknown) {
-    console.error("[checkout] Unhandled error:", err);
-    return NextResponse.json(
-      { error: "Сталася помилка сервера. Спробуйте пізніше або зв'яжіться з нами в Instagram." },
-      { status: 500 }
+  // Validate contact/delivery fields via zod
+  const parsed = checkoutSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json<CheckoutResponseError>(
+      { error: "Невалідні дані форми", details: parsed.error.flatten().fieldErrors },
+      { status: 422 }
     );
   }
+
+  const { name, phone, city, warehouse, comment } = parsed.data;
+
+  // Validate cart items
+  const items = Array.isArray(body.items) ? body.items : [];
+  if (items.length === 0) {
+    return errorResponse("Кошик порожній. Додайте товари перед оформленням.", 400);
+  }
+
+  // Validate each item has required numeric fields
+  for (const item of items) {
+    if (
+      typeof item.id !== "number" ||
+      typeof item.name !== "string" ||
+      typeof item.price !== "number" ||
+      typeof item.quantity !== "number" ||
+      item.price <= 0 ||
+      item.quantity <= 0
+    ) {
+      return errorResponse("Один або більше товарів мають невірний формат.", 400);
+    }
+  }
+
+// Пересчитываем цены на сервере (никогда не доверяем клиенту)
+  let totalPrice = 0;
+  const verifiedItems = [];
+
+  for (const item of items) {
+    const realProduct = await getCatalogProductById(item.id);
+    
+    if (!realProduct) {
+      return errorResponse(`Товар з ID ${item.id} не знайдено.`, 400);
+    }
+
+    // Считаем сумму, используя цену ИЗ БАЗЫ
+    totalPrice += realProduct.price * item.quantity;
+    
+    // Собираем проверенные товары для CRM
+    verifiedItems.push({
+      sku: String(realProduct.id),
+      name: realProduct.name, // Берем настоящее имя
+      price: realProduct.price, // Настоящая цена
+      quantity: item.quantity,
+    });
+  }
+
+  /* ── 2. Create order in Sitniks CRM ── */
+  const sitniksPayload: SitniksCreateOrderPayload = {
+    contact_name: name,
+    contact_phone: normalizePhone(phone),
+    // delivery_address = city + warehouse for NovaPoshta
+    delivery_address: `${city}, ${warehouse}`,
+    comment: [
+      `Нова Пошта: ${city}, ${warehouse}`,
+      comment ? `Коментар покупця: ${comment}` : null,
+      `Оплата: WayForPay (online)`,
+    ]
+      .filter(Boolean)
+      .join(" | "),
+    status: "Очікує оплати",
+    items: verifiedItems,
+    total_price: totalPrice,
+    source: "familyhub_landing",
+  };
+
+  let sitniksOrderId: string | number;
+  try {
+    const sitniksOrder = await createSitniksOrder(sitniksPayload);
+    sitniksOrderId = sitniksOrder.id;
+    console.info(`[checkout] Sitniks order created: #${sitniksOrderId}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Sitniks error";
+    console.error("[checkout] Sitniks createOrder failed:", msg);
+    return errorResponse(
+      "Помилка створення замовлення у CRM. Спробуйте пізніше або зверніться до нас в Instagram.",
+      502
+    );
+  }
+
+  /* ── 3. Build WayForPay payment URL ── */
+  let paymentUrl: string;
+  try {
+    const wfp = getWfpConfig();
+
+    const wfpParams: WayForPayPaymentParams = {
+      merchantAccount: wfp.merchantAccount,
+      merchantDomainName: wfp.merchantDomainName,
+      // Use Sitniks order ID as the unique order reference
+      orderReference: String(sitniksOrderId),
+      // Unix timestamp in seconds
+      orderDate: Math.floor(Date.now() / 1000),
+      amount: totalPrice,
+      currency: "UAH",
+      productName: items.map((i) => i.name),
+      productPrice: items.map((i) => i.price),
+      productCount: items.map((i) => i.quantity),
+      // After successful payment, WayForPay redirects to /checkout/success
+      returnUrl: `${wfp.siteUrl}/checkout/success?orderId=${sitniksOrderId}`,
+      // Async webhook for status updates
+      serviceUrl: `${wfp.siteUrl}/api/webhooks/wayforpay`,
+    };
+
+    paymentUrl = buildWfpPaymentUrl(wfpParams, wfp.secretKey);
+    console.info(`[checkout] WayForPay URL built for order #${sitniksOrderId}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "WayForPay config error";
+    console.error("[checkout] WayForPay build failed:", msg);
+    return errorResponse(
+      "Помилка підключення платіжного шлюзу. Зверніться до підтримки.",
+      500
+    );
+  }
+
+  /* ── 4. Return payment URL to frontend ── */
+  return NextResponse.json<CheckoutResponseSuccess>({
+    paymentUrl,
+    orderId: sitniksOrderId,
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   HELPERS
+   ───────────────────────────────────────────────────────────────────────── */
+
+function errorResponse(error: string, status: number) {
+  return NextResponse.json<CheckoutResponseError>({ error }, { status });
 }

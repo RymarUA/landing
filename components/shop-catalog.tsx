@@ -2,9 +2,10 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Instagram, ShoppingCart, X, Star, ChevronLeft, ChevronRight, Flame, Sparkles } from "lucide-react";
+import { ShoppingCart, X, Star, ChevronLeft, ChevronRight, Flame, Sparkles, CreditCard } from "lucide-react";
 import { useCart } from "@/components/cart-context";
-import type { Product } from "@/lib/products";
+import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
+import { useRouter } from "next/navigation";
 
 export type { Product };
 
@@ -244,6 +245,7 @@ interface ShopCatalogProps {
 }
 
 export function ShopCatalog({ products }: ShopCatalogProps) {
+  const router = useRouter();
   const [active, setActive] = useState("Всі");
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
@@ -387,11 +389,14 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
 
                     <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => setModalProduct(product)}
-                        className="flex items-center justify-center gap-1 flex-1 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white text-xs font-bold py-2.5 rounded-xl transition-all duration-200"
+                        onClick={() => { 
+                          handleAddToCart(product); 
+                          router.push('/checkout'); // <-- Сразу переходим к оплате
+                        }}
+                        className="flex items-center justify-center gap-1 flex-1 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold py-2.5 rounded-xl transition-all duration-200"
                       >
-                        <Instagram size={13} />
-                        Замовити
+                        <CreditCard size={13} />
+                        Купити
                       </button>
                       <button
                         onClick={() => handleAddToCart(product)}

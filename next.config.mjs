@@ -83,11 +83,6 @@ const nextConfig = {
     ignoreBuildErrors: true, // ✅ Don't fail build on TS errors
   },
 
-  // ESLint configuration - MUST ignore errors for production builds
-  eslint: {
-    ignoreDuringBuilds: true, // ✅ Don't fail build on ESLint errors
-  },
-
   // Optimize production builds for CodeSandbox
   productionBrowserSourceMaps: false,
 

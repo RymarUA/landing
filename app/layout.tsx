@@ -12,6 +12,8 @@ import { StickyHeader } from "@/components/sticky-header";
 import { AnnouncementBar } from "@/components/announcement-bar";
 import { CookieBanner } from "@/components/cookie-banner";
 import { WishlistProvider } from "@/components/wishlist-context";
+import { Analytics } from "@/components/analytics";
+import { DiscountPopup } from "@/components/discount-popup";
 
 export const metadata: Metadata = {
   title: {
@@ -62,7 +64,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${siteConfig.name} - ${siteConfig.tagline}`,
     description: siteConfig.description,
-    creator: siteConfig.twitter,
+    creator: "@familyhub_market",
     ...(siteConfig.ogImage ? { images: [siteConfig.ogImage] } : {}),
   },
   metadataBase: new URL(siteConfig.url),
@@ -137,6 +139,7 @@ export default function RootLayout({
         )}
         suppressHydrationWarning // Prevents browser extension conflicts
       >
+        <Analytics />
         <TailwindCDNClient />
         <DevToolsGuard />
         <CartProvider>
@@ -148,6 +151,7 @@ export default function RootLayout({
               {children}
             </main>
             <CartWidget />
+            <DiscountPopup />
             <CookieBanner />
           </WishlistProvider>
         </CartProvider>

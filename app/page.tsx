@@ -11,6 +11,7 @@
 import { getCatalogProducts } from "@/lib/instagram-catalog";
 import { ShopHero } from "@/components/shop-hero";
 import { ShopCatalog } from "@/components/shop-catalog";
+import { ShopReviews } from "@/components/shop-reviews";
 import { ShopNovaPoshta } from "@/components/shop-novaposhta";
 import { ShopFaq } from "@/components/shop-faq";
 import { ShopFooter } from "@/components/shop-footer";
@@ -27,6 +28,10 @@ export default async function Home() {
       <ScrollReveal direction="up">
         {/* ShopCatalog expects Product[] — CatalogProduct is compatible */}
         <ShopCatalog products={products} />
+      </ScrollReveal>
+
+      <ScrollReveal direction="up" delay={80}>
+        <ShopReviews />
       </ScrollReveal>
 
       <ScrollReveal direction="up" delay={100}>

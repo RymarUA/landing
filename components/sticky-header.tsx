@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, Menu, X, Heart, Search } from "lucide-react";
+import { ShoppingCart, Menu, X, Heart, Search, User } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
 
@@ -102,6 +102,15 @@ export function StickyHeader() {
             <Search size={18} />
           </button>
 
+          {/* Profile */}
+          <Link
+            href="/profile"
+            className="p-2 rounded-xl bg-gray-100 hover:bg-rose-50 hover:text-rose-500 transition-colors text-gray-600"
+            title="Особистий кабінет"
+          >
+            <User size={18} />
+          </Link>
+
           {/* Wishlist */}
           <Link
             href="/wishlist"
@@ -188,6 +197,14 @@ export function StickyHeader() {
               {l.label}
             </a>
           ))}
+          <Link
+            href="/profile"
+            onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-rose-500 transition-colors py-1"
+          >
+            <User size={16} />
+            Особистий кабінет
+          </Link>
           <Link
             href="/wishlist"
             onClick={() => setMenuOpen(false)}

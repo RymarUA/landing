@@ -1,34 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ShoppingCart,
-  ChevronLeft,
-  Trash2,
-  Loader2,
-  CreditCard,
-  ExternalLink,
+  ShoppingCart, ChevronLeft, Trash2, Loader2,
+  CreditCard, ExternalLink, Shield, Truck, Video,
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { checkoutSchema, type CheckoutFormData } from "@/lib/checkout-schema";
+import { trackInitiateCheckout } from "@/components/analytics";
 import type { CheckoutResponseSuccess, CheckoutResponseError } from "@/lib/types";
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Reusable field wrapper
-   ───────────────────────────────────────────────────────────────────────── */
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
+/* ─── Field wrapper ────────────────────────────────── */
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-sm font-semibold text-gray-700">{label}</label>
@@ -38,9 +25,7 @@ function Field({
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Empty cart state
-   ───────────────────────────────────────────────────────────────────────── */
+/* ─── Empty cart ───────────────────────────────────── */
 function EmptyCartScreen() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
@@ -54,7 +39,7 @@ function EmptyCartScreen() {
         </p>
         <Link
           href="/#catalog"
-          className="inline-flex items-center justify-center gap-2 bg-rose-500 text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-rose-600 transition-colors"
+          className="inline-flex items-center justify-center gap-2 bg-rose-500 text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-rose-600 transition-colors shadow-lg shadow-rose-200"
         >
           <ShoppingCart size={18} />
           До каталогу
@@ -64,9 +49,7 @@ function EmptyCartScreen() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Redirecting to WayForPay screen
-   ───────────────────────────────────────────────────────────────────────── */
+/* ─── Redirecting to WayForPay ─────────────────────── */
 function RedirectingScreen() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
@@ -87,42 +70,88 @@ function RedirectingScreen() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Main checkout page
-   ───────────────────────────────────────────────────────────────────────── */
+/* ─── Main CheckoutPage ────────────────────────────── */
 export default function CheckoutPage() {
-  const { items, totalCount, totalPrice, removeItem, clearCart } = useCart();
-  const [submitting, setSubmitting] = useState(false);
+  const { items, totalCount, totalPrice, removeItem } = useCart();
+  const [submitting, setSubmitting]   = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted]         = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  /* Abandoned-cart session */
+  const sessionId = useRef<string>("");
+  const abandonedRegistered = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+    sessionId.current = crypto.randomUUID();
+  }, []);
+
+  /* Register abandoned cart when phone field blurs (user has shown intent) */
+  const registerAbandonedCart = useCallback(
+    async (name: string, phone: string) => {
+      if (abandonedRegistered.current || !phone || items.length === 0) return;
+      abandonedRegistered.current = true;
+      try {
+        await fetch("/api/abandoned-cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sessionId.current,
+            name: name || "—",
+            phone,
+            items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+            totalPrice,
+          }),
+        });
+      } catch {
+        // non-critical
+      }
+    },
+    [items, totalPrice]
+  );
+
+  /* Cancel timer on successful checkout */
+  const cancelAbandonedCart = useCallback(async () => {
+    if (!abandonedRegistered.current) return;
+    try {
+      await fetch("/api/abandoned-cart", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sessionId.current }),
+      });
+    } catch {
+      // non-critical
+    }
+  }, []);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
-  } = useForm<CheckoutFormData>({
-    resolver: zodResolver(checkoutSchema),
-  });
+  } = useForm<CheckoutFormData>({ resolver: zodResolver(checkoutSchema) });
+
+  const nameValue  = watch("name")  ?? "";
+  const phoneValue = watch("phone") ?? "";
 
   const onSubmit = async (data: CheckoutFormData) => {
     setSubmitting(true);
     setServerError(null);
 
+    /* 📋 InitiateCheckout pixel event */
+    trackInitiateCheckout({ value: totalPrice, numItems: totalCount });
+
     try {
+      /* Cancel abandoned-cart timer — user is completing checkout */
+      await cancelAbandonedCart();
+
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          items: items.map((i) => ({
-            id: i.id,
-            name: i.name,
-            price: i.price,
-            quantity: i.quantity,
-          })),
+          items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
           totalPrice,
         }),
       });
@@ -134,62 +163,47 @@ export default function CheckoutPage() {
       }
 
       const { paymentUrl } = json as CheckoutResponseSuccess;
-
-      // Show redirecting screen, then send user to WayForPay
       setRedirecting(true);
-      setTimeout(() => {
-        clearCart(); // <-- Очищаем корзину перед переходом на оплату
-        window.location.href = paymentUrl;
-      }, 800);
-      // Small delay lets the UI flash the "redirecting" state before navigation
-      // В onSubmit:
-      setTimeout(() => {
-        clearCart(); // Очищаем корзину перед редиректом
-        window.location.href = paymentUrl;
-      }, 800);
+      setTimeout(() => { window.location.href = paymentUrl; }, 800);
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Сталася помилка. Спробуйте ще раз.";
-      setServerError(msg);
+      setServerError(err instanceof Error ? err.message : "Сталася помилка. Спробуйте ще раз.");
       setSubmitting(false);
     }
   };
 
-// Show redirecting screen while navigating to WayForPay
   if (redirecting) return <RedirectingScreen />;
-
-  // Защита от Hydration Mismatch (ждем монтирования компонента)
-  if (!mounted) return null; 
-
-  // Show empty cart state
+  if (!mounted) return null;
   if (totalCount === 0) return <EmptyCartScreen />;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-5xl mx-auto">
 
-        {/* ── Back link ── */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-8"
-        >
+        {/* Back */}
+        <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-6">
           <ChevronLeft size={16} />
-          Повернутись до магазину
+          Назад до магазину
         </Link>
 
-        <h1 className="text-3xl font-black text-gray-900 mb-8">Оформлення замовлення</h1>
+        <h1 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-3">
+          <span>Оформлення замовлення</span>
+          <span className="text-sm font-semibold bg-rose-100 text-rose-600 px-3 py-1 rounded-full">
+            {totalCount} {totalCount === 1 ? "товар" : totalCount < 5 ? "товари" : "товарів"}
+          </span>
+        </h1>
 
         <div className="grid lg:grid-cols-5 gap-8">
 
-          {/* ─────────────────────────────────────────
-              Left column: contact + delivery form
-              ───────────────────────────────────────── */}
-          <div className="lg:col-span-3 flex flex-col gap-6">
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+          {/* ── LEFT: form ── */}
+          <div className="lg:col-span-3 flex flex-col gap-5">
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
 
-              {/* Contact info */}
-              <div className="bg-white rounded-3xl shadow-sm p-6 flex flex-col gap-5">
-                <h2 className="text-lg font-black text-gray-900">Контактні дані</h2>
+              {/* Contact */}
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 bg-rose-100 rounded-full flex items-center justify-center text-xs font-black text-rose-600">1</div>
+                  <h2 className="text-lg font-black text-gray-900">Контактні дані</h2>
+                </div>
 
                 <Field label="Ваше ім'я *" error={errors.name?.message}>
                   <input
@@ -197,7 +211,7 @@ export default function CheckoutPage() {
                     placeholder="Наприклад: Олена Коваль"
                     autoComplete="name"
                     className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
-                      errors.name ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-white hover:border-gray-300"
+                      errors.name ? "border-rose-400 bg-rose-50" : "border-gray-200 hover:border-gray-300"
                     }`}
                   />
                 </Field>
@@ -209,34 +223,9 @@ export default function CheckoutPage() {
                     type="tel"
                     inputMode="tel"
                     autoComplete="tel"
+                    onBlur={() => registerAbandonedCart(nameValue, phoneValue)}
                     className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
-                      errors.phone ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  />
-                </Field>
-              </div>
-
-              {/* Delivery */}
-              <div className="bg-white rounded-3xl shadow-sm p-6 flex flex-col gap-5">
-                <h2 className="text-lg font-black text-gray-900">Доставка Новою Поштою</h2>
-
-                <Field label="Місто *" error={errors.city?.message}>
-                  <input
-                    {...register("city")}
-                    placeholder="Наприклад: Одеса"
-                    autoComplete="address-level2"
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
-                      errors.city ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  />
-                </Field>
-
-                <Field label="Відділення / поштомат *" error={errors.warehouse?.message}>
-                  <input
-                    {...register("warehouse")}
-                    placeholder="Наприклад: Відділення №5 або Поштомат №2345"
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
-                      errors.warehouse ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-white hover:border-gray-300"
+                      errors.phone ? "border-rose-400 bg-rose-50" : "border-gray-200 hover:border-gray-300"
                     }`}
                   />
                 </Field>
@@ -247,36 +236,65 @@ export default function CheckoutPage() {
                     type="email"
                     placeholder="your@email.com"
                     autoComplete="email"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition hover:border-gray-300"
-                  />
-                </Field>
-
-                <Field label="Коментар до замовлення" error={errors.comment?.message}>
-                  <textarea
-                    {...register("comment")}
-                    rows={3}
-                    placeholder="Додаткові побажання або уточнення (необов'язково)"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition hover:border-gray-300 resize-none"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition hover:border-gray-300"
                   />
                 </Field>
               </div>
 
-              {/* Payment info banner */}
-              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
-                <CreditCard size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
+              {/* Delivery */}
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 bg-rose-100 rounded-full flex items-center justify-center text-xs font-black text-rose-600">2</div>
+                  <h2 className="text-lg font-black text-gray-900">Доставка Новою Поштою</h2>
+                </div>
+
+                <Field label="Місто *" error={errors.city?.message}>
+                  <input
+                    {...register("city")}
+                    placeholder="Наприклад: Одеса"
+                    autoComplete="address-level2"
+                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
+                      errors.city ? "border-rose-400 bg-rose-50" : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  />
+                </Field>
+
+                <Field label="Відділення або поштомат *" error={errors.warehouse?.message}>
+                  <input
+                    {...register("warehouse")}
+                    placeholder="Відділення №5 або Поштомат №2345"
+                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition ${
+                      errors.warehouse ? "border-rose-400 bg-rose-50" : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  />
+                </Field>
+
+                <Field label="Коментар (необов'язково)" error={errors.comment?.message}>
+                  <textarea
+                    {...register("comment")}
+                    rows={2}
+                    placeholder="Особливі побажання або уточнення"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition hover:border-gray-300 resize-none"
+                  />
+                </Field>
+              </div>
+
+              {/* Payment banner */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
+                <Shield size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-bold text-blue-800 mb-0.5">Безпечна оплата через WayForPay</p>
                   <p className="text-xs text-blue-600 leading-relaxed">
-                    Після підтвердження замовлення ви будете перенаправлені на захищену сторінку
-                    оплати WayForPay. Підтримуються Visa, Mastercard, Apple Pay, Google Pay.
+                    Visa, Mastercard, Apple Pay, Google Pay · SSL-шифрування · PCI DSS
                   </p>
                 </div>
               </div>
 
               {/* Server error */}
               {serverError && (
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm font-medium">
-                  ⚠️ {serverError}
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm font-medium flex items-start gap-2">
+                  <span className="text-lg">⚠️</span>
+                  <span>{serverError}</span>
                 </div>
               )}
 
@@ -284,58 +302,35 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center justify-center gap-3 bg-rose-500 hover:bg-rose-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-base py-4 rounded-2xl transition-colors shadow-lg shadow-rose-200"
+                className="flex items-center justify-center gap-3 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-base py-4 rounded-2xl transition-all duration-200 shadow-lg shadow-rose-200 hover:-translate-y-0.5 hover:shadow-rose-300"
               >
                 {submitting ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" />
-                    Оформлюємо…
-                  </>
+                  <><Loader2 size={20} className="animate-spin" /> Оформлюємо…</>
                 ) : (
-                  <>
-                    <CreditCard size={20} />
-                    Перейти до оплати
-                  </>
+                  <><CreditCard size={20} /> Перейти до оплати · {totalPrice.toLocaleString("uk-UA")} грн</>
                 )}
               </button>
 
-              <p className="text-xs text-gray-400 text-center leading-relaxed">
-                Натискаючи кнопку, ви погоджуєтесь з умовами доставки та оплати.
-                <br />
-                Оплата здійснюється через захищений шлюз WayForPay.
+              <p className="text-xs text-gray-400 text-center">
+                Оформлюючи замовлення, ви приймаєте умови доставки та оплати.
               </p>
             </form>
           </div>
 
-          {/* ─────────────────────────────────────────
-              Right column: order summary
-              ───────────────────────────────────────── */}
+          {/* ── RIGHT: order summary ── */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-3xl shadow-sm p-6 sticky top-24">
-              <h2 className="text-lg font-black text-gray-900 mb-5">
-                Ваше замовлення{" "}
-                <span className="text-rose-500">
-                  ({totalCount} {totalCount === 1 ? "товар" : totalCount < 5 ? "товари" : "товарів"})
-                </span>
-              </h2>
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sticky top-24">
+              <h2 className="text-base font-black text-gray-900 mb-4">Ваше замовлення</h2>
 
-              {/* Items list */}
-              <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1 mb-5">
+              {/* Items */}
+              <div className="flex flex-col gap-3 max-h-72 overflow-y-auto pr-1 mb-5 scrollbar-thin">
                 {items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3">
-                    <div className="relative w-14 h-14 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        sizes="56px"
-                        className="object-cover"
-                      />
+                  <div key={item.id} className="flex items-center gap-3 group">
+                    <div className="relative w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                      <Image src={item.image} alt={item.name} fill sizes="48px" className="object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2">
-                        {item.name}
-                      </p>
+                      <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2">{item.name}</p>
                       <p className="text-xs text-gray-400 mt-0.5">× {item.quantity}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -345,9 +340,8 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => removeItem(item.id)}
-                        className="text-gray-300 hover:text-rose-500 transition-colors"
-                        title="Видалити товар"
-                        aria-label="Видалити товар"
+                        className="text-gray-200 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Видалити"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -357,25 +351,29 @@ export default function CheckoutPage() {
               </div>
 
               {/* Totals */}
-              <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
+              <div className="border-t border-gray-100 pt-4 space-y-2 mb-4">
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <span>Доставка</span>
-                  <span className="text-green-600 font-semibold">За тарифами НП</span>
+                  <span className="text-green-600 font-semibold text-xs">За тарифами НП</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-black text-gray-900">Разом:</span>
-                  <span className="text-2xl font-black text-rose-500">
-                    {totalPrice.toLocaleString("uk-UA")} грн
-                  </span>
+                  <span className="font-black text-gray-900">Разом:</span>
+                  <span className="text-xl font-black text-rose-500">{totalPrice.toLocaleString("uk-UA")} грн</span>
                 </div>
               </div>
 
-              {/* WayForPay badge */}
-              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
-                <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-400" fill="currentColor">
-                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4l6 2.67V11c0 4.12-2.79 7.96-6 9.12C8.79 18.96 6 15.12 6 11V7.67L12 5zm-1 4v4h2V9h-2zm0 5v2h2v-2h-2z" />
-                </svg>
-                Захищено WayForPay SSL
+              {/* Trust micro-badges */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
+                {[
+                  { Icon: Video,  label: "Відео розпак." },
+                  { Icon: Shield, label: "30 дн. гарантія" },
+                  { Icon: Truck,  label: "НП 1–3 дні" },
+                ].map(({ Icon, label }) => (
+                  <div key={label} className="flex flex-col items-center gap-1 text-center">
+                    <Icon size={15} className="text-rose-400" />
+                    <span className="text-[10px] font-semibold text-gray-400 leading-tight">{label}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

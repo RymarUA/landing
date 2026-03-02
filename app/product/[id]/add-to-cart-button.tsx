@@ -1,20 +1,63 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShoppingCart, CheckCircle, CreditCard } from "lucide-react";
+import { ShoppingCart, CheckCircle, CreditCard, Heart } from "lucide-react";
 import { useCart } from "@/components/cart-context";
+import { useWishlist } from "@/components/wishlist-context";
+import { trackAddToCart, trackViewContent, trackAddToWishlist, trackInitiateCheckout } from "@/components/analytics";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 
 export function AddToCartButton({ product }: { product: CatalogProduct }) {
-  const { addItem } = useCart();
+  const { addItem, totalCount, totalPrice } = useCart();
+  const { has, toggle, hydrated } = useWishlist();
   const [selectedSize, setSelectedSize] = useState<string>(product.sizes[0] ?? "");
   const [added, setAdded] = useState(false);
+  const isWished = hydrated && has(product.id);
+
+  /* 👁️ ViewContent — fire once when component mounts (= product page view) */
+  useEffect(() => {
+    trackViewContent({
+      contentId: product.id,
+      contentName: product.name,
+      contentCategory: product.category,
+      value: product.price,
+      currency: "UAH",
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAdd = () => {
     addItem({ id: product.id, name: product.name, price: product.price, image: product.image });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+
+    /* 🛒 AddToCart */
+    trackAddToCart({
+      contentId: product.id,
+      contentName: product.name,
+      value: product.price,
+    });
+  };
+
+  const handleWishlist = () => {
+    toggle(product.id);
+    if (!has(product.id)) {
+      /* ❤️ AddToWishlist (only when adding, not removing) */
+      trackAddToWishlist({
+        contentId: product.id,
+        contentName: product.name,
+        value: product.price,
+      });
+    }
+  };
+
+  const handleCheckout = () => {
+    /* 📋 InitiateCheckout — before going to checkout */
+    trackInitiateCheckout({
+      value: totalPrice + product.price,
+      numItems: totalCount + 1,
+    });
   };
 
   return (
@@ -41,7 +84,7 @@ export function AddToCartButton({ product }: { product: CatalogProduct }) {
         </div>
       )}
 
-      {/* CTA buttons */}
+      {/* CTA buttons row */}
       <div className="flex gap-3">
         <button
           onClick={handleAdd}
@@ -54,7 +97,7 @@ export function AddToCartButton({ product }: { product: CatalogProduct }) {
           {added ? (
             <>
               <CheckCircle size={20} />
-              Додано до кошика!
+              Додано!
             </>
           ) : (
             <>
@@ -66,12 +109,26 @@ export function AddToCartButton({ product }: { product: CatalogProduct }) {
 
         <Link
           href="/checkout"
-          className="flex-1 flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-black py-4 rounded-2xl transition-colors shadow-md shadow-rose-200 text-base"
+          onClick={handleCheckout}
+          className="flex-1 flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-black py-4 rounded-2xl transition-all duration-200 shadow-md shadow-rose-200 hover:shadow-rose-300 hover:-translate-y-0.5 text-base"
         >
           <CreditCard size={18} />
-          Оплатити
+          Купити
         </Link>
       </div>
+
+      {/* Wishlist button */}
+      <button
+        onClick={handleWishlist}
+        className={`flex items-center justify-center gap-2 w-full py-3 rounded-2xl border-2 font-semibold text-sm transition-all duration-200 ${
+          isWished
+            ? "border-rose-200 bg-rose-50 text-rose-500"
+            : "border-gray-200 text-gray-500 hover:border-rose-300 hover:text-rose-400"
+        }`}
+      >
+        <Heart size={16} className={isWished ? "fill-rose-500 text-rose-500" : ""} />
+        {isWished ? "У списку бажань" : "Додати до бажань"}
+      </button>
     </div>
   );
 }

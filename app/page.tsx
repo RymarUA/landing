@@ -1,3 +1,5 @@
+// Server Component — fetches product data, passes to client children
+import { getAllProducts } from "@/lib/products";
 import { ShopHero } from "@/components/shop-hero";
 import { ShopCatalog } from "@/components/shop-catalog";
 import { ShopNovaPoshta } from "@/components/shop-novaposhta";
@@ -6,33 +8,30 @@ import { ShopFaq } from "@/components/shop-faq";
 import { ShopFooter } from "@/components/shop-footer";
 import { ScrollReveal } from "@/components/scroll-reveal";
 
-export default function Home() {
+export default async function Home() {
+  // Fetched server-side: zero product data in client JS bundle
+  const products = await getAllProducts();
+
   return (
     <main className="bg-white min-h-screen">
-      {/* Hero — full screen, no reveal */}
       <ShopHero />
 
-      {/* Catalog: new arrivals + main grid */}
       <ScrollReveal direction="up">
-        <ShopCatalog />
+        <ShopCatalog products={products} />
       </ScrollReveal>
 
-      {/* Nova Poshta tracking */}
       <ScrollReveal direction="up" delay={100}>
         <ShopNovaPoshta />
       </ScrollReveal>
 
-      {/* Reviews */}
       <ScrollReveal direction="up" delay={80}>
         <ShopReviews />
       </ScrollReveal>
 
-      {/* FAQ */}
       <ScrollReveal direction="up" delay={80}>
         <ShopFaq />
       </ScrollReveal>
 
-      {/* Footer */}
       <ShopFooter />
     </main>
   );

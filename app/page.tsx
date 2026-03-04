@@ -25,7 +25,7 @@ export default async function Home({
   const products = await getCatalogProducts();
 
   return (
-    <main className="bg-white min-h-screen">
+    <main className="min-h-screen bg-[#fdf6f0]">
       <ShopHero />
 
       <ScrollReveal direction="up">

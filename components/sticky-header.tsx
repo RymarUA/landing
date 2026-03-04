@@ -2,7 +2,15 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ShoppingCart, Menu, X, Heart, Search, User } from "lucide-react";
+import { ShoppingCart, Menu, X, Heart, Search, User, Instagram, Facebook } from "lucide-react";
+
+function TikTokIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.73a4.85 4.85 0 0 1-1.01-.04z" />
+    </svg>
+  );
+}
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
 
@@ -151,6 +159,43 @@ export function StickyHeader() {
               </span>
             )}
           </button>
+
+          {/* Colored social icons — desktop only */}
+          <div className="hidden lg:flex items-center gap-1.5 ml-1">
+            <a
+              href="https://www.instagram.com/familyhub_market/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:scale-110 transition-transform"
+              style={{ background: "linear-gradient(135deg,#f43f5e,#ec4899)" }}
+              title="Instagram"
+              aria-label="Instagram"
+            >
+              <Instagram size={15} />
+            </a>
+            <a
+              href="https://www.facebook.com/familyhubmarketod"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:scale-110 transition-transform"
+              style={{ background: "linear-gradient(135deg,#3b82f6,#1d4ed8)" }}
+              title="Facebook"
+              aria-label="Facebook"
+            >
+              <Facebook size={15} />
+            </a>
+            <a
+              href="https://www.tiktok.com/@familyhub_market"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:scale-110 transition-transform"
+              style={{ background: "#1c1917" }}
+              title="TikTok"
+              aria-label="TikTok"
+            >
+              <TikTokIcon size={15} />
+            </a>
+          </div>
 
           <button
             className="md:hidden p-2 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"

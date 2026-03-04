@@ -12,6 +12,7 @@ import { MobileStickyBar } from "./mobile-sticky-bar";
 import { ProductImageLightbox } from "./product-image-lightbox";
 import { ShareButton } from "./share-button";
 import { RecentlyViewedBlock } from "./recently-viewed-block";
+import { InfiniteProductFeed } from "./infinite-product-feed";
 import { siteConfig } from "@/lib/site-config";
 import {
   JsonLd,
@@ -101,25 +102,25 @@ export default async function ProductPage({
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28 md:pb-0">
+    <div className="min-h-screen bg-[#fdf6f0] pb-28 md:pb-0">
       <JsonLd id="product-schema" data={productSchema} />
       <JsonLd id="breadcrumb-schema" data={breadcrumbSchema} />
 
       {/* ── Breadcrumb ── */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2 text-sm text-gray-500">
+      <div className="bg-white border-b border-stone-100">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2 text-sm text-stone-500">
           <Link href="/" className="hover:text-orange-500 transition-colors">Головна</Link>
           <span>/</span>
           <Link href="/#catalog" className="hover:text-orange-500 transition-colors">Каталог</Link>
           <span>/</span>
-          <span className="text-gray-900 font-medium truncate max-w-[200px]">{product.name}</span>
+          <span className="text-stone-900 font-medium truncate max-w-[200px]">{product.name}</span>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-10">
         <Link
           href="/#catalog"
-          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-sm text-stone-500 hover:text-stone-700 transition-colors mb-8"
         >
           <ChevronLeft size={16} />
           Назад до каталогу
@@ -219,7 +220,7 @@ export default async function ProductPage({
         {/* Related Products */}
         {related.length > 0 && (
           <div className="mt-14">
-            <h2 className="text-2xl font-black text-gray-900 mb-6">Схожі товари</h2>
+            <h2 className="text-2xl font-black text-stone-900 mb-6">Схожі товари</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {related.map((rp) => (
                 <Link
@@ -237,22 +238,22 @@ export default async function ProductPage({
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-xs text-gray-400 mb-0.5">{rp.category}</p>
-                    <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-1.5">{rp.name}</p>
+                    <p className="text-xs text-stone-500 mb-0.5">{rp.category}</p>
+                    <p className="text-sm font-bold text-stone-900 leading-tight line-clamp-2 mb-1.5">{rp.name}</p>
                     <div className="flex items-center gap-0.5 mb-1.5">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
                           key={i}
                           size={10}
-                          className={i < Math.round(rp.rating) ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}
+                          className={i < Math.round(rp.rating) ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"}
                         />
                       ))}
-                      <span className="text-xs text-gray-400 ml-0.5">({rp.reviews})</span>
+                      <span className="text-xs text-stone-500 ml-0.5">({rp.reviews})</span>
                     </div>
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-orange-500 font-black">{rp.price.toLocaleString("uk-UA")} грн</span>
                       {rp.oldPrice && (
-                        <span className="text-gray-400 text-xs line-through">
+                        <span className="text-stone-400 text-xs line-through">
                           {rp.oldPrice.toLocaleString("uk-UA")} грн
                         </span>
                       )}
@@ -263,6 +264,13 @@ export default async function ProductPage({
             </div>
           </div>
         )}
+
+        <InfiniteProductFeed
+          category={product.category}
+          currentProductId={product.id}
+          relatedIds={related.map((r) => r.id)}
+          allProducts={allProducts}
+        />
       </div>
 
       {/* ── Mobile Sticky Bar — client component with shared state ── */}

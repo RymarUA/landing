@@ -27,27 +27,32 @@ import Image from "next/image";
 /* ─── Types ──────────────────────────────────────────── */
 type Step = "loading" | "phone" | "otp" | "profile";
 
-/** Normalize phone for API: +380XXXXXXXXX */
+/** Normalize phone for API: always +380XXXXXXXXX (13 chars) */
 function normalizePhoneForApi(phone: string): string {
   const digits = phone.replace(/\D/g, "");
-  if (digits.length === 9 && digits.startsWith("0")) return "+38" + digits;
-  if (digits.length === 10 && digits.startsWith("80")) return "+3" + digits;
-  if (digits.length === 11 && digits.startsWith("380")) return "+" + digits;
-  return phone.trim();
+  if (digits.length === 12 && digits.startsWith("38")) return "+" + digits;
+  if (digits.length >= 10) {
+    const tail = digits.slice(-10);
+    if (tail.startsWith("0")) return "+38" + tail;
+    if (tail.length === 9) return "+380" + tail;
+  }
+  if (digits.length === 9) return "+380" + digits;
+  return "";
 }
 
-const PHONE_VALID = /^\+?3?8?0\d{9}$/;
+const PHONE_VALID = /^\+380\d{9}$/;
 function isValidPhone(phone: string): boolean {
   const normalized = normalizePhoneForApi(phone);
-  return PHONE_VALID.test(normalized.replace(/\s/g, ""));
+  return normalized.length === 13 && PHONE_VALID.test(normalized);
 }
 
-/** Format display phone: +38 (067) 123-45-67 */
-function formatPhoneDisplay(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 10);
-  if (digits.length <= 3) return digits ? "+38 (" + digits : "";
+/** Format display phone: +38 (067) 123-45-67 — only digits, max 10 (0XX...) */
+function formatPhoneDisplay(digitsOnly: string): string {
+  const digits = digitsOnly.replace(/\D/g, "").slice(0, 10);
+  if (!digits.length) return "";
+  if (digits.length <= 3) return "+38 (" + digits;
   if (digits.length <= 6) return "+38 (" + digits.slice(0, 3) + ") " + digits.slice(3);
-  return "+38 (" + digits.slice(0, 3) + ") " + digits.slice(3, 6) + "-" + digits.slice(6, 8) + "-" + digits.slice(8);
+  return "+38 (" + digits.slice(0, 3) + ") " + digits.slice(3, 6) + "-" + digits.slice(6, 8) + "-" + digits.slice(8, 10);
 }
 
 interface Order {
@@ -110,6 +115,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [error, setError]   = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [busy, setBusy]     = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [copiedPromo, setCopiedPromo] = useState(false);
@@ -186,15 +192,15 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   /* ── Step 1: Send OTP ── */
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = phone.trim();
-    if (!trimmed) return;
-    const normalized = normalizePhoneForApi(trimmed);
-    if (!/^\+?3?8?0\d{9}$/.test(normalized.replace(/\s/g, ""))) {
-      setError("Введіть коректний номер у форматі +380...");
+    const normalized = normalizePhoneForApi(phone);
+    if (!isValidPhone(phone)) {
+      setPhoneError("Номер некоректний");
+      setError("Введіть номер у форматі +38 (0XX) XXX-XX-XX");
       return;
     }
     setBusy(true);
     setError("");
+    setPhoneError("");
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
@@ -202,7 +208,12 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         body: JSON.stringify({ phone: normalized }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Помилка відправлення");
+      if (!res.ok) {
+        if (res.status === 429) {
+          throw new Error(data.error ?? "Спробуйте ще раз через 60 с.");
+        }
+        throw new Error(data.error ?? "Помилка відправлення коду. Спробуйте ще раз.");
+      }
       setStep("otp");
       startResendTimer();
     } catch (err: unknown) {
@@ -277,13 +288,17 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setBusy(true);
     setError("");
     try {
+      const normalized = normalizePhoneForApi(phone);
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalizePhoneForApi(phone) }),
+        body: JSON.stringify({ phone: normalized }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Помилка");
+      if (!res.ok) {
+        if (res.status === 429) throw new Error(data.error ?? "Спробуйте ще раз через 60 с.");
+        throw new Error(data.error ?? "Помилка");
+      }
       setOtp(["", "", "", "", "", ""]);
       startResendTimer();
     } catch (err: unknown) {
@@ -333,14 +348,35 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                     type="tel"
                     value={phone}
                     onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, "").slice(-9);
-                      setPhone(digits ? formatPhoneDisplay("0" + digits) : "");
+                      const raw = e.target.value.replace(/\D/g, "");
+                      if (!raw.length) {
+                        setPhone("");
+                        setPhoneError("");
+                        setError("");
+                        return;
+                      }
+                      let ten = raw.length === 12 && raw.startsWith("38") ? raw.slice(2) : raw.slice(-10);
+                      if (ten.length === 10 && ten.startsWith("8")) ten = "0" + ten.slice(1);
+                      else if (ten.length === 9 && !ten.startsWith("0")) ten = "0" + ten;
+                      setPhone(formatPhoneDisplay(ten));
+                      setPhoneError("");
+                      setError("");
+                    }}
+                    onBlur={() => {
+                      if (phone.trim() && !isValidPhone(phone)) setPhoneError("Номер некоректний");
+                      else setPhoneError("");
                     }}
                     placeholder="+38 (067) 123-45-67"
                     disabled={busy}
                     autoComplete="tel"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 transition disabled:opacity-60 disabled:cursor-not-allowed ${phoneError ? "border-red-400 bg-red-50/50" : "border-gray-200"}`}
                   />
+                  {phoneError && (
+                    <p className="text-sm text-red-600 flex items-center gap-1.5">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      {phoneError}
+                    </p>
+                  )}
                 </div>
 
                 {error && (
@@ -396,7 +432,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       <div className="min-h-screen bg-gray-50 py-16 px-4 transition-opacity duration-300">
         <div className="max-w-md mx-auto">
           <button
-            onClick={() => { setStep("phone"); setError(""); setOtp(["", "", "", "", "", ""]); }}
+            onClick={() => { setStep("phone"); setError(""); setPhoneError(""); setOtp(["", "", "", "", "", ""]); }}
             className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-8"
           >
             <ChevronLeft size={16} />

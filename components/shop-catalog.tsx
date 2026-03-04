@@ -17,6 +17,10 @@ import {
   Search,
   ChevronDown,
   ArrowUpDown,
+  Truck,
+  RotateCcw,
+  ShieldCheck,
+  Video,
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
@@ -84,7 +88,7 @@ function WishlistButton({ product }: { product: Product }) {
 }
 
 /* ─── Horizontal New Arrivals scroll ─────────────── */
-function HorizontalScroll({ items, onOpen }: { items: Product[]; onOpen: (p: Product) => void }) {
+function HorizontalScroll({ items, onOpen, onAddToCart }: { items: Product[]; onOpen: (p: Product) => void; onAddToCart: (p: Product) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const scroll = (dir: "left" | "right") =>
     ref.current?.scrollBy({ left: dir === "left" ? -280 : 280, behavior: "smooth" });
@@ -107,10 +111,10 @@ function HorizontalScroll({ items, onOpen }: { items: Product[]; onOpen: (p: Pro
           <div
             key={product.id}
             onClick={() => onOpen(product)}
-            className="flex-shrink-0 w-52 bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group snap-start relative"
+            className="flex-shrink-0 w-60 bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group snap-start relative flex flex-col"
           >
             <WishlistButton product={product} />
-            <div className="relative h-36 overflow-hidden">
+            <div className="relative h-36 overflow-hidden rounded-t-2xl">
               <Image
                 src={product.image}
                 alt={product.name}
@@ -131,15 +135,26 @@ function HorizontalScroll({ items, onOpen }: { items: Product[]; onOpen: (p: Pro
                 )}
               </div>
             </div>
-            <div className="p-3">
+            <div className="p-3 flex flex-col">
               <p className="text-xs text-gray-400 mb-0.5">{product.category}</p>
               <p className="text-sm font-bold text-gray-900 leading-tight mb-1 line-clamp-2">{product.name}</p>
               <StarRow rating={product.rating} count={product.reviews} />
-              <div className="flex items-baseline gap-1.5 mt-1.5">
+              <div className="flex items-baseline gap-1.5 mt-1.5 mb-3">
                 <span className="text-orange-500 font-black text-base">{product.price} грн</span>
                 {product.oldPrice && (
                   <span className="text-gray-400 text-xs line-through">{product.oldPrice} грн</span>
                 )}
+              </div>
+              {/* Buttons */}
+              <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={() => onAddToCart(product)}
+                  className="flex items-center justify-center gap-1 flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2 rounded-xl transition-all duration-200"
+                  aria-label="До кошика"
+                >
+                  <ShoppingCart size={12} />
+                  До кошика
+                </button>
               </div>
             </div>
           </div>
@@ -179,8 +194,10 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
   const categoryTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [catalogVisible, setCatalogVisible] = useState(true);
+  const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
   const { addItem } = useCart();
 
   const addToast = useCallback((name: string) => {
@@ -201,7 +218,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
       const catMatch = hash.match(/category=([^&#]*)/);
       if (catMatch) {
         const cat = decodeURIComponent(catMatch[1].trim());
-        if (ALL_CATEGORIES.includes(cat as (typeof ALL_CATEGORIES)[number])) setActive(cat);
+        if (ALL_CATEGORIES.includes(cat as (typeof ALL_CATEGORIES)[number])) { setActive(cat); setVisibleCount(INITIAL_VISIBLE); }
       }
     };
     syncFromHash();
@@ -214,23 +231,6 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
     const el = categoryTabRefs.current[active];
     if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }, [active]);
-
-  /* Close sort dropdown on click outside */
-  useEffect(() => {
-    if (!sortOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
-        setSortOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [sortOpen]);
-
-  /* Reset visible count when filters/category/search/sort change */
-  useEffect(() => {
-    setVisibleCount(INITIAL_VISIBLE);
-  }, [active, searchQuery, sortKey, minPrice, maxPrice, onlyInStock]);
 
   const newArrivals = products.filter((p) => p.isNew || p.isHit).slice(0, 6);
 
@@ -355,16 +355,22 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
               Всі товари →
             </button>
           </div>
-          <HorizontalScroll items={newArrivals} onOpen={setModalProduct} />
+          <HorizontalScroll items={newArrivals} onOpen={setModalProduct} onAddToCart={(p) => handleAddToCart(p, p.sizes[0] ?? undefined)} />
         </div>
       </section>
 
       {/* ── Main Catalog ── */}
-      <section id="catalog" className="bg-gray-50 py-16 px-4">
+      <section id="catalog" className="bg-gray-50 py-8 px-4">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">Каталог товарів</h2>
-            <p className="text-gray-500">Оберіть категорію та натисніть на товар для деталей</p>
+          {/* ── Trust bar ── */}
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mb-6 py-3 px-4 bg-white rounded-2xl border border-gray-100 shadow-sm text-xs font-semibold text-gray-500">
+            <span className="flex items-center gap-1.5"><Truck size={13} className="text-orange-500" />Доставка 1–2 дні</span>
+            <span className="hidden sm:block text-gray-200">|</span>
+            <span className="flex items-center gap-1.5"><Video size={13} className="text-orange-500" />Відео розпакування</span>
+            <span className="hidden sm:block text-gray-200">|</span>
+            <span className="flex items-center gap-1.5"><RotateCcw size={13} className="text-orange-500" />Повернення 14 днів</span>
+            <span className="hidden sm:block text-gray-200">|</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck size={13} className="text-orange-500" />Офіційна гарантія</span>
           </div>
 
           {/* ── Search bar ── */}
@@ -394,7 +400,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
               <button
                 key={cat}
                 ref={(el) => { categoryTabRefs.current[cat] = el; }}
-                onClick={() => setActive(cat)}
+                onClick={() => { setActive(cat); setVisibleCount(INITIAL_VISIBLE); setCatalogVisible(false); setTimeout(() => setCatalogVisible(true), 120); }}
                 className={`flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                   active === cat
                     ? "bg-orange-500 text-white shadow-md shadow-orange-200"
@@ -410,7 +416,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div className="flex items-center gap-2">
               {/* Sort dropdown */}
-              <div className="relative" ref={sortDropdownRef}>
+              <div className="relative">
                 <button
                   onClick={() => setSortOpen((v) => !v)}
                   className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:border-orange-300 transition-colors shadow-sm"
@@ -521,7 +527,19 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
             </div>
           ) : (
             <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div
+              className={`grid grid-cols-2 md:grid-cols-4 gap-4 transition-opacity duration-150 ${catalogVisible ? "opacity-100" : "opacity-0"}`}
+              onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; touchStartY.current = e.touches[0].clientY; }}
+              onTouchEnd={(e) => {
+                const dx = e.changedTouches[0].clientX - touchStartX.current;
+                const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+                if (Math.abs(dx) > 60 && dy < 40) {
+                  const idx = ALL_CATEGORIES.indexOf(active as (typeof ALL_CATEGORIES)[number]);
+                  const next = dx < 0 ? Math.min(idx + 1, ALL_CATEGORIES.length - 1) : Math.max(idx - 1, 0);
+                  if (next !== idx) { setActive(ALL_CATEGORIES[next]); setVisibleCount(INITIAL_VISIBLE); setCatalogVisible(false); setTimeout(() => setCatalogVisible(true), 120); }
+                }
+              }}
+            >
               {visibleSorted.map((product) => {
                 const discount = product.oldPrice
                   ? Math.round((1 - product.price / product.oldPrice) * 100)
@@ -530,14 +548,14 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                 return (
                   <div
                     key={product.id}
-                    className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer relative"
+                    className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative flex flex-col border border-gray-100"
                     onClick={() => setModalProduct(product)}
                   >
                     {/* Wishlist */}
                     <WishlistButton product={product} />
 
                     {/* Image with skeleton */}
-                    <div className="relative h-44 overflow-hidden bg-gray-100">
+                    <div className="relative h-56 overflow-hidden bg-gray-100">
                       <div className="absolute inset-0 bg-gray-100 animate-pulse [.img-loaded_&]:opacity-0 [.img-loaded_&]:pointer-events-none transition-opacity duration-300" aria-hidden />
                       <Image
                         src={product.image}
@@ -559,16 +577,16 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                         </span>
                       )}
                       {discount && (
-                        <span className="absolute bottom-2 left-2 bg-amber-400 text-gray-900 text-xs font-black px-2 py-0.5 rounded-full">
+                        <span className="absolute top-2 right-10 bg-red-500 text-white text-[11px] font-black w-9 h-9 rounded-full flex items-center justify-center shadow-md">
                           -{discount}%
                         </span>
                       )}
                     </div>
 
                     {/* Content */}
-                    <div className="p-3">
-                      <div className="text-xs text-gray-400 mb-0.5">{product.category}</div>
-                      <div className="text-sm font-bold text-gray-900 leading-tight mb-1.5 line-clamp-2">
+                    <div className="p-3 flex flex-col flex-1">
+                      <div className="text-[10px] font-bold text-orange-500 uppercase tracking-wide mb-0.5">{product.category}</div>
+                      <div className="text-[15px] font-bold text-gray-900 leading-tight mb-1.5 line-clamp-2">
                         <Highlight text={product.name} query={searchQuery} />
                       </div>
                       <StarRow rating={product.rating} count={product.reviews} />
@@ -581,39 +599,38 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                       )}
 
                       {product.sizes.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {product.sizes.map((s) => (
-                            <span key={s} className="text-xs border border-gray-200 rounded-lg px-1.5 py-0.5 text-gray-500">{s}</span>
-                          ))}
-                        </div>
+                        <p className="text-xs text-gray-400 mt-1.5">
+                          Розміри: {product.sizes.join(", ")}
+                        </p>
                       )}
 
-                      <div className="flex items-baseline gap-2 mt-2 mb-3">
-                        <span className="text-orange-500 font-black text-base">{product.price} грн</span>
+                      <div className="flex items-baseline gap-2 mt-auto pt-3 mb-3">
+                        <span className="text-gray-900 font-black text-xl">{product.price.toLocaleString("uk-UA")} грн</span>
                         {product.oldPrice && (
-                          <span className="text-gray-400 text-xs line-through">{product.oldPrice} грн</span>
+                          <span className="text-gray-400 text-sm line-through">{product.oldPrice} грн</span>
                         )}
                       </div>
 
-                      <div className="flex gap-1.5 w-full" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleBuyNow(product, product.sizes[0] ?? undefined)}
-                          className="flex items-center justify-center gap-1 flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2.5 rounded-xl transition-all duration-200"
-                        >
-                          <CreditCard size={13} />
-                          Купити
-                        </button>
+                      <div className="flex gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleAddToCart(product, product.sizes[0] ?? undefined)}
-                          className={`flex items-center justify-center w-9 h-9 rounded-xl text-xs font-bold transition-all duration-200 flex-shrink-0 ${
+                          className={`flex items-center justify-center gap-1.5 flex-1 font-bold py-3 rounded-xl text-sm transition-all duration-200 ${
                             addedIds.has(`${product.id}-${product.sizes[0] ?? ""}`)
-                              ? "bg-green-500 text-white scale-110"
-                              : "bg-gray-100 hover:bg-gray-900 text-gray-500 hover:text-white"
+                              ? "bg-green-500 text-white"
+                              : "bg-orange-500 hover:bg-orange-600 text-white shadow-md shadow-orange-200"
                           }`}
-                          title="До кошика"
                           aria-label="Додати до кошика"
                         >
                           <ShoppingCart size={14} className={addedIds.has(`${product.id}-${product.sizes[0] ?? ""}`) ? "animate-bounce" : ""} />
+                          {addedIds.has(`${product.id}-${product.sizes[0] ?? ""}`) ? "Додано ✓" : "До кошика"}
+                        </button>
+                        <button
+                          onClick={() => handleBuyNow(product, product.sizes[0] ?? undefined)}
+                          className="flex items-center justify-center w-11 h-11 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 transition-all duration-200 flex-shrink-0"
+                          title="Купити одразу"
+                          aria-label="Купити одразу"
+                        >
+                          <CreditCard size={15} />
                         </button>
                       </div>
                     </div>
@@ -621,11 +638,8 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                 );
               })}
             </div>
-            <p className="mt-4 text-center text-sm text-gray-500">
-              Показано {visibleSorted.length} з {sorted.length} товарів
-            </p>
             {hasMore && (
-              <div className="mt-4 flex justify-center">
+              <div className="mt-6 flex justify-center">
                 <button
                   onClick={() => setVisibleCount((c) => c + LOAD_MORE_STEP)}
                   className="px-6 py-3 rounded-2xl border-2 border-orange-500 text-orange-500 font-bold text-sm hover:bg-orange-50 transition-colors"

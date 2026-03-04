@@ -7,8 +7,6 @@ import { X, Star, ShoppingCart, Flame, Heart } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
 
-const SWIPE_CLOSE_THRESHOLD = 80;
-
 function Highlight({ text, query }: { text: string; query: string }) {
   if (!query.trim()) return <>{text}</>;
   const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
@@ -17,9 +15,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, i) =>
         regex.test(part) ? (
-          <mark key={i} className="bg-amber-200 text-gray-900 rounded px-0.5">
-            {part}
-          </mark>
+          <mark key={i} className="bg-amber-200 text-gray-900 rounded px-0.5">{part}</mark>
         ) : (
           <span key={i}>{part}</span>
         )
@@ -32,9 +28,7 @@ function StarRow({ rating, count }: { rating: number; count: number }) {
   return (
     <div className="flex items-center gap-1">
       {Array.from({ length: 5 }).map((_, i) => (
-        <Star
-          key={i}
-          size={11}
+        <Star key={i} size={11}
           className={i < Math.round(rating) ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}
         />
       ))}
@@ -54,33 +48,34 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
   const [selectedSize, setSelectedSize] = useState<string | null>(product.sizes[0] ?? null);
   const { has, toggle, hydrated } = useWishlist();
   const isWished = hydrated && has(product.id);
-  const touchStartY = useRef<number>(0);
-  const swipeClosedRef = useRef(false);
+  const scrollYRef = useRef(0);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    document.body.style.overflow = "hidden";
+    // Зберігаємо позицію скролу
+    scrollYRef.current = window.scrollY;
+
+    // Блокуємо скрол body без зсуву контенту
+    const body = document.body;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollYRef.current}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.overflowY = "scroll";
+
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+
     return () => {
-      document.removeEventListener("keydown", handler);
-      document.body.style.overflow = "";
+      // Відновлюємо точну позицію
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.overflowY = "";
+      window.scrollTo(0, scrollYRef.current);
+      document.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    swipeClosedRef.current = false;
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (swipeClosedRef.current) return;
-    const dy = e.touches[0].clientY - touchStartY.current;
-    if (dy > SWIPE_CLOSE_THRESHOLD) {
-      swipeClosedRef.current = true;
-      onClose();
-    }
-  };
 
   const discount = product.oldPrice
     ? Math.round((1 - product.price / product.oldPrice) * 100)
@@ -92,24 +87,35 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    /*
+     * КЛЮЧОВЕ ВИПРАВЛЕННЯ:
+     * fixed inset-0 + flex items-center justify-center
+     * = завжди по центру VIEWPORT, незалежно від позиції скролу.
+     * body заблокований через position:fixed (не overflow:hidden),
+     * тому layout не зсувається і модалка не стрибає вниз.
+     */
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
+      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
+      {/* Картка модалки — завжди по центру екрану */}
       <div
-        className="relative bg-white w-full sm:max-w-2xl sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col touch-none sm:touch-auto"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
+        className="relative z-10 bg-white w-full sm:max-w-2xl sm:rounded-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        style={{ maxHeight: "90vh" }}
       >
+        {/* Кнопка закрити */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors"
+          className="absolute top-4 right-4 z-20 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors"
           aria-label="Закрити"
         >
           <X size={18} className="text-gray-600" />
         </button>
 
-        <div className="flex flex-col sm:flex-row overflow-y-auto">
-          <div className="relative sm:w-80 h-60 sm:h-auto flex-shrink-0">
+        {/* Контент — скролиться всередині */}
+        <div className="flex flex-col sm:flex-row overflow-y-auto" style={{ maxHeight: "90vh" }}>
+          {/* Зображення */}
+          <div className="relative sm:w-80 h-60 sm:h-auto flex-shrink-0" style={{ minHeight: "220px" }}>
             <Image
               src={product.image}
               alt={product.name}
@@ -124,12 +130,13 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
               </span>
             )}
             {discount && (
-              <span className="absolute top-3 right-3 bg-amber-400 text-gray-900 text-xs font-black px-2.5 py-1 rounded-full">
+              <span className="absolute top-3 right-3 bg-rose-100 text-rose-600 text-xs font-black px-2.5 py-1 rounded-full">
                 -{discount}%
               </span>
             )}
           </div>
 
+          {/* Інфо */}
           <div className="flex-1 p-6 flex flex-col gap-4">
             <div>
               <p className="text-xs font-semibold text-orange-500 uppercase tracking-widest mb-1">{product.category}</p>

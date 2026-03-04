@@ -16,6 +16,13 @@ import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
 import { MotionWrapper } from "@/components/motion-wrapper";
 import { SupportButton } from "@/components/support-button";
+import { validateEnv } from "@/lib/env-validation";
+import { WebVitals } from "./web-vitals";
+
+// Validate environment variables on server startup
+if (typeof window === 'undefined') {
+  validateEnv();
+}
 
 export const metadata: Metadata = {
   title: {
@@ -142,6 +149,7 @@ export default function RootLayout({
         suppressHydrationWarning // Prevents browser extension conflicts
       >
         <Analytics />
+        <WebVitals />
         <TailwindCDNClient />
         <DevToolsGuard />
         <CartProvider>

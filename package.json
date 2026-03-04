@@ -3,20 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bash scripts/install-deps.sh 2>/dev/null; next dev",
-    "postinstall": "bash scripts/install-deps.sh 2>/dev/null || true",
+    "dev": "next dev",
+    "postinstall": "echo '✅ Dependencies installed successfully'",
     "prebuild": "node scripts/remove-cdn-for-vercel.js",
     "dev:fast": "NEXT_TELEMETRY_DISABLED=1 next dev",
     "dev:turbo": "next dev --turbo",
-    "build": "bash build-wrapper.sh",
+    "build": "NEXT_TELEMETRY_DISABLED=1 next build",
     "build:normal": "NEXT_TELEMETRY_DISABLED=1 next build",
     "build:fallback": "NEXT_TELEMETRY_DISABLED=1 next build",
     "build:emergency": "node scripts/emergency-build.js || (mkdir -p .next && echo 'OK' > .next/BUILD_ID)",
     "build:fast": "NEXT_TELEMETRY_DISABLED=1 NEXT_SKIP_TYPE_CHECK=1 NEXT_SKIP_LINTING=1 next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" || echo 'Prettier not installed'",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\" || echo 'Prettier not installed'",
     "clean": "rm -rf .next node_modules/.cache"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

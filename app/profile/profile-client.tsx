@@ -23,6 +23,7 @@ import {
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
 import Image from "next/image";
+import { blurProps } from "@/lib/utils";
 
 /* ─── Types ──────────────────────────────────────────── */
 type Step = "loading" | "phone" | "otp" | "profile";
@@ -120,6 +121,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [resendIn, setResendIn] = useState(0);
   const [copiedPromo, setCopiedPromo] = useState(false);
   const [showPromoBlock, setShowPromoBlock] = useState(false);
+  const [copiedTTN, setCopiedTTN] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -643,7 +645,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                     {allProducts.filter((p) => wishlistIds.has(p.id)).slice(0, 4).map((product) => (
                       <Link key={product.id} href={`/product/${product.id}`} className="block rounded-xl border border-gray-100 overflow-hidden bg-white hover:shadow-md transition-shadow">
                         <div className="aspect-square relative bg-gray-100">
-                          <Image src={product.image} alt={product.name} fill sizes="120px" className="object-cover" />
+                          <Image src={product.image} alt={product.name} fill sizes="120px" className="object-cover" {...blurProps()} />
                         </div>
                         <div className="p-2">
                           <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
@@ -687,14 +689,37 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                       <span className="font-black text-orange-500">{order.total.toLocaleString("uk-UA")} грн</span>
                     </div>
                     <div className="flex flex-wrap gap-2 pt-2">
-                      {order.status === "Відправлено" && order.trackingNumber && (
-                        <Link
-                          href={`/?ttn=${encodeURIComponent(order.trackingNumber)}#tracking`}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
-                        >
-                          <Truck size={14} />
-                          Відстежити
-                        </Link>
+                      {order.trackingNumber && (
+                        <>
+                          <Link
+                            href={`/?ttn=${encodeURIComponent(order.trackingNumber)}#tracking`}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100"
+                          >
+                            <Truck size={13} />
+                            Відстежити ТТН
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await navigator.clipboard?.writeText(order.trackingNumber!);
+                              setCopiedTTN(order.trackingNumber!);
+                              setTimeout(() => setCopiedTTN(null), 2000);
+                            }}
+                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${
+                              copiedTTN === order.trackingNumber
+                                ? "text-green-600 bg-green-50 border-green-100"
+                                : "text-gray-500 hover:text-gray-700 bg-gray-50 border-gray-100"
+                            }`}
+                            title={`Скопіювати ТТН: ${order.trackingNumber}`}
+                          >
+                            {copiedTTN === order.trackingNumber ? (
+                              <CheckCircle size={13} />
+                            ) : (
+                              <Copy size={13} />
+                            )}
+                            {copiedTTN === order.trackingNumber ? "Скопійовано!" : order.trackingNumber}
+                          </button>
+                        </>
                       )}
                       <button
                         type="button"

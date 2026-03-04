@@ -7,13 +7,14 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ShoppingCart, ChevronLeft, Trash2, Loader2,
-  CreditCard, ExternalLink, Shield, Truck, Video, Search, MapPin
+  CreditCard, ExternalLink, Shield, Truck, Video, Search, MapPin,
+  Tag, Check, Banknote
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
-import { checkoutSchema, type CheckoutFormData } from "@/lib/checkout-schema";
+import { checkoutSchema, type CheckoutFormData, applyPromoCode } from "@/lib/checkout-schema";
 import { useSavedAddresses } from "@/lib/use-saved-addresses";
 import { trackInitiateCheckout } from "@/components/analytics";
-import type { CheckoutResponseSuccess, CheckoutResponseError } from "@/lib/types";
+import type { CheckoutResponseSuccess, CheckoutResponseError, NPCity, NPWarehouse } from "@/lib/types";
 
 /* ─── API Helpers (вынесены наружу для чистоты) ─── */
 const fetchNPCities = async (query: string) => {
@@ -96,10 +97,14 @@ export default function CheckoutPage() {
   const [redirecting, setRedirecting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoResult, setPromoResult] = useState<{ discountPct: number; label: string } | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cod">("online");
 
   // Состояние Новой Почты
-  const [cities, setCities] = useState<any[]>([]);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [cities, setCities] = useState<NPCity[]>([]);
+  const [warehouses, setWarehouses] = useState<NPWarehouse[]>([]);
   const [selectedCityRef, setSelectedCityRef] = useState<string>("");
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
@@ -119,6 +124,9 @@ export default function CheckoutPage() {
   const nameValue = watch("name") ?? "";
   const phoneValue = watch("phone") ?? "";
   const cityValue = watch("city") ?? "";
+
+  const discountAmount = promoResult ? Math.round(totalPrice * promoResult.discountPct / 100) : 0;
+  const finalPrice = totalPrice - discountAmount;
 
   useEffect(() => {
     setMounted(true);
@@ -140,7 +148,7 @@ export default function CheckoutPage() {
   };
 
   // Выбор города
-  const onCitySelect = async (city: any) => {
+  const onCitySelect = async (city: NPCity) => {
     setSelectedCityRef(city.Ref);
     setValue("city", city.Description, { shouldValidate: true });
     setShowCityResults(false);
@@ -195,8 +203,11 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
+          paymentMethod,
+          promoCode: promoResult ? promoInput.trim().toUpperCase() : undefined,
+          discountAmount: discountAmount > 0 ? discountAmount : undefined,
           items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
-          totalPrice,
+          totalPrice: finalPrice,
         }),
       });
 
@@ -204,6 +215,11 @@ export default function CheckoutPage() {
       if (!res.ok) throw new Error(json.error || "Помилка");
 
       saveAddress({ city: data.city, warehouse: data.warehouse, cityRef: selectedCityRef });
+
+      if (paymentMethod === "cod") {
+        window.location.href = `/checkout/success?ref=${json.orderReference}&method=cod`;
+        return;
+      }
 
       setRedirecting(true);
       setTimeout(() => { window.location.href = json.paymentUrl; }, 800);
@@ -327,12 +343,99 @@ export default function CheckoutPage() {
                 </Field>
               </div>
 
+              {/* 3. Payment method */}
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 bg-orange-100 rounded-full flex items-center justify-center text-xs font-black text-orange-600">3</div>
+                  <h2 className="text-lg font-black text-gray-900">Спосіб оплати</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { value: "online" as const, label: "Онлайн-оплата", sublabel: "WayForPay — Visa/MC", icon: <CreditCard size={20} /> },
+                    { value: "cod"    as const, label: "Накладений платіж", sublabel: "Оплата при отриманні", icon: <Banknote size={20} /> },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPaymentMethod(opt.value)}
+                      className={`flex flex-col items-start gap-1 p-4 rounded-2xl border-2 text-left transition-all ${
+                        paymentMethod === opt.value
+                          ? "border-orange-500 bg-orange-50"
+                          : "border-gray-200 hover:border-orange-300"
+                      }`}
+                    >
+                      <div className={`flex items-center gap-2 font-bold text-sm ${paymentMethod === opt.value ? "text-orange-600" : "text-gray-700"}`}>
+                        {opt.icon}
+                        {opt.label}
+                        {paymentMethod === opt.value && <Check size={14} className="ml-auto text-orange-500" />}
+                      </div>
+                      <span className="text-xs text-gray-400 ml-7">{opt.sublabel}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4. Promo code */}
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 bg-orange-100 rounded-full flex items-center justify-center text-xs font-black text-orange-600">4</div>
+                  <h2 className="text-lg font-black text-gray-900">Промокод</h2>
+                </div>
+                {promoResult ? (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
+                    <div className="flex items-center gap-2 text-green-700 font-bold text-sm">
+                      <Check size={16} />
+                      <span>{promoInput.toUpperCase()}</span>
+                      <span className="text-green-600 text-xs font-medium">— {promoResult.label}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setPromoResult(null); setPromoInput(""); setPromoError(""); }}
+                      className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={promoInput}
+                        onChange={(e) => { setPromoInput(e.target.value.toUpperCase()); setPromoError(""); }}
+                        placeholder="FAMILY15 або FIRST10"
+                        maxLength={32}
+                        className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition uppercase"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const result = applyPromoCode(promoInput);
+                        if (result) { setPromoResult(result); setPromoError(""); }
+                        else setPromoError("Промокод не знайдено або вже використано");
+                      }}
+                      className="px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-colors whitespace-nowrap"
+                    >
+                      Застосувати
+                    </button>
+                  </div>
+                )}
+                {promoError && <p className="text-xs text-red-500 font-medium mt-2">{promoError}</p>}
+              </div>
+
               {serverError && (
                 <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm font-medium">⚠️ {serverError}</div>
               )}
 
               <button type="submit" disabled={submitting} className="flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98]">
-                {submitting ? <Loader2 size={20} className="animate-spin" /> : <><CreditCard size={20} /> Оплатити {totalPrice.toLocaleString()} грн</>}
+                {submitting ? <Loader2 size={20} className="animate-spin" /> : (
+                  <>
+                    {paymentMethod === "online" ? <CreditCard size={20} /> : <Banknote size={20} />}
+                    {paymentMethod === "online" ? "Оплатити" : "Замовити"} {finalPrice.toLocaleString()} грн
+                  </>
+                )}
               </button>
             </form>
           </div>
@@ -357,7 +460,18 @@ export default function CheckoutPage() {
               </div>
               <div className="border-t border-gray-100 pt-4 space-y-2">
                 <div className="flex justify-between text-sm text-gray-500"><span>Доставка</span><span className="text-green-600 font-semibold">За тарифами НП</span></div>
-                <div className="flex justify-between items-center"><span className="font-black text-gray-900">Разом:</span><span className="text-xl font-black text-orange-500">{totalPrice.toLocaleString()} грн</span></div>
+                {discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm text-gray-500">
+                      <span>Товари</span><span>{totalPrice.toLocaleString()} грн</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-green-600 font-semibold">
+                      <span>Знижка ({promoResult?.discountPct}%)</span>
+                      <span>−{discountAmount.toLocaleString()} грн</span>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between items-center"><span className="font-black text-gray-900">До оплати:</span><span className="text-xl font-black text-orange-500">{finalPrice.toLocaleString()} грн</span></div>
               </div>
             </div>
           </div>

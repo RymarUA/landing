@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Instagram, Facebook, MapPin, Phone, Mail, ChevronRight, Check, Heart, Loader2 } from "lucide-react";
+import { siteConfig } from "@/lib/site-config";
 
 function TikTokIcon({ size = 20 }: { size?: number }) {
   return (
@@ -11,16 +12,13 @@ function TikTokIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-const catalogLinks = [
-  { label: "Для чоловіків", href: "#catalog" },
-  { label: "Для жінок", href: "#catalog" },
-  { label: "Для дітей", href: "#catalog" },
-  { label: "Іграшки", href: "#catalog" },
-  { label: "Для дому", href: "#catalog" },
-  { label: "Для авто", href: "#catalog" },
-];
+// Build category links from siteConfig — stays in sync with catalog tabs and Sitniks
+const catalogLinks = siteConfig.catalogCategories
+  .filter((c) => c !== "Всі")
+  .map((label) => ({ label, href: `/#catalog#category=${encodeURIComponent(label)}` }));
 
 const infoLinks = [
+  { label: "Про нас", href: "/about" },
   { label: "Доставка та оплата", href: "#tracking" },
   { label: "Умови повернення", href: "#faq" },
   { label: "Відстеження посилки", href: "#tracking" },

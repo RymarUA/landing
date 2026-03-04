@@ -196,6 +196,80 @@ export interface Order {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   NOVA POSHTA
+   ═══════════════════════════════════════════════════════════ */
+
+/** Nova Poshta city item returned by getCities API */
+export interface NPCity {
+  Ref: string;
+  Description: string;
+  DescriptionRu?: string;
+  AreaDescription?: string;
+  AreaDescriptionRu?: string;
+  RegionsDescription?: string;
+  RegionsDescriptionRu?: string;
+  SettlementTypeDescription?: string;
+  Delivery1?: string;
+  Delivery2?: string;
+  Delivery3?: string;
+  Delivery4?: string;
+  Delivery5?: string;
+  Delivery6?: string;
+  Delivery7?: string;
+}
+
+/** Nova Poshta warehouse (branch / parcel locker) returned by getWarehouses API */
+export interface NPWarehouse {
+  Ref: string;
+  SiteKey: string;
+  Description: string;
+  DescriptionRu?: string;
+  ShortAddress?: string;
+  Phone?: string;
+  TypeOfWarehouse?: string;
+  Number?: string;
+  CityRef: string;
+  CityDescription?: string;
+  MaxWeightAllowed?: string;
+  Schedule?: Record<string, string>;
+  PostFinance?: string;
+  BicycleParking?: string;
+  PaymentAccess?: string;
+  POSTerminal?: string;
+  InternationalShipping?: string;
+  SelfServiceWorkplacesCount?: string;
+  TotalMaxWeightAllowed?: string;
+  PlaceMaxWeightAllowed?: string;
+  Dimensions?: {
+    width: string;
+    height: string;
+    length: string;
+  };
+  Reception?: Record<string, string>;
+  Delivery?: Record<string, string>;
+  WorkInMobileAwis?: string;
+  DenyToSelect?: string;
+  CanGetMoneyTransfer?: string;
+  HasMirror?: string;
+  HasFittingRoom?: string;
+  OnlyReceivingParcel?: string;
+  PostMachineType?: string;
+  PostalCodeUA?: string;
+  WarehouseStatus?: string;
+  WarehouseStatusDate?: string;
+  CategoryOfWarehouse?: string;
+  RegionCity?: string;
+  WarehouseForAgent?: string;
+  MaxDeclaredCost?: string;
+  HaveMoneyTransfer?: string;
+  Longitude?: string;
+  Latitude?: string;
+  NPABoxesCount?: string;
+  NPLockerPostMachineCount?: string;
+  NPPostMachineCount?: string;
+}
+
+/* ═══════════════════════════════════════════════════════════
    INSTAGRAM CATALOG
    ═══════════════════════════════════════════════════════════ */
 

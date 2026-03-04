@@ -7,8 +7,6 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function OGImage() {
-  const hasImage = siteConfig.ogImage && siteConfig.ogImage.length > 0;
-
   return new ImageResponse(
     (
       <div
@@ -16,94 +14,220 @@ export default async function OGImage() {
           height: "100%",
           width: "100%",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          backgroundColor: siteConfig.ogBackground,
-          backgroundImage: hasImage
-            ? "none"
-            : `radial-gradient(circle at 25% 25%, ${siteConfig.ogAccent1} 0%, transparent 50%), radial-gradient(circle at 75% 75%, ${siteConfig.ogAccent2} 0%, transparent 50%)`,
+          flexDirection: "row",
+          backgroundColor: "#fff7f0",
           position: "relative",
           overflow: "hidden",
+          fontFamily: "sans-serif",
         }}
       >
-        {hasImage && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={siteConfig.ogImage}
-            alt=""
+        {/* Left orange accent bar */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "8px",
+            height: "100%",
+            background: "linear-gradient(180deg, #f97316 0%, #ea580c 100%)",
+            display: "flex",
+          }}
+        />
+
+        {/* Decorative circles */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-80px",
+            right: "-80px",
+            width: "360px",
+            height: "360px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, #fed7aa 0%, transparent 70%)",
+            display: "flex",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: "-60px",
+            left: "300px",
+            width: "260px",
+            height: "260px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, #ffedd5 0%, transparent 70%)",
+            display: "flex",
+          }}
+        />
+
+        {/* Left content */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            padding: "60px 56px",
+            flex: 1,
+            zIndex: 1,
+            gap: "20px",
+          }}
+        >
+          {/* Brand badge */}
+          <div
             style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              backgroundColor: "#f97316",
+              borderRadius: "40px",
+              padding: "8px 20px",
+              width: "fit-content",
             }}
-          />
-        )}
-        {/* Dark gradient overlay for text readability */}
+          >
+            <div
+              style={{
+                color: "white",
+                fontSize: "20px",
+                fontWeight: 800,
+                letterSpacing: "0.04em",
+                display: "flex",
+              }}
+            >
+              FamilyHub Market
+            </div>
+          </div>
+
+          {/* Headline */}
+          <div
+            style={{
+              fontSize: 56,
+              fontWeight: 900,
+              color: "#1c1917",
+              letterSpacing: "-0.03em",
+              lineHeight: 1.1,
+              maxWidth: "620px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0px",
+            }}
+          >
+            <span>Одяг, іграшки</span>
+            <span style={{ color: "#f97316" }}>та аксесуари</span>
+            <span>для всієї родини</span>
+          </div>
+
+          {/* Subtext */}
+          <div
+            style={{
+              fontSize: 24,
+              color: "#78716c",
+              maxWidth: "540px",
+              display: "flex",
+              lineHeight: 1.4,
+            }}
+          >
+            Доставка Новою Поштою по всій Україні. Відео розпакування кожного замовлення.
+          </div>
+
+          {/* Trust badges */}
+          <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
+            {["🚚 Доставка 1-2 дні", "🎥 Відео розпакування", "↩️ Повернення 14 днів"].map((badge) => (
+              <div
+                key={badge}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  backgroundColor: "white",
+                  borderRadius: "12px",
+                  padding: "8px 14px",
+                  fontSize: "16px",
+                  color: "#44403c",
+                  fontWeight: 600,
+                  border: "1px solid #fed7aa",
+                }}
+              >
+                {badge}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right side — decorative price tags */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "60px 56px 60px 0",
+            gap: "16px",
+            zIndex: 1,
+          }}
+        >
+          {[
+            { name: "Кросівки Nike", price: "1200 грн", old: "1800 грн", badge: "ХІТ" },
+            { name: "Набір Монтессорі", price: "320 грн", old: "450 грн", badge: "−29%" },
+            { name: "Органайзер", price: "145 грн", old: null, badge: "NEW" },
+          ].map((item) => (
+            <div
+              key={item.name}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                backgroundColor: "white",
+                borderRadius: "16px",
+                padding: "16px 20px",
+                width: "240px",
+                gap: "6px",
+                boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                border: "1px solid #f3f4f6",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "15px", fontWeight: 700, color: "#1c1917" }}>{item.name}</span>
+                <span
+                  style={{
+                    backgroundColor: "#f97316",
+                    color: "white",
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    padding: "2px 8px",
+                    borderRadius: "20px",
+                    display: "flex",
+                  }}
+                >
+                  {item.badge}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                <span style={{ fontSize: "20px", fontWeight: 900, color: "#f97316" }}>{item.price}</span>
+                {item.old && (
+                  <span style={{ fontSize: "13px", color: "#a8a29e", textDecoration: "line-through", display: "flex" }}>
+                    {item.old}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom URL bar */}
         <div
           style={{
             position: "absolute",
             bottom: 0,
             left: 0,
             right: 0,
-            height: "60%",
-            background:
-              "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)",
-            display: "flex",
-          }}
-        />
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            justifyContent: "flex-end",
-            padding: "48px 56px",
-            gap: "12px",
-            position: "relative",
-            zIndex: 1,
-            width: "100%",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 64,
-              fontWeight: 800,
-              color: "white",
-              letterSpacing: "-0.02em",
-              lineHeight: 1.1,
-              maxWidth: "900px",
-            }}
-          >
-            {siteConfig.name}
-          </div>
-          <div
-            style={{
-              fontSize: 28,
-              color: "rgba(255, 255, 255, 0.85)",
-              maxWidth: "800px",
-            }}
-          >
-            {siteConfig.tagline}
-          </div>
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            bottom: 16,
-            right: 24,
+            height: "48px",
+            backgroundColor: "#f97316",
             display: "flex",
             alignItems: "center",
-            gap: "8px",
-            color: "rgba(255, 255, 255, 0.4)",
-            fontSize: 16,
-            zIndex: 1,
+            justifyContent: "center",
           }}
         >
-          FamilyHub Market · familyhubmarket.com
+          <span style={{ color: "white", fontSize: "18px", fontWeight: 700, letterSpacing: "0.04em", display: "flex" }}>
+            familyhubmarket.ua · @familyhub_market
+          </span>
         </div>
       </div>
     ),

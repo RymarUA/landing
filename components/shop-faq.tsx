@@ -3,6 +3,28 @@ import { useState } from "react";
 import { ChevronDown, HelpCircle } from "lucide-react";
 import { faqData } from "@/lib/faq-data";
 
+/* ─── FAQ Schema.org JSON-LD ──────────────────────────────────── */
+function FaqJsonLd() {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqData.map((faq) => ({
+      "@type": "Question",
+      name: faq.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.a,
+      },
+    })),
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
 export function ShopFaq() {
   const [open, setOpen] = useState<number | null>(null);
 
@@ -10,6 +32,7 @@ export function ShopFaq() {
 
   return (
     <section id="faq" className="bg-white py-16 px-4">
+      <FaqJsonLd />
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 bg-orange-50 text-orange-500 text-xs font-bold px-4 py-2 rounded-full mb-4 uppercase tracking-widest">

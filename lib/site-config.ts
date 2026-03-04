@@ -33,6 +33,31 @@ export const siteConfig = {
   ogBackground: "#020022",
   ogAccent1: "#1a1a4e",
   ogAccent2: "#2d1b4e",
+
+  // ── Announcement Bar ─────────────────────────────────────────
+  // Set announcementText to "" to hide the bar entirely.
+  // Supports basic HTML (bold, etc.).
+  announcementText: "🔥 Акція до <strong>31 березня</strong>: -15% на весь одяг! Промокод: FAMILY15",
+
+  // ── Catalog Categories ────────────────────────────────────────
+  // Sync these with your Sitniks CRM status labels.
+  // "Всі" must always be first — it shows all products.
+  catalogCategories: [
+    "Всі",
+    "Для жінок",
+    "Для чоловіків",
+    "Для дітей",
+    "Іграшки",
+    "Дім",
+    "Авто",
+  ] as const,
+
+  // ── Contact / Support links ──────────────────────────────────
+  // Used by SupportButton floating widget. Set to "" to hide that channel.
+  telegramUsername: "familyhub_market",   // t.me/familyhub_market
+  viberPhone: "+380936174140",             // viber://chat?number=...
+  instagramUsername: "familyhub_market",  // instagram.com/familyhub_market
+  phone: "+380936174140",
 };
 
 export type SiteConfig = typeof siteConfig;

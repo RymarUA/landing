@@ -27,8 +27,58 @@ import { useWishlist } from "@/components/wishlist-context";
 import { ProductModal } from "@/components/product-modal";
 import { ALL_CATEGORIES, SORT_OPTIONS, type SortKey } from "@/lib/catalog-config";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
+import { blurProps } from "@/lib/utils";
 
 export type { Product };
+
+/* ─── Catalog Skeleton (loading placeholder) ─────────────────── */
+export function CatalogSkeleton({ count = 12 }: { count?: number }) {
+  return (
+    <section className="max-w-screen-xl mx-auto px-4 py-6">
+      {/* Category tabs skeleton */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div
+            key={i}
+            className="shrink-0 h-9 rounded-full bg-gray-200 animate-pulse"
+            style={{ width: `${60 + i * 10}px` }}
+          />
+        ))}
+      </div>
+
+      {/* Search + filter bar skeleton */}
+      <div className="flex gap-2 mb-5">
+        <div className="flex-1 h-10 rounded-xl bg-gray-200 animate-pulse" />
+        <div className="w-24 h-10 rounded-xl bg-gray-200 animate-pulse" />
+        <div className="w-28 h-10 rounded-xl bg-gray-200 animate-pulse" />
+      </div>
+
+      {/* Product grid skeleton */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+        {Array.from({ length: count }).map((_, i) => (
+          <div
+            key={i}
+            className="bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col"
+          >
+            {/* Image */}
+            <div className="h-56 bg-gray-200 animate-pulse" />
+            {/* Content */}
+            <div className="p-3 flex flex-col gap-2">
+              <div className="h-3 bg-gray-200 animate-pulse rounded-full w-1/3" />
+              <div className="h-4 bg-gray-200 animate-pulse rounded-full w-5/6" />
+              <div className="h-3 bg-gray-200 animate-pulse rounded-full w-2/3" />
+              <div className="h-5 bg-gray-200 animate-pulse rounded-full w-1/2 mt-1" />
+              <div className="flex gap-2 mt-1">
+                <div className="flex-1 h-10 bg-gray-200 animate-pulse rounded-xl" />
+                <div className="w-11 h-10 bg-gray-200 animate-pulse rounded-xl" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 /* ─── Highlight matched text ─────────────────────────── */
 function Highlight({ text, query }: { text: string; query: string }) {
@@ -121,6 +171,7 @@ function HorizontalScroll({ items, onOpen, onAddToCart }: { items: Product[]; on
                 fill
                 sizes="208px"
                 className="object-cover group-hover:scale-105 transition-transform duration-500"
+                {...blurProps()}
               />
               <div className="absolute top-2 left-2 flex gap-1">
                 {product.isNew && (
@@ -561,9 +612,10 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                         src={product.image}
                         alt={product.name}
                         fill
-                        sizes="(max-width: 768px) 50vw, 25vw"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                         onLoad={(e) => (e.currentTarget.closest(".relative") as HTMLElement)?.classList?.add("img-loaded")}
+                        {...blurProps()}
                       />
                       {/* Hover overlay */}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">

@@ -15,6 +15,7 @@ import { WishlistProvider } from "@/components/wishlist-context";
 import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
 import { MotionWrapper } from "@/components/motion-wrapper";
+import { SupportButton } from "@/components/support-button";
 
 export const metadata: Metadata = {
   title: {
@@ -157,6 +158,7 @@ export default function RootLayout({
               {children}
             </MotionWrapper>
             <CartWidget />
+            <SupportButton />
             <DiscountPopup />
             <CookieBanner />
           </WishlistProvider>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { X, Star, ShoppingCart, Flame, Heart } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
+import { blurProps } from "@/lib/utils";
 
 function Highlight({ text, query }: { text: string; query: string }) {
   if (!query.trim()) return <>{text}</>;
@@ -123,6 +124,7 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
               sizes="(max-width: 640px) 100vw, 320px"
               className="object-cover"
               priority
+              {...blurProps()}
             />
             {product.badge && (
               <span className={`absolute top-3 left-3 ${product.badgeColor} text-white text-xs font-black px-2.5 py-1 rounded-full`}>

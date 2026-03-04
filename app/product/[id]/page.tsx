@@ -19,6 +19,8 @@ import {
   generateProductSchema,
   generateBreadcrumbSchema,
 } from "@/components/seo/JsonLd";
+import { blurProps } from "@/lib/utils";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export async function generateStaticParams() {
   const products = await getCatalogProducts();
@@ -215,7 +217,9 @@ export default async function ProductPage({
           </div>
         </div>
 
-        <RecentlyViewedBlock products={allProducts} currentId={product.id} />
+        <ErrorBoundary label="Нещодавно переглянуті">
+          <RecentlyViewedBlock products={allProducts} currentId={product.id} />
+        </ErrorBoundary>
 
         {/* Related Products */}
         {related.length > 0 && (
@@ -233,8 +237,9 @@ export default async function ProductPage({
                       src={rp.image}
                       alt={rp.name}
                       fill
-                      sizes="(max-width: 768px) 50vw, 25vw"
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      {...blurProps()}
                     />
                   </div>
                   <div className="p-3">
@@ -265,12 +270,14 @@ export default async function ProductPage({
           </div>
         )}
 
-        <InfiniteProductFeed
-          category={product.category}
-          currentProductId={product.id}
-          relatedIds={related.map((r) => r.id)}
-          allProducts={allProducts}
-        />
+        <ErrorBoundary label="Схожі товари">
+          <InfiniteProductFeed
+            category={product.category}
+            currentProductId={product.id}
+            relatedIds={related.map((r) => r.id)}
+            allProducts={allProducts}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* ── Mobile Sticky Bar — client component with shared state ── */}

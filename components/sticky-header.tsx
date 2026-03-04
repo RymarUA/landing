@@ -70,6 +70,7 @@ export function StickyHeader() {
     { label: "Каталог", href: "#catalog" },
     { label: "Новинки", href: "#new-arrivals" },
     { label: "Відстеження", href: "#tracking" },
+    { label: "Про нас", href: "/about" },
   ];
 
   return (

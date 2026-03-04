@@ -117,7 +117,7 @@ export default function CheckoutPage() {
     register,
     handleSubmit,
     watch,
-    setValue, // ИЗВЛЕКАЕМ setValue
+    setValue,
     formState: { errors },
   } = useForm<CheckoutFormData>({ resolver: zodResolver(checkoutSchema) });
 
@@ -324,6 +324,36 @@ export default function CheckoutPage() {
                     )}
                   </div>
                 </Field>
+
+                {/* Quick cities */}
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs font-semibold text-gray-500 w-full">Швидкі міста:</span>
+                  {(["Київ", "Одеса", "Харків", "Дніпро", "Львів"] as const).map((cityName) => (
+                    <button
+                      key={cityName}
+                      type="button"
+                      onClick={async () => {
+                        setValue("city", cityName, { shouldValidate: true });
+                        setShowCityResults(false);
+                        setLoadingCities(true);
+                        const data = await fetchNPCities(cityName);
+                        setCities(data);
+                        const exact = data.find((c: NPCity) => c.Description === cityName || c.Description?.startsWith(cityName));
+                        if (exact) {
+                          setSelectedCityRef(exact.Ref);
+                          setLoadingWarehouses(true);
+                          const list = await fetchNPWarehouses(exact.Ref, "");
+                          setWarehouses(list);
+                          setLoadingWarehouses(false);
+                        }
+                        setLoadingCities(false);
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:border-orange-300 hover:text-orange-600 transition-colors"
+                    >
+                      {cityName}
+                    </button>
+                  ))}
+                </div>
 
                 {/* Warehouse Select */}
                 <Field label="Відділення або поштомат *" error={errors.warehouse?.message}>

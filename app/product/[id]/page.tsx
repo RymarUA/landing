@@ -180,10 +180,15 @@ export default async function ProductPage({
               </div>
 
               {/* Price */}
-              <div className="flex items-baseline gap-3">
+              <div className="flex flex-wrap items-baseline gap-3">
                 <span className="text-4xl font-black text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
                 {product.oldPrice && (
-                  <span className="text-xl text-gray-400 line-through">{product.oldPrice.toLocaleString("uk-UA")} грн</span>
+                  <>
+                    <span className="text-xl text-gray-400 line-through">{product.oldPrice.toLocaleString("uk-UA")} грн</span>
+                    <span className="text-sm font-bold text-emerald-500 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                      Економія {(product.oldPrice - product.price).toLocaleString("uk-UA")} грн
+                    </span>
+                  </>
                 )}
               </div>
 

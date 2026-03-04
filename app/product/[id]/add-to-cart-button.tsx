@@ -27,7 +27,12 @@ interface AddToCartButtonProps {
   hideSizeSelector?: boolean;
   /** When true, show only one primary "Купити" button (for mobile sticky bar, Rozetka-style) */
   stickyCtaOnly?: boolean;
+  /** When false, hides the quantity selection block (default: true) */
+  showQuantity?: boolean;
 }
+
+const MIN_QTY = 1;
+const MAX_QTY = 10;
 
 export function AddToCartButton({
   product,
@@ -35,6 +40,7 @@ export function AddToCartButton({
   onSizeChange,
   hideSizeSelector = false,
   stickyCtaOnly = false,
+  showQuantity = true,
 }: AddToCartButtonProps) {
   const router = useRouter();
   const { addItem, totalCount, totalPrice } = useCart();
@@ -46,6 +52,7 @@ export function AddToCartButton({
   );
   const selectedSize =
     controlledSize !== undefined ? controlledSize : internalSize;
+  const [quantity, setQuantity] = useState(1);
 
   const handleSizeChange = (s: string) => {
     if (onSizeChange) {
@@ -75,24 +82,28 @@ export function AddToCartButton({
   }, [product.id]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
+  const addQty = showQuantity ? quantity : 1;
+
   const handleAdd = () => {
     if (!canAdd || isOutOfStock) return;
 
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      size: selectedSize || null,
-      oldPrice: product.oldPrice ?? null,
-    });
+    for (let i = 0; i < addQty; i++) {
+      addItem({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        size: selectedSize || null,
+        oldPrice: product.oldPrice ?? null,
+      });
+    }
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
 
     trackAddToCart({
       contentId: product.id,
       contentName: product.name,
-      value: product.price,
+      value: product.price * addQty,
     });
   };
 
@@ -113,18 +124,20 @@ export function AddToCartButton({
   const handleCheckout = () => {
     if (!canAdd || isOutOfStock) return;
 
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      size: selectedSize || null,
-      oldPrice: product.oldPrice ?? null,
-    });
+    for (let i = 0; i < addQty; i++) {
+      addItem({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        size: selectedSize || null,
+        oldPrice: product.oldPrice ?? null,
+      });
+    }
 
     trackInitiateCheckout({
-      value: totalPrice + product.price,
-      numItems: totalCount + 1,
+      value: totalPrice + product.price * addQty,
+      numItems: totalCount + addQty,
     });
 
     router.push("/checkout");
@@ -153,6 +166,36 @@ export function AddToCartButton({
                 {s}
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quantity selector — hidden when showQuantity is false */}
+      {showQuantity && (
+        <div>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+            Кількість
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.max(MIN_QTY, q - 1))}
+              disabled={quantity <= MIN_QTY}
+              className="w-11 h-11 rounded-xl text-sm font-bold border-2 border-gray-200 text-gray-600 hover:border-orange-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              aria-label="Зменшити кількість"
+            >
+              −
+            </button>
+            <span className="w-10 text-center font-black text-gray-900">{quantity}</span>
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.min(MAX_QTY, q + 1))}
+              disabled={quantity >= MAX_QTY}
+              className="w-11 h-11 rounded-xl text-sm font-bold border-2 border-gray-200 text-gray-600 hover:border-orange-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              aria-label="Збільшити кількість"
+            >
+              +
+            </button>
           </div>
         </div>
       )}

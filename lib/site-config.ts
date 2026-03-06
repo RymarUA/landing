@@ -36,8 +36,8 @@ export const siteConfig = {
 
   // ── Announcement Bar ─────────────────────────────────────────
   // Set announcementText to "" to hide the bar entirely.
-  // Supports basic HTML (bold, etc.).
-  announcementText: "🔥 Акція до <strong>31 березня</strong>: -15% на весь одяг! Промокод: FAMILY15",
+  // Plain text only (HTML not supported for security).
+  announcementText: "🔥 Акція до 31 березня: -15% на весь одяг! Промокод: FAMILY15",
 
   // ── Catalog Categories ────────────────────────────────────────
   // Sync these with your Sitniks CRM status labels.

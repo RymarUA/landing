@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Video,
 } from "lucide-react";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
 import { ProductModal } from "@/components/product-modal";
@@ -254,7 +255,8 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
   const addToast = useCallback((name: string) => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, name }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 2000);
+    const timer = setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   /* Read search and category from URL hash */
@@ -332,6 +334,31 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
     },
     [addItem, addToast]
   );
+
+  const handleSwipe = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const { offset, velocity } = info;
+    
+    // Check if it's a horizontal swipe with sufficient distance and velocity
+    if (Math.abs(offset.x) > 50 && Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(velocity.x) > 300) {
+      const idx = ALL_CATEGORIES.indexOf(active as (typeof ALL_CATEGORIES)[number]);
+      let nextIdx;
+      
+      if (offset.x < 0) {
+        // Swipe left - next category (with wrap-around)
+        nextIdx = idx === ALL_CATEGORIES.length - 1 ? 0 : idx + 1;
+      } else {
+        // Swipe right - previous category (with wrap-around)
+        nextIdx = idx === 0 ? ALL_CATEGORIES.length - 1 : idx - 1;
+      }
+      
+      if (nextIdx !== idx) {
+        setActive(ALL_CATEGORIES[nextIdx]);
+        setVisibleCount(INITIAL_VISIBLE);
+        setCatalogVisible(false);
+        setTimeout(() => setCatalogVisible(true), 120);
+      }
+    }
+  }, [active]);
 
   const handleBuyNow = useCallback(
     (product: Product, size?: string | null) => {
@@ -411,7 +438,10 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
       </section>
 
       {/* ── Main Catalog ── */}
-      <section id="catalog" className="bg-gray-50 py-8 px-4">
+      <motion.section 
+        id="catalog" 
+        className="bg-gray-50 py-8 px-4"
+      >
         <div className="max-w-5xl mx-auto">
           {/* ── Trust bar ── */}
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mb-6 py-3 px-4 bg-white rounded-2xl border border-gray-100 shadow-sm text-xs font-semibold text-gray-500">
@@ -578,27 +608,23 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
             </div>
           ) : (
             <>
-            <div
+            <motion.div
               className={`grid grid-cols-2 md:grid-cols-4 gap-4 transition-opacity duration-150 ${catalogVisible ? "opacity-100" : "opacity-0"}`}
-              onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; touchStartY.current = e.touches[0].clientY; }}
-              onTouchEnd={(e) => {
-                const dx = e.changedTouches[0].clientX - touchStartX.current;
-                const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
-                if (Math.abs(dx) > 60 && dy < 40) {
-                  const idx = ALL_CATEGORIES.indexOf(active as (typeof ALL_CATEGORIES)[number]);
-                  const next = dx < 0 ? Math.min(idx + 1, ALL_CATEGORIES.length - 1) : Math.max(idx - 1, 0);
-                  if (next !== idx) { setActive(ALL_CATEGORIES[next]); setVisibleCount(INITIAL_VISIBLE); setCatalogVisible(false); setTimeout(() => setCatalogVisible(true), 120); }
-                }
-              }}
+              onPanEnd={handleSwipe}
             >
-              {visibleSorted.map((product) => {
+              <AnimatePresence mode="wait">
+                {visibleSorted.map((product) => {
                 const discount = product.oldPrice
                   ? Math.round((1 - product.price / product.oldPrice) * 100)
                   : null;
 
                 return (
-                  <div
+                  <motion.div
                     key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
                     className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative flex flex-col border border-gray-100"
                     onClick={() => setModalProduct(product)}
                   >
@@ -686,10 +712,11 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
-              })}
-            </div>
+                })}
+              </AnimatePresence>
+            </motion.div>
             {hasMore && (
               <div className="mt-6 flex justify-center">
                 <button
@@ -703,7 +730,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
             </>
           )}
         </div>
-      </section>
+      </motion.section>
     </>
   );
 }

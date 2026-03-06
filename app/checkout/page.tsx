@@ -119,7 +119,12 @@ export default function CheckoutPage() {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<CheckoutFormData>({ resolver: zodResolver(checkoutSchema) });
+  } = useForm<CheckoutFormData>({ 
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: {
+      paymentMethod: "online"
+    }
+  });
 
   const nameValue = watch("name") ?? "";
   const phoneValue = watch("phone") ?? "";
@@ -175,7 +180,9 @@ export default function CheckoutPage() {
             totalPrice,
           }),
         });
-      } catch {}
+      } catch (error) {
+        console.error("[abandoned-cart] Failed to register:", error);
+      }
     },
     [items, totalPrice]
   );
@@ -188,7 +195,9 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: sessionId.current }),
       });
-    } catch {}
+    } catch (error) {
+      console.error("[abandoned-cart] Failed to cancel:", error);
+    }
   }, []);
 
   const onSubmit = async (data: CheckoutFormData) => {

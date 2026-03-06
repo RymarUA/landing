@@ -6,6 +6,7 @@ import { DevToolsGuard } from "./devtools-guard";
 import { TailwindCDNClient } from "@/components/tailwind-cdn-client";
 import { siteConfig } from "@/lib/site-config";
 import { CartProvider } from "@/components/cart-context";
+import { CartWidget } from "@/components/cart-widget";
 import { AnnouncementBar } from "@/components/announcement-bar";
 import { CookieBanner } from "@/components/cookie-banner";
 import { WishlistProvider } from "@/components/wishlist-context";
@@ -138,6 +139,9 @@ export default function RootLayout({
 
             {/* Temu-style Bottom Navigation (includes cart) */}
             <TemuBottomNav />
+
+            {/* Floating Cart Widget */}
+            <CartWidget />
 
             {/* Support Button (floating) */}
             <SupportButton />

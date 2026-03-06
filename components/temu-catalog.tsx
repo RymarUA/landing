@@ -417,22 +417,24 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
   // Handle add to cart
   const handleAddToCart = (product: Product) => {
     addItem({
-      productId: product.id,
+      id: product.id,
       name: product.name,
       price: product.price,
       image: product.image,
-      selectedSize: product.sizes[0] ?? undefined,
-      quantity: 1,
+      size: product.sizes[0] ?? undefined,
     });
 
-    setAddedIds((prev) => new Set(prev).add(product.id));
-    setTimeout(() => {
+    setAddedIds((prev) => new Set(prev).add(product.id.toString()));
+    const timer = setTimeout(() => {
       setAddedIds((prev) => {
         const next = new Set(prev);
-        next.delete(product.id);
+        next.delete(product.id.toString());
         return next;
       });
     }, 1500);
+    
+    // Cleanup function to prevent memory leaks
+    return () => clearTimeout(timer);
   };
 
   const handleBuyNow = (product: Product) => {
@@ -637,7 +639,6 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
           product={modalProduct}
           onClose={() => setModalProduct(null)}
           onAddToCart={() => handleAddToCart(modalProduct)}
-          onBuyNow={() => handleBuyNow(modalProduct)}
         />
       )}
     </>

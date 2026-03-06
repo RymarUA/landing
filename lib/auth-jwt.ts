@@ -5,6 +5,22 @@
  * Used by /api/auth/verify-otp and /api/auth/me.
  */
 
+// Get JWT secret with development fallback
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET environment variable is required in production");
+    }
+    // Development fallback - should be changed in production
+    console.warn("[JWT] Using development fallback secret - please set JWT_SECRET in production");
+    return "dev-fallback-secret-change-in-production";
+  }
+  return secret;
+}
+
+export { getJwtSecret };
+
 function base64url(input: Uint8Array | string): string {
   const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
   return Buffer.from(bytes).toString("base64url");

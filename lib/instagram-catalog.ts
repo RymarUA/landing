@@ -31,6 +31,8 @@ import {
 // ─── Type (same shape as before — nothing else in the app needs to change) ─────
 export interface CatalogProduct {
   id: number;
+  slug: string;
+  instagramMediaId: string | null;
   name: string;
   price: number;
   oldPrice: number | null;
@@ -45,7 +47,7 @@ export interface CatalogProduct {
   sizes: string[];        // properties з name="Розмір" по всіх активних варіаціях
   description: string;
   image: string;          // перше фото варіації або продукту
-  instagramPermalink?: string;
+  instagramPermalink: string | null;
 
   // Sitniks-specific (для сторінки товару)
   variationId?: number;   // ID першої варіації (для замовлення)
@@ -121,6 +123,8 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
 
   return {
     id: p.id,
+    slug: p.title.toLowerCase().replace(/[^a-zа-яїєі0-9\s]/g, '').replace(/\s+/g, '-'),
+    instagramMediaId: null, // Not available from Sitniks API
     name: p.title,
     price,
     oldPrice,
@@ -135,6 +139,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     sizes: getSizes(p),
     description: p.description ?? "",
     image: getFirstImage(p, firstVariation),
+    instagramPermalink: null, // Not available from Sitniks API
     variationId: firstVariation?.id,
     allVariations: activeVariations.map((v) => ({
       id: v.id,

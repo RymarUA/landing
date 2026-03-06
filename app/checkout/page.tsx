@@ -493,7 +493,7 @@ export default function CheckoutPage() {
                       <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
                       <p className="text-xs text-gray-400">× {item.quantity}</p>
                     </div>
-                    <div className="text-sm font-black text-gray-900">{(item.price * item.quantity).toLocaleString()} грн</div>
+                    <div className="text-sm font-semibold text-gray-900">{(item.price * item.quantity).toLocaleString()} грн</div>
                   </div>
                 ))}
               </div>
@@ -510,7 +510,7 @@ export default function CheckoutPage() {
                     </div>
                   </>
                 )}
-                <div className="flex justify-between items-center"><span className="font-black text-gray-900">До оплати:</span><span className="text-xl font-black text-orange-500">{finalPrice.toLocaleString()} грн</span></div>
+                <div className="flex justify-between items-center"><span className="font-semibold text-gray-900">До оплати:</span><span className="text-xl font-semibold text-orange-500">{finalPrice.toLocaleString()} грн</span></div>
               </div>
             </div>
           </div>

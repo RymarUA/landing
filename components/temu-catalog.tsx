@@ -15,6 +15,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Truck,
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
@@ -43,17 +44,38 @@ const SORT_OPTIONS = [
 
 type SortKey = typeof SORT_OPTIONS[number]["value"];
 
-/* ─── Horizontal New Arrivals / Hits Scroll ─────────────── */
+/* ─── Free Shipping Banner Component ─────────────── */
+function FreeShippingBanner({ onFilterFreeShipping }: { onFilterFreeShipping: () => void }) {
+  return (
+    <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-6 mb-6 mx-2 cursor-pointer hover:shadow-lg transition-all"
+         onClick={onFilterFreeShipping}>
+      <div className="flex items-center gap-4">
+        <div className="flex-shrink-0 w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+          <Truck size={32} className="text-white" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-white font-bold text-xl mb-1">Безкоштовна доставка</h3>
+          <p className="text-white/90 text-sm">Обрати товари з безкоштовною доставкою</p>
+        </div>
+        <ChevronRight size={24} className="text-white flex-shrink-0" />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Horizontal New Arrivals / Hits / Free Shipping Scroll ─────────────── */
 function HorizontalScroll({
   items,
   title,
   onOpen,
   onAddToCart,
+  showFreeShipping = false,
 }: {
   items: Product[];
   title: string;
   onOpen: (p: Product) => void;
   onAddToCart: (p: Product) => void;
+  showFreeShipping?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const { has, toggle } = useWishlist();
@@ -65,7 +87,13 @@ function HorizontalScroll({
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3 px-2">
         <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          {title === "Нові надходження" ? <Sparkles size={18} className="text-green-500" /> : <Flame size={18} className="text-orange-500" />}
+          {title === "Нові надходження" ? (
+            <Sparkles size={18} className="text-green-500" />
+          ) : title === "Безкоштовна доставка" ? (
+            <Truck size={18} className="text-green-500" />
+          ) : (
+            <Flame size={18} className="text-orange-500" />
+          )}
           {title}
         </h2>
       </div>
@@ -126,6 +154,13 @@ function HorizontalScroll({
                   {product.badge && (
                     <div className={`absolute bottom-2 left-2 ${product.badgeColor} text-white text-[10px] font-bold px-2 py-0.5 rounded`}>
                       {product.badge}
+                    </div>
+                  )}
+                  {/* Free Shipping Badge */}
+                  {(product as any).freeShipping && (
+                    <div className="absolute bottom-2 right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                      <Truck size={10} />
+                      Безкошт. дост.
                     </div>
                   )}
                 </div>
@@ -203,6 +238,8 @@ function TemuProductCard({
     ? Math.round((1 - product.price / product.oldPrice) * 100)
     : null;
 
+  const hasFreeShipping = (product as any).freeShipping === true;
+
   // Highlight search query in text
   const highlightText = (text: string) => {
     if (!searchQuery.trim()) return text;
@@ -268,10 +305,26 @@ function TemuProductCard({
             {product.badge}
           </div>
         )}
+
+        {/* Free Shipping Badge - ГЛАВНОЕ! */}
+        {hasFreeShipping && (
+          <div className="absolute top-2 right-9 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow-md">
+            <Truck size={10} />
+            Безкошт. дост.
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="p-2">
+        {/* Free Shipping Banner in Content */}
+        {hasFreeShipping && (
+          <div className="bg-green-50 border border-green-200 rounded px-2 py-1 mb-1 flex items-center gap-1">
+            <Truck size={12} className="text-green-600" />
+            <span className="text-green-700 text-xs font-semibold">Безкоштовна доставка</span>
+          </div>
+        )}
+
         {/* Name */}
         <div className="text-sm text-gray-800 line-clamp-2 leading-tight mb-1 min-h-[2.5rem]">
           {highlightText(product.name)}
@@ -352,6 +405,7 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [onlyInStock, setOnlyInStock] = useState(false);
+  const [onlyFreeShipping, setOnlyFreeShipping] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Read search from URL hash
@@ -378,6 +432,11 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
     filtered = filtered.filter((p) =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+  }
+
+  // Apply free shipping filter
+  if (onlyFreeShipping) {
+    filtered = filtered.filter((p) => (p as any).freeShipping === true);
   }
 
   // Apply price filters
@@ -410,9 +469,10 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
   const visibleProducts = sorted.slice(0, visibleCount);
   const hasMore = visibleCount < sorted.length;
 
-  // New arrivals and hits
+  // Special collections
   const newArrivals = products.filter((p) => p.isNew).slice(0, 10);
   const hits = products.filter((p) => p.isHit && !p.isNew).slice(0, 10);
+  const freeShippingProducts = products.filter((p) => (p as any).freeShipping === true).slice(0, 10);
 
   // Handle add to cart
   const handleAddToCart = (product: Product) => {
@@ -424,17 +484,14 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
       size: product.sizes[0] ?? undefined,
     });
 
-    setAddedIds((prev) => new Set(prev).add(product.id.toString()));
-    const timer = setTimeout(() => {
+    setAddedIds((prev) => new Set(prev).add(product.id));
+    setTimeout(() => {
       setAddedIds((prev) => {
         const next = new Set(prev);
-        next.delete(product.id.toString());
+        next.delete(product.id);
         return next;
       });
     }, 1500);
-    
-    // Cleanup function to prevent memory leaks
-    return () => clearTimeout(timer);
   };
 
   const handleBuyNow = (product: Product) => {
@@ -447,15 +504,23 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
     setVisibleCount(INITIAL_VISIBLE);
   }, [activeCategory]);
 
-  const hasActiveFilters = minPrice || maxPrice || onlyInStock || searchQuery;
+  const hasActiveFilters = minPrice || maxPrice || onlyInStock || onlyFreeShipping || searchQuery;
   const activeSortLabel = SORT_OPTIONS.find((o) => o.value === sortKey)?.label;
 
   const clearFilters = () => {
     setMinPrice("");
     setMaxPrice("");
     setOnlyInStock(false);
+    setOnlyFreeShipping(false);
     setSearchQuery("");
     window.location.hash = "";
+  };
+
+  // Filter by free shipping
+  const handleFilterFreeShipping = () => {
+    setOnlyFreeShipping(true);
+    setActiveCategory("Всі");
+    window.scrollTo({ top: 400, behavior: "smooth" });
   };
 
   return (
@@ -468,8 +533,13 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
         />
 
         <div className="max-w-7xl mx-auto px-2 py-3">
+          {/* Free Shipping Banner */}
+          {freeShippingProducts.length > 0 && activeCategory === "Всі" && !onlyFreeShipping && !searchQuery && (
+            <FreeShippingBanner onFilterFreeShipping={handleFilterFreeShipping} />
+          )}
+
           {/* New Arrivals */}
-          {newArrivals.length > 0 && activeCategory === "Всі" && !searchQuery && (
+          {newArrivals.length > 0 && activeCategory === "Всі" && !onlyFreeShipping && !searchQuery && (
             <HorizontalScroll
               items={newArrivals}
               title="Нові надходження"
@@ -479,12 +549,23 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
           )}
 
           {/* Hits */}
-          {hits.length > 0 && activeCategory === "Всі" && !searchQuery && (
+          {hits.length > 0 && activeCategory === "Всі" && !onlyFreeShipping && !searchQuery && (
             <HorizontalScroll
               items={hits}
               title="Хіти продажів"
               onOpen={setModalProduct}
               onAddToCart={handleAddToCart}
+            />
+          )}
+
+          {/* Free Shipping Products Scroll */}
+          {freeShippingProducts.length > 0 && activeCategory === "Всі" && !onlyFreeShipping && !searchQuery && (
+            <HorizontalScroll
+              items={freeShippingProducts}
+              title="Безкоштовна доставка"
+              onOpen={setModalProduct}
+              onAddToCart={handleAddToCart}
+              showFreeShipping
             />
           )}
 
@@ -532,7 +613,7 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
               >
                 <SlidersHorizontal size={14} />
                 <span className="hidden sm:inline">Фільтри</span>
-                {(minPrice || maxPrice || onlyInStock) && (
+                {(minPrice || maxPrice || onlyInStock || onlyFreeShipping) && (
                   <span className="bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
                     !
                   </span>
@@ -588,6 +669,32 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
                 />
                 Тільки в наявності
               </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-green-700">
+                <input
+                  type="checkbox"
+                  checked={onlyFreeShipping}
+                  onChange={(e) => setOnlyFreeShipping(e.target.checked)}
+                  className="accent-green-500 w-4 h-4"
+                />
+                <Truck size={14} />
+                Безкоштовна доставка
+              </label>
+            </div>
+          )}
+
+          {/* Active Filter Badge */}
+          {onlyFreeShipping && (
+            <div className="mb-4 px-2">
+              <div className="inline-flex items-center gap-2 bg-green-100 border border-green-300 text-green-700 px-4 py-2 rounded-full text-sm font-semibold">
+                <Truck size={14} />
+                Товари з безкоштовною доставкою
+                <button
+                  onClick={() => setOnlyFreeShipping(false)}
+                  className="ml-1 hover:bg-green-200 rounded-full p-1"
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
           )}
 
@@ -639,6 +746,7 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
           product={modalProduct}
           onClose={() => setModalProduct(null)}
           onAddToCart={() => handleAddToCart(modalProduct)}
+          onBuyNow={() => handleBuyNow(modalProduct)}
         />
       )}
     </>

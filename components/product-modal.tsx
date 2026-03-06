@@ -150,7 +150,7 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
             <StarRow rating={product.rating} count={product.reviews} />
 
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-black text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
+              <span className="text-3xl font-semibold text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
               {product.oldPrice && (
                 <span className="text-lg text-gray-400 line-through">{product.oldPrice} грн</span>
               )}

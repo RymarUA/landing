@@ -649,7 +649,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                         </div>
                         <div className="p-2">
                           <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
-                          <p className="text-xs font-black text-orange-500">{product.price.toLocaleString("uk-UA")} грн</p>
+                          <p className="text-xs font-semibold text-orange-500">{product.price.toLocaleString("uk-UA")} грн</p>
                         </div>
                       </Link>
                     ))}

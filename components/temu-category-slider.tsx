@@ -74,7 +74,7 @@ export function TemuCategorySlider({
     >
       <div
         ref={scrollRef}
-        className="flex overflow-x-auto scrollbar-hide px-3 py-2.5 gap-2"
+        className="flex overflow-x-auto scrollbar-hide px-2 py-3 gap-2"
         style={{
           WebkitOverflowScrolling: "touch",
           scrollbarWidth: "none",
@@ -89,12 +89,12 @@ export function TemuCategorySlider({
               data-category={category}
               onClick={() => handleCategoryClick(category)}
               className={`
-                flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold
-                transition-all whitespace-nowrap
+                flex-shrink-0 px-6 py-2.5 rounded-full text-sm font-bold
+                transition-all whitespace-nowrap min-w-fit
                 ${
                   isActive
-                    ? "bg-orange-500 text-white shadow-md shadow-orange-200"
-                    : "bg-white text-gray-600 border border-gray-200 hover:border-orange-300 hover:text-orange-500"
+                    ? "bg-orange-500 text-white shadow-lg shadow-orange-200 scale-105"
+                    : "bg-white text-gray-700 border-2 border-gray-200 hover:border-orange-300 hover:text-orange-500"
                 }
               `}
             >

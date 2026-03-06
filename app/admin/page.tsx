@@ -173,7 +173,7 @@ function ProductRow({
       </td>
       <td className="py-3 px-4">
         <div className="flex flex-col">
-          <span className="font-black text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
+          <span className="font-semibold text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
           {product.oldPrice && (
             <span className="text-xs text-gray-400 line-through">{product.oldPrice} грн</span>
           )}

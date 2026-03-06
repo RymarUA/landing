@@ -59,7 +59,7 @@ export function RecentlyViewedBlock({ products, currentId }: Props) {
                 ))}
                 <span className="text-xs text-gray-400 ml-0.5">({p.reviews})</span>
               </div>
-              <p className="text-orange-500 font-black text-sm">{p.price.toLocaleString("uk-UA")} грн</p>
+              <p className="text-orange-500 font-semibold text-sm">{p.price.toLocaleString("uk-UA")} грн</p>
             </div>
           </Link>
         ))}

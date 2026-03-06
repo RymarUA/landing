@@ -7,9 +7,6 @@
 import { Suspense } from "react";
 import { getCatalogProducts } from "@/lib/instagram-catalog";
 import { TemuCatalog, CatalogSkeleton } from "@/components/temu-catalog";
-import { ShopNovaPoshta } from "@/components/shop-novaposhta";
-import { ShopFaq } from "@/components/shop-faq";
-import { ShopFooter } from "@/components/shop-footer";
 import { ErrorBoundary } from "@/components/error-boundary";
 
 /** Inner async component so Suspense can show skeleton while fetching */
@@ -18,13 +15,7 @@ async function CatalogSection() {
   return <TemuCatalog products={products} />;
 }
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ ttn?: string }>;
-}) {
-  const params = await searchParams;
-
+export default async function Home() {
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Catalog — wrapped in ErrorBoundary + Suspense */}
@@ -33,18 +24,6 @@ export default async function Home({
           <CatalogSection />
         </Suspense>
       </ErrorBoundary>
-
-      {/* Nova Poshta tracker */}
-      <ErrorBoundary label="Трекінг посилок">
-        <ShopNovaPoshta initialTtn={params.ttn} />
-      </ErrorBoundary>
-
-      {/* FAQ */}
-      <ErrorBoundary label="FAQ">
-        <ShopFaq />
-      </ErrorBoundary>
-
-      <ShopFooter />
     </main>
   );
 }

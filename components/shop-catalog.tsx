@@ -192,7 +192,7 @@ function HorizontalScroll({ items, onOpen, onAddToCart }: { items: Product[]; on
               <p className="text-sm font-bold text-gray-900 leading-tight mb-1 line-clamp-2">{product.name}</p>
               <StarRow rating={product.rating} count={product.reviews} />
               <div className="flex items-baseline gap-1.5 mt-1.5 mb-3">
-                <span className="text-orange-500 font-black text-base">{product.price} грн</span>
+                <span className="text-orange-500 font-semibold text-base">{product.price} грн</span>
                 {product.oldPrice && (
                   <span className="text-gray-400 text-xs line-through">{product.oldPrice} грн</span>
                 )}
@@ -285,7 +285,10 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }, [active]);
 
-  const newArrivals = products.filter((p) => p.isNew || p.isHit).slice(0, 6);
+  const newArrivals = products.filter((p) => p.isNew && !p.isHit).slice(0, 6);
+  const hits = products.filter((p) => p.isHit).slice(0, 6);
+  const topRated = products.filter((p) => p.rating >= 4.5 && p.reviews >= 10).slice(0, 6);
+  const topSales = products.filter((p) => p.isHit || (p.rating >= 4.7 && p.reviews >= 20)).sort((a, b) => b.reviews - a.reviews).slice(0, 6);
 
   /* ── Apply filters ── */
   const filtered = products
@@ -339,7 +342,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
     const { offset, velocity } = info;
     
     // Check if it's a horizontal swipe with sufficient distance and velocity
-    if (Math.abs(offset.x) > 50 && Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(velocity.x) > 300) {
+    if (Math.abs(offset.x) > 40 && Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(velocity.x) > 200) {
       const idx = ALL_CATEGORIES.indexOf(active as (typeof ALL_CATEGORIES)[number]);
       let nextIdx;
       
@@ -348,6 +351,41 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
         nextIdx = idx === ALL_CATEGORIES.length - 1 ? 0 : idx + 1;
       } else {
         // Swipe right - previous category (with wrap-around)
+        nextIdx = idx === 0 ? ALL_CATEGORIES.length - 1 : idx - 1;
+      }
+      
+      if (nextIdx !== idx) {
+        setActive(ALL_CATEGORIES[nextIdx]);
+        setVisibleCount(INITIAL_VISIBLE);
+        setCatalogVisible(false);
+        setTimeout(() => setCatalogVisible(true), 120);
+      }
+    }
+  }, [active]);
+
+  // Touch handlers for swipe
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    
+    const deltaX = touchEndX - touchStartX.current;
+    const deltaY = Math.abs(touchEndY - touchStartY.current);
+    
+    // More sensitive swipe detection
+    if (Math.abs(deltaX) > 40 && deltaY < Math.abs(deltaX) * 0.3) {
+      const idx = ALL_CATEGORIES.indexOf(active as (typeof ALL_CATEGORIES)[number]);
+      let nextIdx;
+      
+      if (deltaX < 0) {
+        // Swipe left - next category
+        nextIdx = idx === ALL_CATEGORIES.length - 1 ? 0 : idx + 1;
+      } else {
+        // Swipe right - previous category
         nextIdx = idx === 0 ? ALL_CATEGORIES.length - 1 : idx - 1;
       }
       
@@ -416,31 +454,107 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
       </div>
 
       {/* ── New Arrivals ── */}
-      <section id="new-arrivals" className="bg-white py-14 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles size={18} className="text-orange-500" />
-                <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">Щойно додано</span>
+      {newArrivals.length > 0 && active === "Всі" && !searchQuery && (
+        <section id="new-arrivals" className="bg-white py-14 px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles size={18} className="text-orange-500" />
+                  <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">Щойно додано</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-gray-900">Нові надходження</h2>
               </div>
-              <h2 className="text-2xl md:text-3xl font-black text-gray-900">Нові надходження та хіти</h2>
+              <button
+                onClick={() => setActive("Всі")}
+                className="text-sm text-orange-500 font-semibold hover:underline hidden sm:block"
+              >
+                Всі товари →
+              </button>
             </div>
-            <button
-              onClick={() => setActive("Всі")}
-              className="text-sm text-orange-500 font-semibold hover:underline hidden sm:block"
-            >
-              Всі товари →
-            </button>
+            <HorizontalScroll items={newArrivals} onOpen={setModalProduct} onAddToCart={(p) => handleAddToCart(p, p.sizes[0] ?? undefined)} />
           </div>
-          <HorizontalScroll items={newArrivals} onOpen={setModalProduct} onAddToCart={(p) => handleAddToCart(p, p.sizes[0] ?? undefined)} />
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* ── Hits ── */}
+      {hits.length > 0 && active === "Всі" && !searchQuery && (
+        <section id="hits" className="bg-gradient-to-br from-amber-50 to-orange-50 py-14 px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Flame size={18} className="text-orange-500" />
+                  <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">Найпопулярніше</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-gray-900">Хіти продажів</h2>
+              </div>
+              <button
+                onClick={() => setActive("Всі")}
+                className="text-sm text-orange-500 font-semibold hover:underline hidden sm:block"
+              >
+                Всі товари →
+              </button>
+            </div>
+            <HorizontalScroll items={hits} onOpen={setModalProduct} onAddToCart={(p) => handleAddToCart(p, p.sizes[0] ?? undefined)} />
+          </div>
+        </section>
+      )}
+
+      {/* ── Reviews Section ── */}
+      {topRated.length > 0 && active === "Всі" && !searchQuery && (
+        <section id="reviews" className="bg-white py-14 px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Star size={18} className="text-orange-500" />
+                  <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">Відгуки клієнтів</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-gray-900">Найкращі відгуки</h2>
+              </div>
+              <button
+                onClick={() => setActive("Всі")}
+                className="text-sm text-orange-500 font-semibold hover:underline hidden sm:block"
+              >
+                Всі товари →
+              </button>
+            </div>
+            <HorizontalScroll items={topRated} onOpen={setModalProduct} onAddToCart={(p) => handleAddToCart(p, p.sizes[0] ?? undefined)} />
+          </div>
+        </section>
+      )}
+
+      {/* ── Top Sales Section ── */}
+      {topSales.length > 0 && active === "Всі" && !searchQuery && (
+        <section id="top-sales" className="bg-gradient-to-br from-green-50 to-emerald-50 py-14 px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Flame size={18} className="text-green-600" />
+                  <span className="text-xs font-bold text-green-600 uppercase tracking-widest">Найпопулярніше</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-gray-900">Топ продажів</h2>
+              </div>
+              <button
+                onClick={() => setActive("Всі")}
+                className="text-sm text-green-600 font-semibold hover:underline hidden sm:block"
+              >
+                Всі товари →
+              </button>
+            </div>
+            <HorizontalScroll items={topSales} onOpen={setModalProduct} onAddToCart={(p) => handleAddToCart(p, p.sizes[0] ?? undefined)} />
+          </div>
+        </section>
+      )}
 
       {/* ── Main Catalog ── */}
       <motion.section 
         id="catalog" 
         className="bg-gray-50 py-8 px-4"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         <div className="max-w-5xl mx-auto">
           {/* ── Trust bar ── */}
@@ -683,7 +797,7 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
                       )}
 
                       <div className="flex items-baseline gap-2 mt-auto pt-3 mb-3">
-                        <span className="text-gray-900 font-black text-xl">{product.price.toLocaleString("uk-UA")} грн</span>
+                        <span className="text-gray-900 font-semibold text-xl">{product.price.toLocaleString("uk-UA")} грн</span>
                         {product.oldPrice && (
                           <span className="text-gray-400 text-sm line-through">{product.oldPrice} грн</span>
                         )}

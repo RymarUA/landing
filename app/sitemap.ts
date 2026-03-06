@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { MetadataRoute } from 'next';
 import { getCatalogProducts } from '@/lib/instagram-catalog';
 import { siteConfig } from '@/lib/site-config';

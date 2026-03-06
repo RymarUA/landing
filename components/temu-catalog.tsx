@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   ShoppingCart,
@@ -390,13 +389,12 @@ function TemuProductCard({
 
 /* ─── Main Catalog Component ─────────────────────────── */
 export function TemuCatalog({ products }: TemuCatalogProps) {
-  const router = useRouter();
   const { addItem } = useCart();
 
   const [activeCategory, setActiveCategory] = useState("Всі");
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
 
   // Filters and sorting
   const [sortKey, setSortKey] = useState<SortKey>("default");
@@ -494,10 +492,6 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
     }, 1500);
   };
 
-  const handleBuyNow = (product: Product) => {
-    handleAddToCart(product);
-    router.push("/cart");
-  };
 
   // Reset visible count when category changes
   useEffect(() => {
@@ -746,7 +740,6 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
           product={modalProduct}
           onClose={() => setModalProduct(null)}
           onAddToCart={() => handleAddToCart(modalProduct)}
-          onBuyNow={() => handleBuyNow(modalProduct)}
         />
       )}
     </>

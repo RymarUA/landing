@@ -27,6 +27,7 @@ import {
   type SitniksProduct,
   type SitniksVariation,
 } from "./sitniks-api";
+import { getAllProducts, getProductById as getFallbackProductById } from "./products";
 
 // ─── Type (same shape as before — nothing else in the app needs to change) ─────
 export interface CatalogProduct {
@@ -152,6 +153,30 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
   };
 }
 
+
+function mapFallbackProductToCatalogProduct(p: Awaited<ReturnType<typeof getAllProducts>>[number]): CatalogProduct {
+  return {
+    id: p.id,
+    slug: p.slug,
+    instagramMediaId: null,
+    name: p.name,
+    price: p.price,
+    oldPrice: p.oldPrice,
+    category: p.category,
+    badge: p.badge,
+    badgeColor: p.badgeColor || "",
+    isHit: Boolean(p.isHit),
+    isNew: Boolean(p.isNew),
+    rating: p.rating,
+    reviews: p.reviews,
+    stock: p.stock,
+    sizes: p.sizes ?? [],
+    description: p.description ?? "",
+    image: p.image,
+    instagramPermalink: null,
+  };
+}
+
 // ─── Public API (same interface as before) ─────────────────────────────────────
 
 /**
@@ -164,8 +189,9 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
     return sitniksProducts.map(mapSitniksProduct);
   } catch (err) {
     console.error("[instagram-catalog] Failed to fetch from Sitniks:", err);
-    // Fallback: повертаємо порожній масив щоб сайт не впав
-    return [];
+    // Fallback: статичний каталог щоб вітрина працювала навіть без Sitniks API
+    const fallbackProducts = await getAllProducts();
+    return fallbackProducts.map(mapFallbackProductToCatalogProduct);
   }
 }
 
@@ -178,6 +204,7 @@ export async function getCatalogProductById(id: number): Promise<CatalogProduct 
     if (!p) return null;
     return mapSitniksProduct(p);
   } catch {
-    return null;
+    const fallbackProduct = await getFallbackProductById(id);
+    return fallbackProduct ? mapFallbackProductToCatalogProduct(fallbackProduct) : null;
   }
 }

@@ -19,7 +19,7 @@ if (typeof setInterval !== 'undefined') {
 export function middleware(request: NextRequest) {
   // Rate limiting только для API endpoints
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    const ip = request.ip ?? request.headers.get('x-forwarded-for') ?? 'anonymous';
+    const ip = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'anonymous';
     const now = Date.now();
     const windowMs = 60000; // 1 минута
     const maxRequests = 100; // максимум запросов за окно

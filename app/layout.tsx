@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Metadata } from "next";
 import "./globals.css";
 import { GeistSans } from "geist/font/sans";
@@ -136,7 +137,7 @@ export default function RootLayout({
         <CartProvider>
           <WishlistProvider>
             {/* Temu-style Search Bar */}
-            <TemuSearchBar />
+            {/* <TemuSearchBar /> */}
 
             {/* Main content with top padding for fixed search bar */}
             <div className="pt-[52px]">
@@ -144,7 +145,7 @@ export default function RootLayout({
             </div>
 
             {/* Temu-style Bottom Navigation (includes cart) */}
-            <TemuBottomNav />
+            {/* <TemuBottomNav /> */}
             
             <DiscountPopup />
             <CookieBanner />

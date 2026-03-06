@@ -2,20 +2,18 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { GeistSans } from "geist/font/sans";
 import { cn } from "@/lib/utils";
-import { NavBar } from "@/components/navbar";
 import { DevToolsGuard } from "./devtools-guard";
 import { TailwindCDNClient } from "@/components/tailwind-cdn-client";
 import { siteConfig } from "@/lib/site-config";
 import { CartProvider } from "@/components/cart-context";
-import { CartWidget } from "@/components/cart-widget";
-import { StickyHeader } from "@/components/sticky-header";
 import { AnnouncementBar } from "@/components/announcement-bar";
 import { CookieBanner } from "@/components/cookie-banner";
 import { WishlistProvider } from "@/components/wishlist-context";
 import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
-import { MotionWrapper } from "@/components/motion-wrapper";
 import { SupportButton } from "@/components/support-button";
+import { TemuSearchBar } from "@/components/temu-search-bar";
+import { TemuBottomNav } from "@/components/temu-bottom-nav";
 
 export const metadata: Metadata = {
   title: {
@@ -83,16 +81,8 @@ export default function RootLayout({
   return (
     <html lang="uk" suppressHydrationWarning>
       <head suppressHydrationWarning>
-        {/* Force light mode — prevents OS dark theme from bleeding into the preview/screenshots */}
         <meta name="color-scheme" content="light only" />
-        {/* Schema.org: associate this site with Kleap for Knowledge Graph */}
-        {/*
-          CRITICAL: Base styles to prevent FOUC and hydration errors
-          ⚠️ DO NOT REMOVE OR MODIFY WITHOUT CAREFUL TESTING ⚠️
-          React 19 requires href and precedence attributes on style tags
-        */}
         <style href="kleap-base-styles" precedence="high">{`
-          /* Base styles to prevent FOUC - always rendered server+client */
           .bg-white { background-color: white; }
           .bg-black { background-color: black; }
           .text-white { color: white; }
@@ -104,12 +94,6 @@ export default function RootLayout({
           .antialiased { -webkit-font-smoothing: antialiased; }
           .h-full { height: 100%; }
           .w-full { width: 100%; }
-
-          /*
-            IMPORTANT: Button and shadcn/ui color styles (fallback before Tailwind CDN loads)
-            Uses official shadcn/ui Neutral theme with OKLCH colors
-            DO NOT REMOVE - Required for FOUC prevention
-          */
           .bg-primary { background-color: oklch(0.205 0 0); }
           .text-primary-foreground { color: oklch(0.985 0 0); }
           .hover\\:bg-primary\\/90:hover { background-color: oklch(0.205 0 0 / 0.9); }
@@ -128,8 +112,6 @@ export default function RootLayout({
           .hover\\:text-accent-foreground:hover { color: oklch(0.205 0 0); }
           .ring-offset-background { --tw-ring-offset-color: oklch(1 0 0); }
           .focus-visible\\:ring-ring:focus-visible { --tw-ring-color: oklch(0.708 0 0); }
-
-          /* FOUC prevention - hide body until CSS is loaded */
           body { opacity: 1; }
           body:not(.css-loaded) { opacity: 0; }
         `}</style>
@@ -139,26 +121,27 @@ export default function RootLayout({
           GeistSans.className,
           "bg-white antialiased h-full w-full",
         )}
-        suppressHydrationWarning // Prevents browser extension conflicts
+        suppressHydrationWarning
       >
         <Analytics />
         <TailwindCDNClient />
         <DevToolsGuard />
         <CartProvider>
           <WishlistProvider>
-            <AnnouncementBar />
-            <StickyHeader />
-            <MotionWrapper
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className={siteConfig.showNavbar !== false ? "pt-24" : ""}
-            >
-              {siteConfig.showNavbar !== false && <NavBar />}
+            {/* Temu-style Search Bar */}
+            <TemuSearchBar />
+
+            {/* Main content with top padding for fixed search bar */}
+            <div className="pt-[52px]">
               {children}
-            </MotionWrapper>
-            <CartWidget />
+            </div>
+
+            {/* Temu-style Bottom Navigation (includes cart) */}
+            <TemuBottomNav />
+
+            {/* Support Button (floating) */}
             <SupportButton />
+            
             <DiscountPopup />
             <CookieBanner />
           </WishlistProvider>

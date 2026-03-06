@@ -11,8 +11,15 @@ import { CookieBanner } from "@/components/cookie-banner";
 import { WishlistProvider } from "@/components/wishlist-context";
 import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
-import { TemuSearchBar } from "@/components/temu-search-bar";
-import { TemuBottomNav } from "@/components/temu-bottom-nav";
+import { MotionWrapper } from "@/components/motion-wrapper";
+import { SupportButton } from "@/components/support-button";
+import { validateEnv } from "@/lib/env-validation";
+import { WebVitals } from "./web-vitals";
+
+// Validate environment variables on server startup
+if (typeof window === 'undefined') {
+  validateEnv();
+}
 
 export const metadata: Metadata = {
   title: {
@@ -123,6 +130,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Analytics />
+        <WebVitals />
         <TailwindCDNClient />
         <DevToolsGuard />
         <CartProvider>

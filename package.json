@@ -50,8 +50,10 @@
     "framer-motion": "^12.29.2",
     "geist": "^1.5.1",
     "lucide-react": "^0.563.0",
+    "minimatch": "10.0.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
+    "path-to-regexp": "6.3.0",
     "prismjs": "^1.30.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -63,13 +65,15 @@
     "sharp": "0.34.5",
     "styled-jsx": "^5.1.6",
     "tailwind-merge": "^3.4.0",
+    "tar": "7.0.1",
     "typescript": "^5",
+    "undici": "6.23.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "baseline-browser-mapping": "^2.9.11",
-    "eslint": "^9.39.2",
-    "eslint-config-next": "^16.1.6",
+    "eslint": "10.0.0",
+    "eslint-config-next": "12.0.4",
     "tsx": "^4.19.2",
     "vercel": "^50.0.0"
   },

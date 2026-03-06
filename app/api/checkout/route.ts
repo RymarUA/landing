@@ -1,278 +1,189 @@
 /**
- * POST /api/checkout
+ * app/api/checkout/route.ts
  *
- * Creates payment: orderReference = FHM-{Date.now()}, creates Sitniks order,
- * builds WayForPay form/redirect, sends Telegram + email in parallel.
- * Returns { orderReference, wayforpay, paymentUrl }.
+ * POST /api/checkout — приймає замовлення з сайту і відправляє в Sitniks CRM.
+ *
+ * Body:
+ * {
+ *   name: string,
+ *   phone: string,
+ *   city: string,
+ *   department: string,           // номер відділення НП
+ *   departmentRef?: string,       // ref відділення НП (якщо є)
+ *   cityRef?: string,             // ref міста НП
+ *   paymentMethod: "cod" | "card",
+ *   comment?: string,
+ *   items: Array<{
+ *     productId: number,
+ *     variationId: number,
+ *     name: string,
+ *     price: number,
+ *     quantity: number,
+ *     size?: string
+ *   }>
+ * }
  */
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 import { NextRequest, NextResponse } from "next/server";
-import { checkoutSchema } from "@/lib/checkout-schema";
-import { createSitniksOrder, normalizePhone } from "@/lib/sitniks";
-import { buildWfpSignature, buildWfpPaymentUrl, getWfpConfig } from "@/lib/wayforpay";
-import { sendTelegramNotification } from "@/lib/telegram";
-import { sendOrderConfirmation, sendAdminOrderCopy } from "@/lib/email";
-import type { CheckoutResponseError, WayForPayPaymentParams } from "@/lib/types";
+import { createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-api";
+import { getCatalogProductById } from "@/lib/instagram-catalog";
+
+// ── Отримай ці ID з Sitniks: Налаштування → Нова Пошта → ID інтеграції
+const NP_INTEGRATION_ID = Number(process.env.SITNIKS_NP_INTEGRATION_ID ?? 0);
+// ── Канал продажів для сайту (Налаштування → Канали продажів)
+const SALES_CHANNEL_ID  = Number(process.env.SITNIKS_SALES_CHANNEL_ID ?? 0);
+// ── Статус "Новий" (Налаштування → Статуси замовлень → ID)
+const NEW_ORDER_STATUS  = Number(process.env.SITNIKS_NEW_STATUS_ID ?? 1);
 
 interface CheckoutItem {
-  id: number;
+  id?: number;
+  productId?: number;
+  variationId?: number;
   name: string;
-  price: number;
+  price?: number;
   quantity: number;
-  size?: string | null;
+  size?: string;
 }
 
-function normalizeBody(body: unknown): {
+interface CheckoutBody {
+  name: string;
+  phone: string;
+  city: string;
+  department?: string;
+  warehouse?: string;
+  departmentRef?: string;
+  cityRef?: string;
+  paymentMethod: "cod" | "card" | "online";
+  comment?: string;
+  discountAmount?: number;
   items: CheckoutItem[];
-  customer: { name: string; phone: string; email?: string };
-  delivery: { city: string; warehouse: string };
-} | null {
-  if (!body || typeof body !== "object") return null;
+}
+
+function validateBody(body: unknown): body is CheckoutBody {
+  if (!body || typeof body !== "object") return false;
   const b = body as Record<string, unknown>;
-  const items = Array.isArray(b.items) ? b.items : [];
-  const customer = b.customer && typeof b.customer === "object"
-    ? (b.customer as Record<string, unknown>)
-    : null;
-  const delivery = b.delivery && typeof b.delivery === "object"
-    ? (b.delivery as Record<string, unknown>)
-    : null;
-
-  if (customer && delivery) {
-    const name = String(customer.name ?? "").trim();
-    const phone = String(customer.phone ?? "").trim();
-    const email = customer.email != null ? String(customer.email).trim() : undefined;
-    const city = String(delivery.city ?? "").trim();
-    const warehouse = String(delivery.warehouse ?? "").trim();
-    if (!name || !phone || !city || !warehouse) return null;
-    return {
-      items: items as CheckoutItem[],
-      customer: { name, phone, email: email || undefined },
-      delivery: { city, warehouse },
-    };
-  }
-
-  const parsed = checkoutSchema.safeParse(body);
-  if (!parsed.success) return null;
-  const { name, phone, city, warehouse } = parsed.data;
-  const email = (b.email != null && b.email !== "") ? String(b.email).trim() : undefined;
-  return {
-    items: items as CheckoutItem[],
-    customer: { name, phone, email },
-    delivery: { city, warehouse },
-  };
+  const hasDelivery = typeof b.department === "string" || typeof b.warehouse === "string";
+  return (
+    typeof b.name === "string" && b.name.length >= 3 &&
+    typeof b.phone === "string" && b.phone.length >= 10 &&
+    typeof b.city === "string" &&
+    hasDelivery &&
+    Array.isArray(b.items) && b.items.length > 0
+  );
 }
 
 export async function POST(req: NextRequest) {
-  let body: unknown;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json<CheckoutResponseError>(
-      { error: "Невалідний JSON у тілі запиту" },
-      { status: 400 }
-    );
-  }
+    const body = await req.json();
 
-  const data = normalizeBody(body);
-  if (!data) {
-    return NextResponse.json<CheckoutResponseError>(
-      { error: "Невалідні дані форми" },
-      { status: 422 }
-    );
-  }
-
-  const { items, customer, delivery } = data;
-
-  if (items.length === 0) {
-    return NextResponse.json<CheckoutResponseError>(
-      { error: "Кошик порожній. Додайте товари перед оформленням." },
-      { status: 400 }
-    );
-  }
-
-  if (!customer.phone) {
-    return NextResponse.json<CheckoutResponseError>(
-      { error: "Вкажіть номер телефону" },
-      { status: 400 }
-    );
-  }
-
-  for (const item of items) {
-    if (
-      typeof item.id !== "number" ||
-      typeof item.name !== "string" ||
-      typeof item.price !== "number" ||
-      typeof item.quantity !== "number" ||
-      item.price <= 0 ||
-      item.quantity <= 0
-    ) {
-      return NextResponse.json<CheckoutResponseError>(
-        { error: "Один або більше товарів мають невірний формат." },
+    if (!validateBody(body)) {
+      return NextResponse.json(
+        { error: "Невірний формат замовлення" },
         { status: 400 }
       );
     }
-  }
 
-  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const orderReference = `FHM-${Date.now()}`;
+    const department = body.department ?? body.warehouse ?? "";
 
-  const checkoutPayload = {
-    orderReference,
-    customer: {
-      name: customer.name,
-      phone: normalizePhone(customer.phone),
-      email: customer.email,
-    },
-    delivery: { city: delivery.city, warehouse: delivery.warehouse },
-    items: items.map((i) => ({
-      name: i.name,
-      price: i.price,
-      quantity: i.quantity,
-      size: i.size ?? null,
-    })),
-    total,
-  };
+    // Server-side price: get products from catalog by ID, ignore frontend totalPrice
+    let serverTotal = 0;
+    const resolvedItems: Array<{ variationId: number; price: number; quantity: number; name: string; size?: string }> = [];
 
-  const WFP_RETRY_ATTEMPTS = 3;
-  const WFP_STEP_MS = 2000;
-  const CHECKOUT_TIMEOUT_MS = 20000;
-
-  const runCreateAndConfig = async () => {
-    let sitniksResult: { id: string | number } | null = null;
-    for (let attempt = 0; attempt < WFP_RETRY_ATTEMPTS; attempt++) {
-      sitniksResult = await createSitniksOrder(checkoutPayload);
-      if (sitniksResult) {
-        console.info("[checkout] Sitniks order created for", orderReference);
-        break;
+    for (const item of body.items) {
+      const productId = item.id ?? item.productId;
+      if (productId == null) {
+        return NextResponse.json(
+          { error: "Кожен товар повинен мати id або productId" },
+          { status: 400 }
+        );
       }
-      if (attempt === WFP_RETRY_ATTEMPTS - 1) {
-        throw new Error("Sitniks create failed after " + WFP_RETRY_ATTEMPTS + " attempts");
+      const catalogProduct = await getCatalogProductById(Number(productId));
+      if (!catalogProduct) {
+        return NextResponse.json(
+          { error: `Товар з ID ${productId} не знайдено в каталозі` },
+          { status: 400 }
+        );
       }
-      await new Promise((r) => setTimeout(r, WFP_STEP_MS * (attempt + 1)));
+      const variationId = item.variationId ?? catalogProduct.variationId;
+      if (variationId == null) {
+        return NextResponse.json(
+          { error: `Немає варіації для товару ${catalogProduct.name}` },
+          { status: 400 }
+        );
+      }
+      const price = catalogProduct.price;
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      serverTotal += price * qty;
+      resolvedItems.push({
+        variationId,
+        price,
+        quantity: qty,
+        name: item.name || catalogProduct.name,
+        size: item.size,
+      });
     }
-    return getWfpConfig();
-  };
 
-  let wfpConfig;
-  try {
-    wfpConfig = await Promise.race([
-      runCreateAndConfig(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Checkout timeout")), CHECKOUT_TIMEOUT_MS)
-      ),
-    ]);
+    const discountAmount = Math.max(0, Number(body.discountAmount) || 0);
+    const finalAmount = serverTotal - discountAmount;
+
+    const dto: CreateOrderDto = {
+      client: {
+        fullname: body.name,
+        phone: body.phone,
+      },
+
+      products: resolvedItems.map((item) => ({
+        productVariationId: item.variationId,
+        isUpsale: false,
+        price: item.price,
+        quantity: item.quantity,
+        title: item.size ? `${item.name} (${item.size})` : item.name,
+      })),
+
+      // Нова Пошта
+      ...(NP_INTEGRATION_ID > 0 ? {
+        npDelivery: {
+          integrationNovaposhtaId: NP_INTEGRATION_ID,
+          price: finalAmount,
+          seatsAmount: 1,
+          city: body.city,
+          cityRef: body.cityRef,
+          department,
+          departmentRef: body.departmentRef,
+          serviceType: "WarehouseWarehouse",
+          payerType: "Recipient",
+          cargoType: "Parcel",
+          paymentMethod: "Cash",
+          // Після оплати карткою — контроль плати, при накладеному — постоплата
+          productPaymentMethod: (body.paymentMethod === "card" || body.paymentMethod === "online") ? "payment-control" : "postpaid",
+          weight: 0.5, // дефолт, Sitniks може перерахувати
+          description: body.items.map((i) => i.name).join(", "),
+        }
+      } : {}),
+
+      statusId: NEW_ORDER_STATUS > 0 ? NEW_ORDER_STATUS : undefined,
+      salesChannelId: SALES_CHANNEL_ID > 0 ? SALES_CHANNEL_ID : undefined,
+
+      clientComment: body.comment,
+      managerComment: `Замовлення з сайту. Оплата: ${(body.paymentMethod === "card" || body.paymentMethod === "online") ? "картка" : "накладений платіж"}`,
+
+      // Зберігаємо унікальний ID щоб уникнути дублікатів
+      externalId: `web-${Date.now()}`,
+    };
+
+    const order = await createSitniksOrder(dto);
+
+    return NextResponse.json({
+      success: true,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+    });
+
   } catch (err) {
-    console.error("[checkout]", err);
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg === "Checkout timeout") {
-      return NextResponse.json<CheckoutResponseError>(
-        { error: "Час очікування вичерпано. Спробуйте ще раз." },
-        { status: 504 }
-      );
-    }
-    return NextResponse.json<CheckoutResponseError>(
-      { error: "Тимчасово не вдалося створити замовлення. Спробуйте ще раз або зверніться до нас." },
-      { status: 502 }
+    console.error("[/api/checkout] Error:", err);
+    return NextResponse.json(
+      { error: "Помилка при створенні замовлення. Спробуй ще раз." },
+      { status: 500 }
     );
   }
-
-  const siteUrl = wfpConfig.siteUrl;
-  const returnUrl = `${siteUrl}/checkout/success`;
-  const serviceUrl = `${siteUrl}/api/checkout/callback`;
-
-  const productName = items.map((i) => (i.size ? `${i.name} (розм. ${i.size})` : i.name));
-  const productPrice = items.map((i) => i.price);
-  const productCount = items.map((i) => i.quantity);
-  const orderDate = Math.floor(Date.now() / 1000);
-
-  const wfpParams: WayForPayPaymentParams = {
-    merchantAccount: wfpConfig.merchantAccount,
-    merchantDomainName: wfpConfig.merchantDomainName,
-    orderReference,
-    orderDate,
-    amount: total,
-    currency: "UAH",
-    productName,
-    productPrice,
-    productCount,
-    returnUrl,
-    serviceUrl,
-  };
-
-  const merchantSignature = buildWfpSignature(wfpParams, wfpConfig.secretKey);
-  const paymentUrl = buildWfpPaymentUrl(wfpParams, wfpConfig.secretKey);
-
-  const wayforpay = {
-    merchantAccount: wfpParams.merchantAccount,
-    merchantDomainName: wfpParams.merchantDomainName,
-    orderReference: wfpParams.orderReference,
-    orderDate: wfpParams.orderDate,
-    amount: wfpParams.amount,
-    currency: wfpParams.currency,
-    productName: wfpParams.productName,
-    productPrice: wfpParams.productPrice,
-    productCount: wfpParams.productCount,
-    merchantSignature,
-    language: "UA" as const,
-    returnUrl,
-    serviceUrl,
-  };
-
-  const phoneNorm = normalizePhone(customer.phone);
-
-  const telegramMessage = [
-    "🛒 Нове замовлення " + orderReference,
-    "",
-    "👤 " + customer.name,
-    "📞 " + phoneNorm,
-    customer.email ? "📧 " + customer.email : "",
-    "",
-    "📦 Товари:",
-    ...items.map(
-      (i) =>
-        `• ${i.size ? `${i.name} (розм. ${i.size})` : i.name} × ${i.quantity} — ${(i.price * i.quantity).toLocaleString("uk-UA")} грн`
-    ),
-    "",
-    "🏙 Доставка: " + delivery.city + ", Нова Пошта, " + delivery.warehouse,
-    "💰 Сума: " + total.toLocaleString("uk-UA") + " грн",
-    "",
-    "🔗 Статус оплати: очікується",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  sendTelegramNotification(telegramMessage).catch((err) =>
-    console.error("[checkout] Telegram failed:", err)
-  );
-
-  if (customer.email) {
-    sendOrderConfirmation({
-      to: customer.email,
-      customerName: customer.name,
-      orderReference,
-      items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity, size: i.size ?? null })),
-      total,
-      delivery: { city: delivery.city, warehouse: delivery.warehouse },
-    }).catch((err) => console.error("[checkout] Customer email failed:", err));
-  }
-
-  sendAdminOrderCopy({
-    customerName: customer.name,
-    phone: phoneNorm,
-    email: customer.email,
-    orderReference,
-    items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity, size: i.size ?? null })),
-    total,
-    delivery: { city: delivery.city, warehouse: delivery.warehouse },
-  }).catch((err) => console.error("[checkout] Admin email failed:", err));
-
-  return NextResponse.json({
-    orderReference,
-    wayforpay,
-    paymentUrl,
-    orderId: orderReference,
-  });
 }

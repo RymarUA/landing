@@ -117,9 +117,14 @@ export default function CheckoutPage() {
     register,
     handleSubmit,
     watch,
-    setValue, // ИЗВЛЕКАЕМ setValue
+    setValue,
     formState: { errors },
-  } = useForm<CheckoutFormData>({ resolver: zodResolver(checkoutSchema) });
+  } = useForm<CheckoutFormData>({ 
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: {
+      paymentMethod: "online"
+    }
+  });
 
   const nameValue = watch("name") ?? "";
   const phoneValue = watch("phone") ?? "";
@@ -175,7 +180,9 @@ export default function CheckoutPage() {
             totalPrice,
           }),
         });
-      } catch {}
+      } catch (error) {
+        console.error("[abandoned-cart] Failed to register:", error);
+      }
     },
     [items, totalPrice]
   );
@@ -188,7 +195,9 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: sessionId.current }),
       });
-    } catch {}
+    } catch (error) {
+      console.error("[abandoned-cart] Failed to cancel:", error);
+    }
   }, []);
 
   const onSubmit = async (data: CheckoutFormData) => {
@@ -325,6 +334,36 @@ export default function CheckoutPage() {
                   </div>
                 </Field>
 
+                {/* Quick cities */}
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs font-semibold text-gray-500 w-full">Швидкі міста:</span>
+                  {(["Київ", "Одеса", "Харків", "Дніпро", "Львів"] as const).map((cityName) => (
+                    <button
+                      key={cityName}
+                      type="button"
+                      onClick={async () => {
+                        setValue("city", cityName, { shouldValidate: true });
+                        setShowCityResults(false);
+                        setLoadingCities(true);
+                        const data = await fetchNPCities(cityName);
+                        setCities(data);
+                        const exact = data.find((c: NPCity) => c.Description === cityName || c.Description?.startsWith(cityName));
+                        if (exact) {
+                          setSelectedCityRef(exact.Ref);
+                          setLoadingWarehouses(true);
+                          const list = await fetchNPWarehouses(exact.Ref, "");
+                          setWarehouses(list);
+                          setLoadingWarehouses(false);
+                        }
+                        setLoadingCities(false);
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:border-orange-300 hover:text-orange-600 transition-colors"
+                    >
+                      {cityName}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Warehouse Select */}
                 <Field label="Відділення або поштомат *" error={errors.warehouse?.message}>
                   <div className="relative">
@@ -454,7 +493,7 @@ export default function CheckoutPage() {
                       <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
                       <p className="text-xs text-gray-400">× {item.quantity}</p>
                     </div>
-                    <div className="text-sm font-black text-gray-900">{(item.price * item.quantity).toLocaleString()} грн</div>
+                    <div className="text-sm font-semibold text-gray-900">{(item.price * item.quantity).toLocaleString()} грн</div>
                   </div>
                 ))}
               </div>
@@ -471,7 +510,7 @@ export default function CheckoutPage() {
                     </div>
                   </>
                 )}
-                <div className="flex justify-between items-center"><span className="font-black text-gray-900">До оплати:</span><span className="text-xl font-black text-orange-500">{finalPrice.toLocaleString()} грн</span></div>
+                <div className="flex justify-between items-center"><span className="font-semibold text-gray-900">До оплати:</span><span className="text-xl font-semibold text-orange-500">{finalPrice.toLocaleString()} грн</span></div>
               </div>
             </div>
           </div>

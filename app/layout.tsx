@@ -119,7 +119,6 @@ export default function RootLayout({
           .ring-offset-background { --tw-ring-offset-color: oklch(1 0 0); }
           .focus-visible\\:ring-ring:focus-visible { --tw-ring-color: oklch(0.708 0 0); }
           body { opacity: 1; }
-          body:not(.css-loaded) { opacity: 0; }
         `}</style>
       </head>
       <body

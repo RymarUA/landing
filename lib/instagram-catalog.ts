@@ -152,6 +152,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
   };
 }
 
+
 // ─── Public API (same interface as before) ─────────────────────────────────────
 
 /**
@@ -164,7 +165,6 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
     return sitniksProducts.map(mapSitniksProduct);
   } catch (err) {
     console.error("[instagram-catalog] Failed to fetch from Sitniks:", err);
-    // Fallback: повертаємо порожній масив щоб сайт не впав
     return [];
   }
 }

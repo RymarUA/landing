@@ -396,7 +396,7 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
   const [activeCategory, setActiveCategory] = useState("Всі");
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
 
   // Filters and sorting
   const [sortKey, setSortKey] = useState<SortKey>("default");
@@ -475,13 +475,13 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
   const freeShippingProducts = products.filter((p) => (p as any).freeShipping === true).slice(0, 10);
 
   // Handle add to cart
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (product: Product, selectedSize?: string | null) => {
     addItem({
       id: product.id,
       name: product.name,
       price: product.price,
       image: product.image,
-      size: product.sizes[0] ?? undefined,
+      size: selectedSize ?? product.sizes[0] ?? undefined,
     });
 
     setAddedIds((prev) => new Set(prev).add(product.id));
@@ -494,9 +494,9 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
     }, 1500);
   };
 
-  const handleBuyNow = (product: Product) => {
-    handleAddToCart(product);
-    router.push("/cart");
+  const handleBuyNow = (product: Product, selectedSize?: string | null) => {
+    handleAddToCart(product, selectedSize);
+    router.push("/checkout");
   };
 
   // Reset visible count when category changes
@@ -745,8 +745,8 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
         <ProductModal
           product={modalProduct}
           onClose={() => setModalProduct(null)}
-          onAddToCart={() => handleAddToCart(modalProduct)}
-          onBuyNow={() => handleBuyNow(modalProduct)}
+          onAddToCart={(product, selectedSize) => handleAddToCart(product, selectedSize)}
+          onBuyNow={(product, selectedSize) => handleBuyNow(product, selectedSize)}
         />
       )}
     </>

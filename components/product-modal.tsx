@@ -42,10 +42,11 @@ export interface ProductModalProps {
   product: Product;
   onClose: () => void;
   onAddToCart: (p: Product, size?: string | null) => void;
+  onBuyNow?: (p: Product, size?: string | null) => void;
   searchQuery?: string;
 }
 
-export function ProductModal({ product, onClose, onAddToCart, searchQuery }: ProductModalProps) {
+export function ProductModal({ product, onClose, onAddToCart, onBuyNow, searchQuery }: ProductModalProps) {
   const [selectedSize, setSelectedSize] = useState<string | null>(product.sizes[0] ?? null);
   const { has, toggle, hydrated } = useWishlist();
   const isWished = hydrated && has(product.id);
@@ -85,6 +86,16 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
   const handleAddToCart = () => {
     onAddToCart(product, selectedSize ?? undefined);
     onClose();
+  };
+
+  const handleBuyNow = () => {
+    if (onBuyNow) {
+      onBuyNow(product, selectedSize ?? undefined);
+      onClose();
+      return;
+    }
+    onClose();
+    window.location.href = "/checkout";
   };
 
   return (
@@ -194,13 +205,13 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
                 <ShoppingCart size={16} />
                 До кошика
               </button>
-              <Link
-                href="/checkout"
-                onClick={onClose}
+              <button
+                type="button"
+                onClick={handleBuyNow}
                 className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 rounded-2xl transition-colors text-sm"
               >
                 Оформити
-              </Link>
+              </button>
             </div>
 
             <button

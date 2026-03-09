@@ -197,7 +197,7 @@ export async function getSitniksProducts(options: {
       params: {
         limit: options.limit ?? 50,
         skip: options.skip ?? 0,
-        ...(options.ids?.length ? { ids: options.ids } : {}),
+        ...(options.ids !== undefined ? { ids: options.ids } : {}),
         ...(options.categoryIds?.length ? { categoryIds: options.categoryIds } : {}),
         ...(options.query ? { query: options.query } : {}),
       },

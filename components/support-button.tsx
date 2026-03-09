@@ -39,6 +39,9 @@ export function SupportButton() {
 
   useEffect(() => { setMounted(true); }, []);
 
+  // Return null while mounting to prevent visual flash
+  if (!mounted) return null;
+
   // Hide on checkout pages
   if (pathname.startsWith("/checkout")) return null;
 
@@ -87,7 +90,7 @@ export function SupportButton() {
   if (items.length === 0) return null;
 
   return (
-    <div className={`fixed bottom-6 left-6 z-50 flex flex-col-reverse items-start gap-3 ${!mounted ? 'invisible' : ''}`}>
+    <div className={`fixed bottom-6 left-6 z-50 flex flex-col-reverse items-start gap-3`}>
       {/* Speed-dial items */}
       {open &&
         items.map((item, i) => (

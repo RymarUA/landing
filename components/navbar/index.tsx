@@ -20,9 +20,6 @@ const navItems: NavItem[] = siteConfig.navLinks?.length
     ];
 
 export function NavBar() {
-  // Self-check: only render when showNavbar is explicitly true (safe default = hidden)
-  if (siteConfig.showNavbar !== true) return null;
-
   return (
     <motion.nav
       initial={{

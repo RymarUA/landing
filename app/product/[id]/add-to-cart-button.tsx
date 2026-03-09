@@ -46,12 +46,10 @@ export function AddToCartButton({
   const { addItem, totalCount, totalPrice } = useCart();
   const { has, toggle, hydrated } = useWishlist();
 
-  // Support both controlled (lifted) and uncontrolled usage
-  const [internalSize, setInternalSize] = useState<string>(
-    product.sizes[0] ?? ""
-  );
-  const selectedSize =
-    controlledSize !== undefined ? controlledSize : internalSize;
+  // Support lifted state while providing a stable default
+  const defaultSize = product.sizes[0] ?? "";
+  const [internalSize, setInternalSize] = useState<string>(defaultSize);
+  const selectedSize = controlledSize ?? internalSize;
   const [quantity, setQuantity] = useState(1);
 
   const handleSizeChange = (s: string) => {

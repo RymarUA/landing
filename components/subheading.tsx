@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { MotionProps } from "framer-motion";
 import React from "react";
 
 /**
@@ -15,9 +14,7 @@ export const Subheading = ({
   className?: string;
   as?: any;
   children: any;
-  props?: React.HTMLAttributes<HTMLHeadingElement>;
-} & MotionProps &
-  React.HTMLAttributes<HTMLHeadingElement>) => {
+} & React.HTMLAttributes<HTMLHeadingElement>) => {
   return (
     <Tag
       className={cn(

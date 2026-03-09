@@ -47,7 +47,7 @@ export const checkoutSchema = z.object({
   comment: z.string().trim().max(500, "Коментар занадто довгий").optional(),
 
   /** Optional customer email for order confirmation */
-  email: z.string().trim().email("Невірний формат email").optional().or(z.literal("")),
+  email: z.string().trim().email("Невірний формат email").or(z.literal("")),
 
   /** Payment method: online via WayForPay or COD (накладений платіж) */
   paymentMethod: z.enum(PAYMENT_METHODS),

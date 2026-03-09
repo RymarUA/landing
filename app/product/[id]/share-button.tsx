@@ -23,15 +23,16 @@ export function ShareButton({ title, path }: Props) {
         });
         return;
       }
-    } catch {
-      // User cancelled or error — fallback to copy
+    } catch (err) {
+      console.warn("Share failed, falling back to copy:", err);
     }
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Clipboard copy failed:", err);
+      setCopied(false);
     }
   };
 

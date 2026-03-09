@@ -64,7 +64,7 @@ export async function verifyJwt(
     if (!valid) return null;
 
     const payload = JSON.parse(Buffer.from(body, "base64url").toString());
-    if (payload.exp && Date.now() / 1000 > payload.exp) return null;
+    if (typeof payload.exp === "number" && Date.now() / 1000 > payload.exp) return null;
     return payload;
   } catch {
     return null;

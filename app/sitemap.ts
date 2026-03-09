@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { MetadataRoute } from 'next';
+import type { MetadataRoute } from 'next/types';
 import { getCatalogProducts } from '@/lib/instagram-catalog';
 import { siteConfig } from '@/lib/site-config';
 
@@ -38,8 +37,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...productUrls,
     ];
   } catch (error) {
-    console.error('Error generating sitemap:', error);
-    // Возвращаем минимальную sitemap при ошибке
+    console.error('[CRITICAL] Sitemap generation failed:', error);
+
+    if (process.env.NODE_ENV === 'production') {
+      // Fail fast so monitoring surfaces the issue (Next.js will log/alert)
+      throw error;
+    }
+
+    // Development fallback: minimal sitemap to keep dev server running
     return [
       {
         url: baseUrl,

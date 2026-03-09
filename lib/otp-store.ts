@@ -18,17 +18,37 @@ const key = (phone: string) => `otp:${phone}`;
 /** Rate limit: last send time per phone (min 60s between sends). */
 const lastSentByPhone = new Map<string, number>();
 const OTP_PHONE_COOLDOWN_MS = 60 * 1000;
+const OTP_PHONE_CLEANUP_MS = 24 * 60 * 60 * 1000; // prune entries older than a day
 
 /** Rate limit by IP: { count, windowStart } — max 5 per 15 min. */
 const ipRateLimit = new Map<string, { count: number; windowStart: number }>();
 const OTP_IP_MAX_REQUESTS = 5;
 const OTP_IP_WINDOW_MS = 15 * 60 * 1000;
 
+function cleanupExpired(now: number = Date.now()) {
+  // Drop expired OTP codes
+  for (const [k, entry] of store.entries()) {
+    if (entry.expires <= now) store.delete(k);
+  }
+
+  // Prune phone cooldown entries older than cleanup window
+  for (const [k, ts] of lastSentByPhone.entries()) {
+    if (now - ts > OTP_PHONE_CLEANUP_MS) lastSentByPhone.delete(k);
+  }
+
+  // Remove IP windows that have elapsed
+  for (const [ip, info] of ipRateLimit.entries()) {
+    if (now - info.windowStart >= OTP_IP_WINDOW_MS) ipRateLimit.delete(ip);
+  }
+}
+
 export function getOtp(phone: string): OtpEntry | undefined {
+  cleanupExpired();
   return store.get(key(phone));
 }
 
 export function setOtp(phone: string, code: string, ttlMs: number): void {
+  cleanupExpired();
   store.set(key(phone), { code, expires: Date.now() + ttlMs });
 }
 
@@ -38,6 +58,7 @@ export function deleteOtp(phone: string): void {
 
 /** Returns true if we're allowed to send OTP to this phone (cooldown elapsed). */
 export function canSendOtpByPhone(phone: string): boolean {
+  cleanupExpired();
   const last = lastSentByPhone.get(key(phone));
   if (!last) return true;
   return Date.now() - last >= OTP_PHONE_COOLDOWN_MS;
@@ -45,11 +66,13 @@ export function canSendOtpByPhone(phone: string): boolean {
 
 /** Call after sending OTP to this phone. */
 export function recordOtpSentByPhone(phone: string): void {
+  cleanupExpired();
   lastSentByPhone.set(key(phone), Date.now());
 }
 
 /** Returns true if IP is under limit (max 5 per 15 min). */
 export function canSendOtpByIp(ip: string): boolean {
+  cleanupExpired();
   const now = Date.now();
   const entry = ipRateLimit.get(ip);
   if (!entry) return true;
@@ -59,6 +82,7 @@ export function canSendOtpByIp(ip: string): boolean {
 
 /** Call after sending OTP from this IP. */
 export function recordOtpSentByIp(ip: string): void {
+  cleanupExpired();
   const now = Date.now();
   const entry = ipRateLimit.get(ip);
   if (!entry) {

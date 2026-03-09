@@ -2,17 +2,15 @@
 
 import { Search } from "lucide-react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 export function TemuSearchBar() {
   const [searchQuery, setSearchQuery] = useState("");
-  const router = useRouter();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Update URL hash with search query
-      window.location.hash = `catalog?search=${encodeURIComponent(searchQuery)}`;
+      // Use proper URL structure with query parameter and hash
+      window.location.href = `/?search=${encodeURIComponent(searchQuery)}#catalog`;
     }
   };
 

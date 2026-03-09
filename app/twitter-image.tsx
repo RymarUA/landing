@@ -64,7 +64,7 @@ export default async function TwitterImage() {
             fontSize: 20,
           }}
         >
-          Built with Kleap
+          familyhubmarket.ua
         </div>
       </div>
     ),

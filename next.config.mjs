@@ -103,7 +103,7 @@ const nextConfig = {
   transpilePackages: ["geist", "cobe"],
 
   // Force webpack to resolve @ aliases (in case tsconfig.json is not read)
-  webpack: (config, { _isServer, webpack, dev }) => {
+  webpack: (config, { webpack, dev }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@": path.resolve("."),
@@ -134,10 +134,10 @@ const nextConfig = {
       process.env.VERCEL_ENV !== undefined ||
       process.env.VERCEL_URL !== undefined;
 
-    const isProduction = process.env.NODE_ENV === "production";
+    const shouldBlockCDN = isVercel;
 
-    // Block CDN on Vercel OR in any production build
-    if (isVercel || isProduction) {
+    // Block CDN only on Vercel (where CSS is precompiled)
+    if (shouldBlockCDN) {
       config.plugins.push(
         new webpack.NormalModuleReplacementPlugin(
           /tailwind-cdn-loader/,
@@ -147,12 +147,7 @@ const nextConfig = {
       console.log(
         "🚫 [WEBPACK] Blocking tailwind-cdn-loader.tsx - replaced with empty-loader.tsx",
       );
-      if (isVercel) {
-        console.log("🚀 [WEBPACK] Vercel detected - CDN will NOT be used");
-      }
-      if (isProduction) {
-        console.log("🚀 [WEBPACK] Production build - CDN will NOT be used");
-      }
+      console.log("🚀 [WEBPACK] Vercel detected - CDN will NOT be used");
     } else {
       console.log(
         "🎨 [WEBPACK] Development mode - tailwind-cdn-loader will be active",
@@ -191,7 +186,10 @@ const nextConfig = {
           // No cache for development (see AI changes immediately)
           {
             key: "Cache-Control",
-            value: "no-store, no-cache, must-revalidate, proxy-revalidate",
+            value:
+              process.env.NODE_ENV === "production"
+                ? "public, max-age=31536000, immutable"
+                : "no-store, no-cache, must-revalidate, proxy-revalidate",
           },
           {
             key: "Pragma",

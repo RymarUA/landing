@@ -17,7 +17,6 @@
   --color-neutral-900: rgb(23 23 23);
 
   /* Muted colors using CSS variables */
-  --color-muted: var(--color-neutral-600);
   --color-muted-light: var(--color-neutral-300);
 
   /* shadcn/ui official theme (Neutral) - https://ui.shadcn.com/docs/theming */
@@ -451,6 +450,11 @@ html {
 
 /* Scroll reveal base (opacity set via JS, this is fallback) */
 .reveal { opacity: 0; }
+
+/* Fallback for browsers with JavaScript disabled */
+@media (scripting: none) {
+  body:not(.css-loaded) { opacity: 1; }
+}
 
 /* Announcement bar promo pulse */
 @keyframes promo-pulse {

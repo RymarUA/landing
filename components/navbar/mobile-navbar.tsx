@@ -1,7 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { IoIosMenu, IoIosClose } from "react-icons/io";
 import { ShoppingCart } from "lucide-react";
 import { Logo } from "../Logo";
@@ -35,6 +35,16 @@ export const MobileNavbar = ({ navItems }: Props) => {
     }
   });
 
+  // Close menu on Escape key
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open]);
+
   return (
     <div
       className={cn(
@@ -67,8 +77,11 @@ export const MobileNavbar = ({ navItems }: Props) => {
         />
       </div>
       {open && (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col items-start justify-start space-y-10 pt-5 text-xl text-zinc-600 transition duration-200 hover:text-zinc-800">
-          <div className="flex items-center justify-between w-full px-5">
+        <div 
+          className="fixed inset-0 bg-white z-[60] flex flex-col items-start justify-start space-y-10 pt-5 text-xl text-zinc-600 transition duration-200 hover:text-zinc-800"
+          onClick={() => setOpen(false)}
+        >
+          <div className="flex items-center justify-between w-full px-5" onClick={(e) => e.stopPropagation()}>
             <Logo />
             <div className="flex items-center space-x-2">
               <IoIosClose
@@ -77,7 +90,7 @@ export const MobileNavbar = ({ navItems }: Props) => {
               />
             </div>
           </div>
-          <div className="flex flex-col items-start justify-start gap-[14px] px-8">
+          <div className="flex flex-col items-start justify-start gap-[14px] px-8" onClick={(e) => e.stopPropagation()}>
             {navItems.map((navItem) =>
               navItem.children && navItem.children.length > 0 ? (
                 navItem.children.map((childNavItem) => (

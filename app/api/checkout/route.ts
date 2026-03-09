@@ -25,9 +25,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-api";
+import { createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
 import { getCatalogProductById } from "@/lib/instagram-catalog";
 import { logger } from "@/lib/logger";
+import { buildWfpPaymentUrl, getWfpConfig } from "@/lib/wayforpay";
 
 // ── Отримай ці ID з Sitniks: Налаштування → Нова Пошта → ID інтеграції
 const NP_INTEGRATION_ID = Number(process.env.SITNIKS_NP_INTEGRATION_ID ?? 0);
@@ -174,10 +175,43 @@ export async function POST(req: NextRequest) {
 
     const order = await createSitniksOrder(dto);
 
+    if (!order) {
+      return NextResponse.json(
+        { error: "Не вдалося створити замовлення в Sitniks CRM" },
+        { status: 500 }
+      );
+    }
+
+    // Generate WayForPay payment URL for online payments
+    let paymentUrl: string | undefined;
+    if (body.paymentMethod === "online" || body.paymentMethod === "card") {
+      try {
+        const wfpConfig = getWfpConfig();
+        const paymentParams = {
+          merchantAccount: wfpConfig.merchantAccount,
+          merchantDomainName: wfpConfig.merchantDomainName,
+          orderReference: String(order.orderNumber),
+          orderDate: Math.floor(Date.now() / 1000),
+          amount: finalAmount,
+          currency: "UAH" as const,
+          productName: resolvedItems.map(item => item.name),
+          productPrice: resolvedItems.map(item => item.price),
+          productCount: resolvedItems.map(item => item.quantity),
+          returnUrl: `${wfpConfig.siteUrl}/checkout/success?ref=${order.orderNumber}&method=online`,
+          serviceUrl: `${wfpConfig.siteUrl}/api/webhooks/wayforpay`,
+        };
+        paymentUrl = buildWfpPaymentUrl(paymentParams, wfpConfig.secretKey);
+      } catch (error) {
+        logger.error("[/api/checkout] Failed to generate WayForPay URL:", error);
+        // Continue without payment URL - user will see error on frontend
+      }
+    }
+
     return NextResponse.json({
       success: true,
       orderId: order.id,
       orderNumber: order.orderNumber,
+      paymentUrl,
     });
 
   } catch (err) {

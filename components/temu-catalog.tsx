@@ -405,6 +405,7 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [onlyFreeShipping, setOnlyFreeShipping] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const timerRefs = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   // Read search from URL hash
   useEffect(() => {
@@ -483,13 +484,15 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
     });
 
     setAddedIds((prev) => new Set(prev).add(product.id));
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setAddedIds((prev) => {
         const next = new Set(prev);
         next.delete(product.id);
         return next;
       });
+      timerRefs.current.delete(product.id);
     }, 1500);
+    timerRefs.current.set(product.id, timer);
   };
 
 
@@ -497,6 +500,14 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE);
   }, [activeCategory]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      timerRefs.current.forEach(timer => clearTimeout(timer));
+      timerRefs.current.clear();
+    };
+  }, []);
 
   const hasActiveFilters = minPrice || maxPrice || onlyInStock || onlyFreeShipping || searchQuery;
   const activeSortLabel = SORT_OPTIONS.find((o) => o.value === sortKey)?.label;

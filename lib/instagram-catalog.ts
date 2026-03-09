@@ -124,7 +124,12 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
 
   return {
     id: p.id,
-    slug: p.title.toLowerCase().replace(/[^a-zа-яїєі0-9\s]/g, '').replace(/\s+/g, '-'),
+    slug: p.title
+      .toLowerCase()
+      .replace(/[^a-zа-яїєі0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, ""),
     instagramMediaId: null, // Not available from Sitniks API
     name: p.title,
     price,
@@ -157,14 +162,19 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
 function mapFallbackProductToCatalogProduct(p: Awaited<ReturnType<typeof getAllProducts>>[number]): CatalogProduct {
   return {
     id: p.id,
-    slug: p.slug,
+    slug: p.slug
+      .toLowerCase()
+      .replace(/[^a-zа-яїєі0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, ""),
     instagramMediaId: null,
     name: p.name,
     price: p.price,
     oldPrice: p.oldPrice,
     category: p.category,
     badge: p.badge,
-    badgeColor: p.badgeColor || "",
+    badgeColor: p.badgeColor ?? "",
     isHit: Boolean(p.isHit),
     isNew: Boolean(p.isNew),
     rating: p.rating,

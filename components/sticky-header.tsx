@@ -59,7 +59,7 @@ export function StickyHeader() {
     (e: React.FormEvent) => {
       e.preventDefault();
       if (query.trim()) {
-        router.push(`/#catalog?search=${encodeURIComponent(query.trim())}`);
+        router.push(`/?search=${encodeURIComponent(query.trim())}#catalog`);
         setSearchOpen(false);
       }
     },

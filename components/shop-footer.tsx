@@ -15,7 +15,7 @@ function TikTokIcon({ size = 20 }: { size?: number }) {
 // Build category links from siteConfig — stays in sync with catalog tabs and Sitniks
 const catalogLinks = siteConfig.catalogCategories
   .filter((c) => c !== "Всі")
-  .map((label) => ({ label, href: `/#catalog#category=${encodeURIComponent(label)}` }));
+  .map((label) => ({ label, href: `/?category=${encodeURIComponent(label)}#catalog` }));
 
 const infoLinks = [
   { label: "Про нас", href: "/about" },

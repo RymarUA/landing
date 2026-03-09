@@ -94,7 +94,11 @@ export async function notifyNewOrder(payload: TelegramOrderPayload): Promise<voi
     .filter((l) => l !== null)
     .join("\n");
 
-  await sendTelegramMessage(message);
+  try {
+    await sendTelegramMessage(message);
+  } catch (err) {
+    console.error("[telegram] notifyNewOrder failed", err);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -116,7 +120,11 @@ export async function notifyPaymentConfirmed(
     `⏰ ${new Date().toLocaleString("uk-UA", { timeZone: "Europe/Kyiv" })}`,
   ].join("\n");
 
-  await sendTelegramMessage(message);
+  try {
+    await sendTelegramMessage(message);
+  } catch (err) {
+    console.error("[telegram] notifyPaymentConfirmed failed", err);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -139,7 +147,11 @@ export async function notifyOrderShipped(payload: TelegramShippingPayload): Prom
     .filter((l) => l !== null)
     .join("\n");
 
-  await sendTelegramMessage(message);
+  try {
+    await sendTelegramMessage(message);
+  } catch (err) {
+    console.error("[telegram] notifyOrderShipped failed", err);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -147,7 +159,11 @@ export async function notifyOrderShipped(payload: TelegramShippingPayload): Prom
    ───────────────────────────────────────────────────────────────────────── */
 
 export async function notifyAdmin(text: string): Promise<void> {
-  await sendTelegramMessage(`🔔 <b>FamilyHub Market</b>\n\n${text}`);
+  try {
+    await sendTelegramMessage(`🔔 <b>FamilyHub Market</b>\n\n${text}`);
+  } catch (err) {
+    console.error("[telegram] notifyAdmin failed", err);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

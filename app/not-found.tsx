@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { Metadata } from "next/types";
 import Link from "next/link";
 import {
   PackageSearch,
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
 
 const quickLinks = [
   { href: "/#catalog", label: "Каталог товарів", icon: ShoppingBag },
-  { href: "/#catalog?category=Одяг", label: "Одяг", icon: ShoppingBag },
-  { href: "/#catalog?category=Іграшки", label: "Іграшки", icon: ShoppingBag },
+  { href: "/?category=Одяг#catalog", label: "Одяг", icon: ShoppingBag },
+  { href: "/?category=Іграшки#catalog", label: "Іграшки", icon: ShoppingBag },
   { href: "/about", label: "Про нас", icon: Home },
 ];
 

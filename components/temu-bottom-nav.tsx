@@ -2,10 +2,19 @@
 
 import { Home, Grid3x3, User, ShoppingBag } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export function TemuBottomNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const [hash, setHash] = useState("");
+
+  useEffect(() => {
+    setHash(window.location.hash);
+    const onHashChange = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   const navItems = [
     {
@@ -18,7 +27,7 @@ export function TemuBottomNav() {
       icon: Grid3x3,
       label: "Категорії",
       href: "/#catalog",
-      isActive: pathname.includes("catalog"),
+      isActive: pathname === "/" && hash.includes("catalog"),
     },
     {
       icon: ShoppingBag,

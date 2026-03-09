@@ -99,7 +99,7 @@ export default function CheckoutPage() {
   const [promoInput, setPromoInput] = useState("");
   const [promoResult, setPromoResult] = useState<{ discountPct: number; label: string } | null>(null);
   const [promoError, setPromoError] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"online" | "cod">("online");
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cod" | "card">("online");
 
   // Состояние Новой Почты
   const [cities, setCities] = useState<any[]>([]);
@@ -108,9 +108,11 @@ export default function CheckoutPage() {
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [showCityResults, setShowCityResults] = useState(false);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const sessionId = useRef<string>("");
   const abandonedRegistered = useRef(false);
+  const lastRegisteredPhone = useRef<string>("");
 
   const {
     register,
@@ -138,17 +140,24 @@ export default function CheckoutPage() {
   }, []);
 
   // Поиск города
-  const onCitySearch = async (val: string) => {
+  const onCitySearch = (val: string) => {
     if (val.length < 2) {
       setCities([]);
       setShowCityResults(false);
       return;
     }
-    setLoadingCities(true);
-    const data = await fetchNPCities(val);
-    setCities(data);
-    setShowCityResults(true);
-    setLoadingCities(false);
+
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    const timeoutId = setTimeout(async () => {
+      setLoadingCities(true);
+      const data = await fetchNPCities(val);
+      setCities(data);
+      setShowCityResults(true);
+      setLoadingCities(false);
+    }, 400);
+
+    searchTimeout.current = timeoutId;
   };
 
   // Выбор города
@@ -165,8 +174,8 @@ export default function CheckoutPage() {
 
   const registerAbandonedCart = useCallback(
     async (name: string, phone: string) => {
-      if (abandonedRegistered.current || !phone || items.length === 0) return;
-      abandonedRegistered.current = true;
+      if (!phone || items.length === 0 || lastRegisteredPhone.current === phone) return;
+      lastRegisteredPhone.current = phone;
       try {
         await fetch("/api/abandoned-cart", {
           method: "POST",

@@ -80,9 +80,13 @@ export default async function ProductPage({
     : null;
 
   const allProducts = await getCatalogProducts();
-  const related = allProducts
-    .filter((p) => p.category === product.category && p.id !== product.id)
-    .slice(0, 4);
+  const related: typeof allProducts = [];
+  for (const p of allProducts) {
+    if (p.category === product.category && p.id !== product.id) {
+      related.push(p);
+      if (related.length === 4) break;
+    }
+  }
 
   const productSchema = generateProductSchema({
     id: product.id,

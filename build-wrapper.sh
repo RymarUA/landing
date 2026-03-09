@@ -5,11 +5,13 @@
 
 set -e  # Exit on any error
 
+trap 'echo "❌ Build failed. Check logs above for details."' ERR
+
 echo "🚀 Starting build..."
 
 # Try normal build first
 echo "Attempting build with all checks..."
-npm run build:normal
+npm run build
 
 echo "✅ Build succeeded!"
 exit 0

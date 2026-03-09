@@ -1,4 +1,3 @@
-import Script from "next/script";
 import { siteConfig } from "@/lib/site-config";
 
 interface JsonLdProps {
@@ -9,13 +8,12 @@ interface JsonLdProps {
 
 export function JsonLd({ data, id = "json-ld" }: JsonLdProps) {
   return (
-    <Script
+    <script
       id={id}
       type="application/ld+json"
       dangerouslySetInnerHTML={{
         __html: JSON.stringify(data),
       }}
-      strategy="afterInteractive"
     />
   );
 }

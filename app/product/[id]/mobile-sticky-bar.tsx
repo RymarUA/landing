@@ -14,17 +14,33 @@ export function MobileStickyBar({ product }: { product: CatalogProduct }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const el = document.querySelector(SENTINEL_SELECTOR);
-    if (!el) {
-      setShow(true);
-      return;
+    let cleanup: (() => void) | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const setupObserver = () => {
+      const el = document.querySelector(SENTINEL_SELECTOR);
+      if (!el) return false;
+
+      const ob = new IntersectionObserver(
+        ([entry]) => setShow(!entry?.isIntersecting),
+        { threshold: 0, rootMargin: "0px 0px -80px 0px" }
+      );
+      ob.observe(el);
+      cleanup = () => ob.disconnect();
+      return true;
+    };
+
+    if (!setupObserver()) {
+      // Retry shortly after hydration in case the sentinel isn't in the DOM yet
+      retryTimer = setTimeout(() => {
+        setupObserver();
+      }, 100);
     }
-    const ob = new IntersectionObserver(
-      ([entry]) => setShow(!entry?.isIntersecting),
-      { threshold: 0, rootMargin: "0px 0px -80px 0px" }
-    );
-    ob.observe(el);
-    return () => ob.disconnect();
+
+    return () => {
+      if (cleanup) cleanup();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, []);
 
   if (!show) return null;

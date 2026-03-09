@@ -1,5 +1,5 @@
-// @ts-nocheck
-import type { Metadata } from "next";
+import type { Metadata } from "next/types";
+import type { ReactNode } from "react";
 import "./globals.css";
 import { GeistSans } from "geist/font/sans";
 import { cn } from "@/lib/utils";
@@ -11,15 +11,11 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { WishlistProvider } from "@/components/wishlist-context";
 import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
-import { MotionWrapper } from "@/components/motion-wrapper";
-import { SupportButton } from "@/components/support-button";
 import { validateEnv } from "@/lib/env-validation";
 import { WebVitals } from "./web-vitals";
 
-// Validate environment variables on server startup
-if (typeof window === 'undefined') {
-  validateEnv();
-}
+// Validate environment variables on server startup (single evaluation)
+validateEnv();
 
 export const metadata: Metadata = {
   title: {
@@ -82,13 +78,13 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
-    <html lang="uk" suppressHydrationWarning>
-      <head suppressHydrationWarning>
-        <meta name="color-scheme" content="light only" />
-        <style href="kleap-base-styles" precedence="high">{`
+    <html lang="uk">
+      <head>
+        <meta name="color-scheme" content="light" />
+        <style precedence="high">{`
           .bg-white { background-color: white; }
           .bg-black { background-color: black; }
           .text-white { color: white; }
@@ -127,7 +123,6 @@ export default function RootLayout({
           GeistSans.className,
           "bg-white antialiased h-full w-full",
         )}
-        suppressHydrationWarning
       >
         <Analytics />
         <WebVitals />
@@ -137,9 +132,8 @@ export default function RootLayout({
           <WishlistProvider>
             <MobileLayout>
               {children}
+              <DiscountPopup />
             </MobileLayout>
-            
-            <DiscountPopup />
           </WishlistProvider>
         </CartProvider>
       </body>

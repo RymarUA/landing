@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Star, Flame, Sparkles } from "lucide-react";
@@ -40,21 +40,25 @@ export function InfiniteProductFeed({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
 
+  const relatedSet = useMemo(() => new Set(relatedIds), [relatedIds]);
+
   const feedProducts = allProducts.filter(
     (p) =>
       p.category === category &&
       p.id !== currentProductId &&
-      !relatedIds.includes(p.id)
+      !relatedSet.has(p.id)
   );
 
   const visible = feedProducts.slice(0, visibleCount);
   const hasMore = visibleCount < feedProducts.length;
 
+  const rafIdRef = useRef<number | null>(null);
+
   const loadMore = useCallback(() => {
     if (loadingRef.current || !hasMore) return;
     loadingRef.current = true;
     setVisibleCount((c) => c + PAGE_SIZE);
-    requestAnimationFrame(() => {
+    rafIdRef.current = requestAnimationFrame(() => {
       loadingRef.current = false;
     });
   }, [hasMore]);
@@ -70,7 +74,15 @@ export function InfiniteProductFeed({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, loadMore, visibleCount]);
+  }, [hasMore, loadMore]);
+
+  useEffect(() => () => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    loadingRef.current = false;
+  }, []);
 
   if (feedProducts.length === 0) return null;
 

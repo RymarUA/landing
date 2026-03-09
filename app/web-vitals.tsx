@@ -1,9 +1,10 @@
 'use client';
 
 import { useReportWebVitals } from 'next/web-vitals';
+import type { Metric } from 'web-vitals';
 
 export function WebVitals() {
-  useReportWebVitals((metric) => {
+  useReportWebVitals((metric: Metric) => {
     // Отправка в Google Analytics
     if (typeof window !== 'undefined' && window.gtag) {
       window.gtag('event', metric.name, {
@@ -16,7 +17,9 @@ export function WebVitals() {
     }
     
     // Логирование в development
-    if (process.env.NODE_ENV === 'development') {
+    const nodeEnv = (typeof globalThis !== 'undefined' ? (globalThis as any).process?.env?.NODE_ENV : undefined) as string | undefined;
+    const isDev = nodeEnv === 'development';
+    if (isDev) {
       console.log(`[Web Vitals] ${metric.name}:`, {
         value: metric.value,
         rating: metric.rating,
@@ -25,21 +28,31 @@ export function WebVitals() {
     }
     
     // Отправка в API для мониторинга (опционально)
-    if (process.env.NODE_ENV === 'production') {
-      // Используем sendBeacon для надежной отправки
-      const blob = new Blob(
-        [JSON.stringify(metric)],
-        { type: 'application/json' }
-      );
-      
+    const isProd = nodeEnv === 'production';
+    if (isProd) {
+      const data = JSON.stringify(metric);
+
       if (navigator.sendBeacon) {
-        navigator.sendBeacon('/api/vitals', blob);
+        const success = navigator.sendBeacon(
+          '/api/vitals',
+          new Blob([data], { type: 'application/json' }),
+        );
+
+        if (!success) {
+          console.warn('[Web Vitals] sendBeacon failed, using fetch');
+          fetch('/api/vitals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: data,
+            keepalive: true,
+          }).catch(console.error);
+        }
       } else {
         // Fallback для старых браузеров
         fetch('/api/vitals', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(metric),
+          body: data,
           keepalive: true,
         }).catch(console.error);
       }

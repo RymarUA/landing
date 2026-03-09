@@ -142,37 +142,46 @@ export async function updateSitniksOrder(
   status: "paid" | "shipped" | "delivered" | "cancelled"
 ): Promise<boolean> {
   const crmStatus = STATUS_MAP[status] ?? "Оплачено";
-  // Assume Sitniks allows PATCH by order_number or external ref; fallback: PATCH by id if API uses orderReference as id
-  const res = await sitniksSafe<unknown>("PATCH", `/orders/${encodeURIComponent(orderReference)}`, { status: crmStatus });
+
+  // Find order by external reference first
+  const search = await sitniksSafe<{ data?: Order[]; orders?: Order[] }>(
+    "GET",
+    `/orders?search=${encodeURIComponent(orderReference)}`
+  );
+
+  const list = search?.data ?? search?.orders ?? [];
+  const targetId = Array.isArray(list) && list.length > 0 ? (list[0] as any).id : null;
+  if (!targetId) return false;
+
+  const res = await sitniksSafe<unknown>("PATCH", `/orders/${encodeURIComponent(String(targetId))}`, { status: crmStatus });
   return res !== null;
 }
 
-const ORDERS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
-const ordersCache = new Map<string, { orders: Order[]; expires: number }>();
-
 /**
  * Get orders for a customer by phone (for profile/cabinet).
- * Results are cached in memory for 5 minutes to reduce load on profile/tracking.
+ * Uses Next.js fetch cache (revalidate 5m) instead of in-memory Map, so it works in serverless.
  */
 export async function getSitniksOrdersByPhone(phone: string): Promise<Order[]> {
-  const normalized = phone.replace(/\D/g, "").slice(-10);
-  const cacheKey = `orders:${normalized}`;
-  const now = Date.now();
-  const cached = ordersCache.get(cacheKey);
-  if (cached && cached.expires > now) {
-    return cached.orders;
-  }
+  const config = getSitniksConfig();
+  if (!config) return [];
 
-  const result = await sitniksSafe<{ data?: Order[]; orders?: Order[] }>(
-    "GET",
-    `/orders?contact_phone=${encodeURIComponent(phone)}`
+  const res = await fetch(
+    `${config.apiUrl}/orders?contact_phone=${encodeURIComponent(phone)}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+        Accept: "application/json",
+      },
+      next: { revalidate: 300 },
+    }
   );
-  if (!result) return [];
-  const list = (result as { data?: Order[] }).data ?? (result as { orders?: Order[] }).orders ?? [];
-  const orders = Array.isArray(list) ? list : [];
 
-  ordersCache.set(cacheKey, { orders, expires: now + ORDERS_CACHE_TTL_MS });
-  return orders;
+  if (!res.ok) return [];
+  const json = await res.json();
+  const list = (json as { data?: Order[] }).data ?? (json as { orders?: Order[] }).orders ?? [];
+  return Array.isArray(list) ? list : [];
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -292,6 +301,6 @@ export function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, "");
   if (digits.startsWith("380") && digits.length === 12) return `+${digits}`;
   if (digits.startsWith("0") && digits.length === 10) return `+38${digits}`;
-  // Already correct or unknown format — return as-is
-  return raw.startsWith("+") ? raw : `+${digits}`;
+  if (raw.startsWith("+") && /^\+\d{12}$/.test(raw.replace(/\D/g, ""))) return raw;
+  throw new Error("Invalid phone format. Expected Ukrainian number");
 }

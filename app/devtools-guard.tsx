@@ -40,7 +40,7 @@ export function DevToolsGuard() {
       hook.supportsFiber = true;
     }
 
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === 'development') {
       console.log(
         "✅ DevTools guard active - protected against broken extensions",
       );

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -84,12 +84,12 @@ export function CatalogSkeleton({ count = 12 }: { count?: number }) {
 /* ─── Highlight matched text ─────────────────────────── */
 function Highlight({ text, query }: { text: string; query: string }) {
   if (!query.trim()) return <>{text}</>;
-  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")})`, "gi");
   const parts = text.split(regex);
   return (
     <>
       {parts.map((part, i) =>
-        regex.test(part) ? (
+        part.toLowerCase() === query.toLowerCase() ? (
           <mark key={i} className="bg-amber-200 text-gray-900 rounded px-0.5">
             {part}
           </mark>
@@ -248,15 +248,28 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const categoryTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [catalogVisible, setCatalogVisible] = useState(true);
-  const touchStartX = useRef<number>(0);
-  const touchStartY = useRef<number>(0);
+  const toastTimers = useRef<Map<number, number>>(new Map());
+  const addedTimers = useRef<Map<string, number>>(new Map());
   const { addItem } = useCart();
 
   const addToast = useCallback((name: string) => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, name }]);
-    const timer = setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 2000);
-    return () => clearTimeout(timer);
+    const timer = window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+      toastTimers.current.delete(id);
+    }, 2000);
+    toastTimers.current.set(id, timer);
+  }, []);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      toastTimers.current.forEach((t) => clearTimeout(t));
+      toastTimers.current.clear();
+      addedTimers.current.forEach((t) => clearTimeout(t));
+      addedTimers.current.clear();
+    };
   }, []);
 
   /* Read search and category from URL hash */
@@ -332,13 +345,17 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
         oldPrice: product.oldPrice ?? null,
       });
       setAddedIds((prev) => new Set(prev).add(key));
-      setTimeout(() => setAddedIds((prev) => { const n = new Set(prev); n.delete(key); return n; }), 1200);
+      const timer = window.setTimeout(() => {
+        setAddedIds((prev) => { const n = new Set(prev); n.delete(key); return n; });
+        addedTimers.current.delete(key);
+      }, 1200);
+      addedTimers.current.set(key, timer);
       if (!result.wasExisting) addToast(product.name);
     },
     [addItem, addToast]
   );
 
-  const handleSwipe = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleSwipe = useCallback((_: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
     const { offset, velocity } = info;
     
     // Check if it's a horizontal swipe with sufficient distance and velocity
@@ -355,42 +372,9 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
       }
       
       if (nextIdx !== idx) {
-        setActive(ALL_CATEGORIES[nextIdx]);
-        setVisibleCount(INITIAL_VISIBLE);
-        setCatalogVisible(false);
-        setTimeout(() => setCatalogVisible(true), 120);
-      }
-    }
-  }, [active]);
-
-  // Touch handlers for swipe
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  }, []);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    
-    const deltaX = touchEndX - touchStartX.current;
-    const deltaY = Math.abs(touchEndY - touchStartY.current);
-    
-    // More sensitive swipe detection
-    if (Math.abs(deltaX) > 40 && deltaY < Math.abs(deltaX) * 0.3) {
-      const idx = ALL_CATEGORIES.indexOf(active as (typeof ALL_CATEGORIES)[number]);
-      let nextIdx;
-      
-      if (deltaX < 0) {
-        // Swipe left - next category
-        nextIdx = (idx + 1) % ALL_CATEGORIES.length;
-      } else {
-        // Swipe right - previous category
-        nextIdx = (idx - 1 + ALL_CATEGORIES.length) % ALL_CATEGORIES.length;
-      }
-      
-      if (nextIdx !== idx) {
-        setActive(ALL_CATEGORIES[nextIdx]);
+        const nextCat = ALL_CATEGORIES[nextIdx];
+        setActive(nextCat);
+        window.history.replaceState(null, "", `#category=${encodeURIComponent(nextCat)}`);
         setVisibleCount(INITIAL_VISIBLE);
         setCatalogVisible(false);
         setTimeout(() => setCatalogVisible(true), 120);
@@ -553,8 +537,6 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
       <motion.section 
         id="catalog" 
         className="bg-gray-50 py-8 px-4"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
       >
         <div className="max-w-5xl mx-auto">
           {/* ── Trust bar ── */}
@@ -594,8 +576,15 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
             {ALL_CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                ref={(el) => { categoryTabRefs.current[cat] = el; }}
-                onClick={() => { setActive(cat); setVisibleCount(INITIAL_VISIBLE); setCatalogVisible(false); setTimeout(() => setCatalogVisible(true), 120); }}
+                onClick={() => {
+                  setActive(cat);
+                  setVisibleCount(INITIAL_VISIBLE);
+                  setCatalogVisible(false);
+                  setTimeout(() => setCatalogVisible(true), 120);
+                  if (typeof window !== "undefined") {
+                    window.history.replaceState(null, "", `#category=${encodeURIComponent(cat)}`);
+                  }
+                }}
                 className={`flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                   active === cat
                     ? "bg-orange-500 text-white shadow-md shadow-orange-200"
@@ -852,3 +841,5 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
     </>
   );
 }
+
+export default React.memo(ShopCatalog);

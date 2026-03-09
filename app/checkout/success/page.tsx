@@ -18,9 +18,12 @@ function SuccessContent() {
   const amount  = Number(params.get("amount") ?? 0);
   const { items, totalPrice, clearCart } = useCart();
 
-  /* Clear cart + fire analytics Purchase event once on mount */
+  /* Clear cart + fire analytics Purchase event once per order */
   useEffect(() => {
-    /* Build contents from cart before clearing */
+    const trackKey = `tracked-${orderId}`;
+    const hasTracked = typeof window !== "undefined" ? sessionStorage.getItem(trackKey) : null;
+    if (hasTracked) return;
+
     const contents = items.map((i) => ({
       id: i.id,
       quantity: i.quantity,
@@ -29,7 +32,6 @@ function SuccessContent() {
 
     const value = amount > 0 ? amount : totalPrice;
 
-    /* 🔴 Meta Pixel + GA4 Purchase event */
     trackPurchase({
       value,
       currency: "UAH",
@@ -37,10 +39,9 @@ function SuccessContent() {
       contents,
     });
 
-    /* Clear cart state & localStorage */
     clearCart();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    sessionStorage.setItem(trackKey, "true");
+  }, [amount, clearCart, items, orderId, totalPrice]);
 
   const steps = [
     { icon: "✅", label: "Замовлення прийнято" },

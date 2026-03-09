@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, ReactNode, CSSProperties } from "react";
+import { useEffect, useRef, ReactNode, CSSProperties, useCallback } from "react";
 
 interface ScrollRevealProps {
   children: ReactNode;
@@ -18,13 +18,13 @@ export function ScrollReveal({
 }: ScrollRevealProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  const getInitialStyle = (): CSSProperties => {
+  const getInitialStyle = useCallback((): CSSProperties => {
     const base: CSSProperties = { opacity: 0, transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms` };
     if (direction === "up") return { ...base, transform: "translateY(32px)" };
     if (direction === "left") return { ...base, transform: "translateX(-32px)" };
     if (direction === "right") return { ...base, transform: "translateX(32px)" };
     return base;
-  };
+  }, [delay, direction]);
 
   useEffect(() => {
     const el = ref.current;
@@ -50,8 +50,7 @@ export function ScrollReveal({
 
     observer.observe(el);
     return () => observer.disconnect();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [getInitialStyle, once]);
 
   return (
     <div ref={ref} className={className}>

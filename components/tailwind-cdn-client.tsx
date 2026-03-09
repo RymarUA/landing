@@ -116,6 +116,13 @@ export function TailwindCDNClient() {
             document.body.classList.add("css-loaded");
           }, 50); // Small delay for CDN to process styles
         };
+        script.onerror = () => {
+          // Fallback: show content even if CDN fails
+          if (process.env.NODE_ENV === 'development') {
+            console.warn("Tailwind CDN failed to load, showing content without styles");
+          }
+          document.body.classList.add("css-loaded");
+        };
         document.head.appendChild(script);
       }
     }

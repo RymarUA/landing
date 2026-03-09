@@ -13,13 +13,13 @@ const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
-      // 🔴 ERROR - Prévient les crashes runtime critiques
-      "react-hooks/rules-of-hooks": "error", // Hooks dans le bon ordre = pas de crash
-      "react/jsx-no-undef": "error", // Composants non définis = crash
-      "@next/next/no-html-link-for-pages": "error", // Mauvais links = navigation cassée
-      "no-dupe-keys": "error", // Clés dupliquées = comportement inattendu
+      // 🔴 ERROR - Prevents runtime crashes
+      "react-hooks/rules-of-hooks": "error", // Hooks in correct order = no crash
+      "react/jsx-no-undef": "error", // Undefined components = crash
+      "@next/next/no-html-link-for-pages": "error", // Wrong links = broken navigation
+      "no-dupe-keys": "error", // Duplicate keys = unexpected behavior
 
-      // 🟡 WARN - Aide la qualité mais non-bloquant
+      // 🟡 WARN - Quality helpers, non-blocking
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -30,12 +30,12 @@ const eslintConfig = [
       "react-hooks/exhaustive-deps": "warn", // Deps manquantes = bugs subtils
       "react/no-unescaped-entities": "warn", // HTML cassé dans JSX
 
-      // 🟢 OFF - Flexibilité pour l'AI (pas de risque de crash)
-      "@typescript-eslint/no-explicit-any": "off", // Any = flexible mais sûr
-      "@typescript-eslint/no-empty-object-type": "off", // Interface vide = OK
+      // 🟢 OFF - Flexibility for AI (no crash risk)
+      "@typescript-eslint/no-explicit-any": "off", // Any = flexible but safe
+      "@typescript-eslint/no-empty-object-type": "off", // Empty interface = OK
       "@next/next/no-img-element": "off", // <img> vs <Image> = perf only
       "prefer-const": "off", // let vs const = style only
-      "no-undef": "off", // TypeScript gère ça + React auto-import
+      "no-undef": "off", // TypeScript handles + React auto-import
     },
   },
 ];

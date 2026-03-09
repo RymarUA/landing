@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart, ShoppingCart, Trash2, ArrowLeft, PackageOpen } from "lucide-react";
@@ -16,8 +16,16 @@ export function WishlistPageClient({ allProducts }: Props) {
   const { addItem } = useCart();
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [selectedSizes, setSelectedSizes] = useState<Record<number, string>>({});
+  const timeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
-  const items = allProducts.filter((p) => ids.has(p.id));
+  const items = useMemo(() => allProducts.filter((p) => ids.has(p.id)), [allProducts, ids]);
+
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current.clear();
+    };
+  }, []);
 
   const getSize = (product: CatalogProduct) =>
     selectedSizes[product.id] ?? product.sizes[0] ?? "";
@@ -33,8 +41,16 @@ export function WishlistPageClient({ allProducts }: Props) {
       size: size ?? null,
       oldPrice: product.oldPrice ?? null,
     });
-    setAddedIds((prev) => new Set(prev).add(key));
-    setTimeout(() => setAddedIds((prev) => { const n = new Set(prev); n.delete(key); return n; }), 1200);
+    setAddedIds((prev: Set<string>) => new Set(prev).add(key));
+    const timeout = setTimeout(() => {
+      setAddedIds((prev: Set<string>) => {
+        const n = new Set(prev);
+        n.delete(key);
+        return n;
+      });
+      timeoutsRef.current.delete(timeout);
+    }, 1200);
+    timeoutsRef.current.add(timeout);
   };
 
   if (!hydrated) {
@@ -152,7 +168,7 @@ export function WishlistPageClient({ allProducts }: Props) {
                       <div className="mb-2">
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Розмір</p>
                         <div className="flex flex-wrap gap-1.5">
-                          {product.sizes.map((s) => (
+                          {product.sizes.map((s: string) => (
                             <button
                               key={s}
                               onClick={() => setSelectedSizes((prev) => ({ ...prev, [product.id]: s }))}

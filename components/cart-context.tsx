@@ -145,7 +145,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const totalSavings = items.reduce(
     (sum, i) =>
       sum +
-      (i.oldPrice ? (i.oldPrice - i.price) * i.quantity : 0),
+      (i.oldPrice ? Math.max(0, i.oldPrice - i.price) * i.quantity : 0),
     0
   );
 

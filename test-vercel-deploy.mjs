@@ -7,8 +7,18 @@ import { dirname } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const VERCEL_TOKEN = "RBZ7Ti5xx2n01qugE4bEPuLR";
-const TEAM_ID = "kleap-ai-apps";
+const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
+const TEAM_ID = process.env.VERCEL_TEAM_ID;
+
+if (!VERCEL_TOKEN) {
+  console.error("❌ Missing VERCEL_TOKEN environment variable");
+  process.exit(1);
+}
+
+if (!TEAM_ID) {
+  console.error("❌ Missing VERCEL_TEAM_ID environment variable");
+  process.exit(1);
+}
 
 // Files to exclude
 const EXCLUDE_PATTERNS = [

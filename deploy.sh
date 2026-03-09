@@ -17,8 +17,9 @@ echo "📋 Setting up production environment..."
 cp .env.local.example .env.local
 
 # Update production values
-sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env.local
-sed -i 's|NEXT_PUBLIC_SITE_URL=http://localhost:3000|NEXT_PUBLIC_SITE_URL=https://207.154.197.122:3000|' .env.local
+SITE_URL=${SITE_URL:-"https://207.154.197.122:3000"}
+sed -i.bak 's/NODE_ENV=development/NODE_ENV=production/' .env.local
+sed -i.bak "s|NEXT_PUBLIC_SITE_URL=http://localhost:3000|NEXT_PUBLIC_SITE_URL=${SITE_URL}|" .env.local
 
 # Restart PM2
 echo "🔄 Restarting PM2..."

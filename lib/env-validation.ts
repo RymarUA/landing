@@ -70,10 +70,10 @@ export function validateEnv() {
     missing.forEach(item => logger.error(`  - ${item}`));
     logger.error('\n⚠️  Please check your .env.local file');
     logger.error('📄 Example: .env.local.example\n');
-    
+
     // Don't throw error in production if all required vars are actually optional
     // Only throw if there are truly required vars missing
-    if (process.env.NODE_ENV === 'production' && missing.length > 0) {
+    if (process.env.NODE_ENV === 'production') {
       logger.error('🔄 Continuing with optional configuration...');
       return; // Don't throw, just continue
     }

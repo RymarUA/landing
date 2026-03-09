@@ -1,9 +1,7 @@
-// @ts-nocheck
-import type { Metadata } from "next";
 import { WishlistPageClient } from "./wishlist-client";
 import { getCatalogProducts } from "@/lib/instagram-catalog";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "Список бажань",
   description: "Ваші збережені товари в FamilyHub Market. Переглядайте та замовляйте у зручний час.",
 };

@@ -3,12 +3,12 @@
   "buildCommand": "npm run build",
   "framework": "nextjs",
   "outputDirectory": ".next",
-  "ignoreCommand": "exit 1",
+  "ignoreCommand": "exit 0",
   "env": {
     "NEXT_PUBLIC_VERCEL": "1"
   },
   "github": {
     "silent": true,
-    "autoJobCancelation": false
+    "autoJobCancelation": true
   }
 }

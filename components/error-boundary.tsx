@@ -47,6 +47,30 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Log to console (in production replace with a real logging service)
     console.error("[ErrorBoundary] caught:", error, info.componentStack);
+    
+    // В продакшене отправляем в систему мониторинга
+    if (process.env.NODE_ENV === 'production') {
+      this.reportError(error, info);
+    }
+  }
+
+  async reportError(error: Error, errorInfo: ErrorInfo) {
+    try {
+      await fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: this.props.label,
+          message: error.message,
+          stack: error.stack,
+          componentStack: errorInfo.componentStack,
+          timestamp: new Date().toISOString(),
+          url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+        }),
+      });
+    } catch (e) {
+      console.error('Failed to report error:', e);
+    }
   }
 
   handleReset = () => {

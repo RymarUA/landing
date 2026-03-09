@@ -11,6 +11,8 @@
  * 4. Пароль за замовчуванням: admin2024 (змінити в ADMIN_PASSWORD нижче)
  */
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
@@ -44,7 +46,7 @@ interface Product {
 // ⚠️  Для продакшену: перенести перевірку в API route /api/admin/login
 // та використовувати httpOnly cookie замість стану React.
 // Зараз: проста перевірка на клієнті (підходить для особистого використання).
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "admin2024";
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
 
 const BADGE_OPTIONS = [
   { label: "— Без бейджа —", value: "", color: "" },
@@ -94,6 +96,7 @@ function loadProducts(): Product[] {
       isHit: true, isNew: false, rating: 4.8, reviews: 48, stock: 3,
       sizes: ["36","37","38","39","40"], description: "Легкі кросівки з амортизацією Air Max.",
       image: "https://lrggyvioreorxttbasgi.supabase.co/storage/v1/object/public/app-assets/9586/images/1772177782851-sneakers-hero",
+      visible: true,
     },
     {
       id: 2, name: "Кросівки Adidas Ultraboost", price: 950, oldPrice: null,
@@ -101,6 +104,7 @@ function loadProducts(): Product[] {
       isHit: false, isNew: true, rating: 4.6, reviews: 32, stock: 12,
       sizes: ["36","37","38","39"], description: "Комфортні кросівки з підошвою Boost.",
       image: "https://lrggyvioreorxttbasgi.supabase.co/storage/v1/object/public/app-assets/9586/images/1772177782851-sneakers-hero",
+      visible: true,
     },
     {
       id: 3, name: "Дитячий костюм (зріст 92)", price: 420, oldPrice: 580,
@@ -108,6 +112,7 @@ function loadProducts(): Product[] {
       isHit: false, isNew: true, rating: 4.9, reviews: 19, stock: 5,
       sizes: ["86","92","98","104"], description: "М'який трикотажний костюм для малюків.",
       image: "https://lrggyvioreorxttbasgi.supabase.co/storage/v1/object/public/app-assets/9586/images/1772177785940-toys-product",
+      visible: true,
     },
   ];
 }
@@ -168,7 +173,7 @@ function ProductRow({
       </td>
       <td className="py-3 px-4">
         <div className="flex flex-col">
-          <span className="font-black text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
+          <span className="font-semibold text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
           {product.oldPrice && (
             <span className="text-xs text-gray-400 line-through">{product.oldPrice} грн</span>
           )}
@@ -521,6 +526,21 @@ function ProductEditor({
 
 // ── Main Admin Page ───────────────────────────────────────
 export default function AdminPage() {
+  // Require admin password to be set for security (only in production)
+  if (process.env.NODE_ENV === "production" && !ADMIN_PASSWORD) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Error</h1>
+            <p className="text-gray-600">NEXT_PUBLIC_ADMIN_PASSWORD environment variable is required for admin access in production.</p>
+            <p className="text-sm text-gray-500 mt-2">Please set the environment variable and restart the application.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [authed, setAuthed] = useState(false);
   const [password, setPassword] = useState("");
   const [pwError, setPwError] = useState(false);

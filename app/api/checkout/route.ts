@@ -27,6 +27,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-api";
 import { getCatalogProductById } from "@/lib/instagram-catalog";
+import { logger } from "@/lib/logger";
 
 // ── Отримай ці ID з Sitniks: Налаштування → Нова Пошта → ID інтеграції
 const NP_INTEGRATION_ID = Number(process.env.SITNIKS_NP_INTEGRATION_ID ?? 0);
@@ -180,7 +181,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (err) {
-    console.error("[/api/checkout] Error:", err);
+    logger.error("[/api/checkout] Error:", err);
     return NextResponse.json(
       { error: "Помилка при створенні замовлення. Спробуй ще раз." },
       { status: 500 }

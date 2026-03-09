@@ -29,6 +29,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   /* ── Load from localStorage on mount ── */
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -46,8 +48,13 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   /* ── Persist to localStorage on change ── */
   useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+    if (!hydrated || typeof window === 'undefined') return;
+    
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+    } catch {
+      // ignore quota exceeded
+    }
   }, [ids, hydrated]);
 
   const toggle = (id: number) => {

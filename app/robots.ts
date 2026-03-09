@@ -1,19 +1,29 @@
-import { MetadataRoute } from "next";
+// @ts-nocheck
+import { MetadataRoute } from 'next';
+import { siteConfig } from '@/lib/site-config';
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://familyhubmarket.com";
-
+  const baseUrl = siteConfig.url;
+  
   return {
-    rules: {
-      userAgent: "*",
-      allow: "/",
-      disallow: [
-        "/api/",
-        "/_next/",
-        "/admin/",
-        // Add any private routes here
-      ],
-    },
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: [
+          '/api/',
+          '/admin/',
+          '/checkout/',
+          '/_next/',
+          '/static/',
+        ],
+      },
+      {
+        userAgent: 'Googlebot',
+        allow: '/',
+        disallow: ['/api/', '/admin/'],
+      },
+    ],
     sitemap: `${baseUrl}/sitemap.xml`,
   };
 }

@@ -32,9 +32,7 @@ export function AnnouncementBar() {
   return (
     <div className="relative bg-orange-500 text-white font-bold text-sm py-2.5 px-4 text-center">
       <div className="flex items-center justify-center gap-2 flex-wrap px-8">
-        <span
-          dangerouslySetInnerHTML={{ __html: siteConfig.announcementText }}
-        />
+        <span>{siteConfig.announcementText}</span>
       </div>
       <button
         type="button"

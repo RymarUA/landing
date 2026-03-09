@@ -1,5 +1,8 @@
 "use client";
 import { Logo } from "../Logo";
+import { useCart } from "@/components/cart-context";
+import { ShoppingCart } from "lucide-react";
+import Link from "next/link";
 
 import { NavBarItem } from "./navbar-item";
 import {
@@ -21,6 +24,7 @@ type Props = {
 
 export const DesktopNavbar = ({ navItems }: Props) => {
   const { scrollY } = useScroll();
+  const { totalCount, hydrated } = useCart();
 
   const [showBackground, setShowBackground] = useState(false);
 
@@ -63,6 +67,22 @@ export const DesktopNavbar = ({ navItems }: Props) => {
         </div>
       </div>
       <div className="flex space-x-2 items-center">
+        {/* Cart indicator */}
+        <Link href="/cart" className="relative p-2 rounded-full hover:bg-orange-50 transition-colors">
+          <ShoppingCart className="w-5 h-5 text-orange-500" />
+          <AnimatePresence>
+            {hydrated && totalCount > 0 && (
+              <motion.span
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow"
+              >
+                {totalCount}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </Link>
         {/* Login/Signup buttons - uncomment to enable authentication */}
         {/* <Button variant="ghost" asChild href="/login">
           Login

@@ -142,24 +142,27 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
   /* ── Check existing session ── */
   useEffect(() => {
-    let isMounted = true;
+    const abortController = new AbortController();
+    
     (async () => {
       try {
-        const res = await fetch("/api/auth/me");
-        if (!isMounted) return;
+        const res = await fetch("/api/auth/me", { signal: abortController.signal });
         if (res.ok) {
           const data = await res.json();
           setLoggedPhone(data.phone);
           setStep("profile");
-          loadOrders(data.phone, () => isMounted);
+          loadOrders(data.phone, abortController);
         } else {
           setStep("phone");
         }
       } catch {
-        if (isMounted) setStep("phone");
+        if (!abortController.signal.aborted) {
+          setStep("phone");
+        }
       }
     })();
-    return () => { isMounted = false; };
+    
+    return () => { abortController.abort(); };
   }, []);
 
   /* ── Resend countdown ── */
@@ -178,16 +181,16 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
-  /* ── Load orders from API (isMounted prevents setState on unmount) ── */
-  const loadOrders = useCallback(async (_phone: string, isMounted?: () => boolean) => {
+  /* ── Load orders from API (AbortController prevents setState on unmount) ── */
+  const loadOrders = useCallback(async (_phone: string, abortController?: AbortController) => {
     setOrdersLoading(true);
     try {
       await new Promise((r) => setTimeout(r, 600));
-      if (isMounted?.() !== false) setOrders([]);
+      if (!abortController?.signal.aborted) setOrders([]);
     } catch {
-      if (isMounted?.() !== false) setOrders([]);
+      if (!abortController?.signal.aborted) setOrders([]);
     } finally {
-      if (isMounted?.() !== false) setOrdersLoading(false);
+      if (!abortController?.signal.aborted) setOrdersLoading(false);
     }
   }, []);
 
@@ -242,7 +245,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       if (!res.ok) throw new Error(data.error ?? "Невірний код");
       setLoggedPhone(data.phone);
       setStep("profile");
-      loadOrders(data.phone, () => true);
+      loadOrders(data.phone, undefined);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Помилка перевірки. Спробуйте ще раз.");
     } finally {
@@ -649,7 +652,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                         </div>
                         <div className="p-2">
                           <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
-                          <p className="text-xs font-black text-orange-500">{product.price.toLocaleString("uk-UA")} грн</p>
+                          <p className="text-xs font-semibold text-orange-500">{product.price.toLocaleString("uk-UA")} грн</p>
                         </div>
                       </Link>
                     ))}

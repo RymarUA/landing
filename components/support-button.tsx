@@ -39,9 +39,6 @@ export function SupportButton() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Don't render until hydrated (avoids SSR mismatch)
-  if (!mounted) return null;
-
   // Hide on checkout pages
   if (pathname.startsWith("/checkout")) return null;
 
@@ -90,7 +87,7 @@ export function SupportButton() {
   if (items.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 flex flex-col-reverse items-start gap-3">
+    <div className={`fixed bottom-6 left-6 z-50 flex flex-col-reverse items-start gap-3 ${!mounted ? 'invisible' : ''}`}>
       {/* Speed-dial items */}
       {open &&
         items.map((item, i) => (

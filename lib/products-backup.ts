@@ -28,7 +28,15 @@ export type Product = {
 };
 
 /* ─── Static catalogue (replace with DB query in production) ─────── */
-const STATIC_PRODUCTS: Product[] = [];
+const STATIC_PRODUCTS: Product[] = [
+  {
+    id: 1,
+    slug: "nike-air-replica",
+    name: "Кросівки Nike Air (репліка)",
+    category: "Для чоловіків",
+    price: 1200,
+    oldPrice: 1800,
+    image: "/images/sneakers-hero.jpg",
 
 /* ─── Public API ─────────────────────────────────── */
 
@@ -56,8 +64,3 @@ export async function getCategories(): Promise<string[]> {
   const cats = new Set(STATIC_PRODUCTS.map((p) => p.category));
   return ["Всі", ...Array.from(cats)];
 }
-
-/** Legacy compatibility exports */
-export const CATALOG_PRODUCTS = STATIC_PRODUCTS;
-export const getCatalogProducts = getAllProducts;
-export const getCatalogProductById = getProductById;

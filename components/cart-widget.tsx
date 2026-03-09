@@ -5,6 +5,7 @@ import { ShoppingCart, X, Trash2, Minus, Plus } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import Image from "next/image";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function CartWidget() {
   const pathname = usePathname();
@@ -44,25 +45,31 @@ export function CartWidget() {
   return (
     <>
       {/* ── Floating button: on product page move up on mobile to avoid sticky bar ── */}
-      <button
+      <motion.button
         onClick={toggleCart}
-        className={`fixed right-6 z-50 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300
-          ${isProductPage ? "bottom-24 md:bottom-6" : "bottom-6"}
+        className={`fixed right-6 z-[100] w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300
+          ${isProductPage ? "bottom-32 md:bottom-6" : "bottom-20 md:bottom-6"}
           bg-gradient-to-br from-orange-500 to-amber-600 text-white
-          ${animate ? "scale-125 rotate-12" : "scale-100 rotate-0"}
           hover:scale-110 hover:shadow-orange-500/50`}
         aria-label="Відкрити кошик"
+        whileTap={{ scale: 0.95 }}
+        animate={animate ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : { scale: 1, rotate: 0 }}
+        transition={{ duration: 0.4, ease: "easeInOut" }}
       >
         <ShoppingCart size={26} />
-        {showBadge && (
-          <span
-            className={`absolute -top-1 -right-1 bg-amber-400 text-gray-900 text-xs font-black rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 shadow
-              ${animate ? "scale-125" : "scale-100"} transition-transform duration-300`}
-          >
-            {totalCount}
-          </span>
-        )}
-      </button>
+        <AnimatePresence>
+          {showBadge && (
+            <motion.span
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-black rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 shadow"
+            >
+              {totalCount}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </motion.button>
 
       {/* ── Drawer ──────────────────────────────────── */}
       <div className={`fixed inset-0 z-40 ${isCartOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
@@ -171,6 +178,28 @@ export function CartWidget() {
                 <span className="text-2xl font-black text-gray-900">
                   {totalPrice.toLocaleString("uk-UA")} грн
                 </span>
+              </div>
+
+              {/* Cross-sell section */}
+              <div className="mb-4 pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">З цим товаром також купують:</h3>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {items.slice(0, 3).map((item) => (
+                    <div key={item.id} className="flex-shrink-0 w-32 bg-gray-50 rounded-xl p-2">
+                      <div className="relative h-20 rounded-lg overflow-hidden bg-gray-200 mb-2">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                      </div>
+                      <p className="text-xs font-medium text-gray-900 truncate">{item.name}</p>
+                      <p className="text-xs text-orange-500 font-bold">{item.price} грн</p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="flex gap-2">

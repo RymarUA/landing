@@ -50,7 +50,7 @@ export const checkoutSchema = z.object({
   email: z.string().trim().email("Невірний формат email").optional().or(z.literal("")),
 
   /** Payment method: online via WayForPay or COD (накладений платіж) */
-  paymentMethod: z.enum(PAYMENT_METHODS).default("online"),
+  paymentMethod: z.enum(PAYMENT_METHODS),
 
   /** Optional promo code */
   promoCode: z.string().trim().max(32).optional().or(z.literal("")),

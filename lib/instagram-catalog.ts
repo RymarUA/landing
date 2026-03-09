@@ -27,10 +27,13 @@ import {
   type SitniksProduct,
   type SitniksVariation,
 } from "./sitniks-api";
+import { getAllProducts, getProductById as getFallbackProductById } from "./products";
 
 // ─── Type (same shape as before — nothing else in the app needs to change) ─────
 export interface CatalogProduct {
   id: number;
+  slug: string;
+  instagramMediaId: string | null;
   name: string;
   price: number;
   oldPrice: number | null;
@@ -45,7 +48,7 @@ export interface CatalogProduct {
   sizes: string[];        // properties з name="Розмір" по всіх активних варіаціях
   description: string;
   image: string;          // перше фото варіації або продукту
-  instagramPermalink?: string;
+  instagramPermalink: string | null;
 
   // Sitniks-specific (для сторінки товару)
   variationId?: number;   // ID першої варіації (для замовлення)
@@ -121,6 +124,8 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
 
   return {
     id: p.id,
+    slug: p.title.toLowerCase().replace(/[^a-zа-яїєі0-9\s]/g, '').replace(/\s+/g, '-'),
+    instagramMediaId: null, // Not available from Sitniks API
     name: p.title,
     price,
     oldPrice,
@@ -135,6 +140,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     sizes: getSizes(p),
     description: p.description ?? "",
     image: getFirstImage(p, firstVariation),
+    instagramPermalink: null, // Not available from Sitniks API
     variationId: firstVariation?.id,
     allVariations: activeVariations.map((v) => ({
       id: v.id,
@@ -144,6 +150,30 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
       properties: v.properties,
       image: v.attachments?.[0]?.url,
     })),
+  };
+}
+
+
+function mapFallbackProductToCatalogProduct(p: Awaited<ReturnType<typeof getAllProducts>>[number]): CatalogProduct {
+  return {
+    id: p.id,
+    slug: p.slug,
+    instagramMediaId: null,
+    name: p.name,
+    price: p.price,
+    oldPrice: p.oldPrice,
+    category: p.category,
+    badge: p.badge,
+    badgeColor: p.badgeColor || "",
+    isHit: Boolean(p.isHit),
+    isNew: Boolean(p.isNew),
+    rating: p.rating,
+    reviews: p.reviews,
+    stock: p.stock,
+    sizes: p.sizes ?? [],
+    description: p.description ?? "",
+    image: p.image,
+    instagramPermalink: null,
   };
 }
 
@@ -159,8 +189,9 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
     return sitniksProducts.map(mapSitniksProduct);
   } catch (err) {
     console.error("[instagram-catalog] Failed to fetch from Sitniks:", err);
-    // Fallback: повертаємо порожній масив щоб сайт не впав
-    return [];
+    // Fallback: статичний каталог щоб вітрина працювала навіть без Sitniks API
+    const fallbackProducts = await getAllProducts();
+    return fallbackProducts.map(mapFallbackProductToCatalogProduct);
   }
 }
 
@@ -173,6 +204,7 @@ export async function getCatalogProductById(id: number): Promise<CatalogProduct 
     if (!p) return null;
     return mapSitniksProduct(p);
   } catch {
-    return null;
+    const fallbackProduct = await getFallbackProductById(id);
+    return fallbackProduct ? mapFallbackProductToCatalogProduct(fallbackProduct) : null;
   }
 }

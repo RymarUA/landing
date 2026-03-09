@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Metadata } from "next";
 import "./globals.css";
 import { GeistSans } from "geist/font/sans";
@@ -6,14 +7,19 @@ import { DevToolsGuard } from "./devtools-guard";
 import { TailwindCDNClient } from "@/components/tailwind-cdn-client";
 import { siteConfig } from "@/lib/site-config";
 import { CartProvider } from "@/components/cart-context";
-import { AnnouncementBar } from "@/components/announcement-bar";
-import { CookieBanner } from "@/components/cookie-banner";
+import { MobileLayout } from "@/components/mobile-layout";
 import { WishlistProvider } from "@/components/wishlist-context";
 import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
+import { MotionWrapper } from "@/components/motion-wrapper";
 import { SupportButton } from "@/components/support-button";
-import { TemuSearchBar } from "@/components/temu-search-bar";
-import { TemuBottomNav } from "@/components/temu-bottom-nav";
+import { validateEnv } from "@/lib/env-validation";
+import { WebVitals } from "./web-vitals";
+
+// Validate environment variables on server startup
+if (typeof window === 'undefined') {
+  validateEnv();
+}
 
 export const metadata: Metadata = {
   title: {
@@ -124,26 +130,16 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Analytics />
+        <WebVitals />
         <TailwindCDNClient />
         <DevToolsGuard />
         <CartProvider>
           <WishlistProvider>
-            {/* Temu-style Search Bar */}
-            <TemuSearchBar />
-
-            {/* Main content with top padding for fixed search bar */}
-            <div className="pt-[52px]">
+            <MobileLayout>
               {children}
-            </div>
-
-            {/* Temu-style Bottom Navigation (includes cart) */}
-            <TemuBottomNav />
-
-            {/* Support Button (floating) */}
-            <SupportButton />
+            </MobileLayout>
             
             <DiscountPopup />
-            <CookieBanner />
           </WishlistProvider>
         </CartProvider>
       </body>

@@ -33,6 +33,8 @@ interface CartContextType {
   closeCart: () => void;
   toggleCart: () => void;
   lastQuantityToast: { name: string; quantity: number } | null;
+  sessionStartTime: number;
+  resetSessionTimer: () => void;
 }
 
 const STORAGE_KEY = "fhm_cart_v1";
@@ -44,10 +46,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [lastQuantityToast, setLastQuantityToast] = useState<{ name: string; quantity: number } | null>(null);
+  const [sessionStartTime, setSessionStartTime] = useState<number>(Date.now());
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
   const toggleCart = useCallback(() => setIsCartOpen((v) => !v), []);
+  
+  const resetSessionTimer = useCallback(() => {
+    setSessionStartTime(Date.now());
+  }, []);
 
   // ── Rehydrate from localStorage on mount (client-only) ─────────────
   useEffect(() => {
@@ -159,6 +166,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         closeCart,
         toggleCart,
         lastQuantityToast,
+        sessionStartTime,
+        resetSessionTimer,
       }}
     >
       {children}

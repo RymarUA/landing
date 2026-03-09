@@ -142,7 +142,7 @@ export function WishlistPageClient({ allProducts }: Props) {
                     </Link>
 
                     <div className="flex items-baseline gap-2 mb-3">
-                      <span className="text-orange-500 font-black">{product.price.toLocaleString("uk-UA")} грн</span>
+                      <span className="text-orange-500 font-semibold">{product.price.toLocaleString("uk-UA")} грн</span>
                       {product.oldPrice && (
                         <span className="text-gray-400 text-xs line-through">{product.oldPrice} грн</span>
                       )}

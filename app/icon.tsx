@@ -11,7 +11,9 @@ export default function Icon() {
     (
       <div
         style={{
-          fontSize: 24,
+          fontSize: 14,
+          fontWeight: 800,
+          letterSpacing: "0.04em",
           background: "linear-gradient(90deg, #667eea 0%, #764ba2 100%)",
           width: "100%",
           height: "100%",
@@ -22,7 +24,7 @@ export default function Icon() {
           borderRadius: "50%",
         }}
       >
-        🚀
+        FH
       </div>
     ),
     { ...size },

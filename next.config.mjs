@@ -33,8 +33,8 @@ const nextConfig = {
     ],
   },
 
-  // Suppress hydration warnings globally
-  reactStrictMode: false,
+  // Enable React Strict Mode for better error detection and performance
+  reactStrictMode: true,
 
   // Cross-origin configuration for CodeSandbox iframe compatibility
   // Note: allowedDevOrigins is not a real Next.js option
@@ -77,10 +77,9 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
 
-  // TypeScript configuration - MUST ignore errors for production builds
-  // Apps may have minor TS errors that shouldn't block deployment
+  // TypeScript configuration - check for type errors in production builds
   typescript: {
-    ignoreBuildErrors: true, // ✅ Don't fail build on TS errors
+    ignoreBuildErrors: false, // ✅ Check for TS errors in production
   },
 
   // Optimize production builds for CodeSandbox
@@ -171,10 +170,23 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
-          // Allow iframe embedding (required for Kleap preview)
+          // Restrict iframe embedding to same origin for security
           {
             key: "X-Frame-Options",
-            value: "ALLOWALL",
+            value: "SAMEORIGIN",
+          },
+          // Additional security headers
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
           },
           // No cache for development (see AI changes immediately)
           {

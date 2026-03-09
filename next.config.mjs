@@ -64,7 +64,9 @@ const nextConfig = {
       },
     ],
     formats: ["image/avif", "image/webp"],
-    // Use sharp for better performance
+    // Disable built-in optimizer to avoid runtime crashes on some hosts
+    // ("The requested resource isn't a valid image ... received null").
+    unoptimized: true,
     loader: "default",
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

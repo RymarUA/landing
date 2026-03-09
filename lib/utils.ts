@@ -21,3 +21,24 @@ export function blurProps() {
     blurDataURL: BLUR_DATA_URL,
   };
 }
+
+
+/**
+ * Normalizes product image paths.
+ * Fixes legacy records like /images/sneakers-hero (without extension).
+ */
+export function normalizeImageSrc(src?: string | null): string {
+  if (!src) return "/images/sneakers-hero.jpg";
+
+  // Keep external/data/blob URLs untouched.
+  if (/^(https?:)?\/\//.test(src) || src.startsWith("data:") || src.startsWith("blob:")) {
+    return src;
+  }
+
+  // Add .jpg for local /images/* values that have no extension.
+  if (src.startsWith("/images/") && !/\.[a-zA-Z0-9]+($|\?)/.test(src)) {
+    return `${src}.jpg`;
+  }
+
+  return src;
+}

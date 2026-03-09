@@ -18,14 +18,23 @@ import { useEffect } from "react";
  */
 export function TailwindCDNClient() {
   useEffect(() => {
+    let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
+    let revealTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const markCssLoaded = () => {
+      document.body.classList.add("css-loaded");
+    };
+
+    // Never keep the app hidden forever.
+    fallbackTimer = setTimeout(markCssLoaded, 2000);
+
     // Show content immediately on Vercel (CSS is already compiled)
     if (process.env.NEXT_PUBLIC_VERCEL) {
-      document.body.classList.add("css-loaded");
-      return;
+      markCssLoaded();
     }
 
     // Only load CDN if not on Vercel
-    if (!process.env.NEXT_PUBLIC_VERCEL) {
+    else {
       // Check if already loaded
       const existingScript = document.querySelector(
         'script[src*="@tailwindcss/browser"]',
@@ -112,13 +121,24 @@ export function TailwindCDNClient() {
         script.src = "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4";
         script.onload = () => {
           // Show content when CDN is loaded and processed
-          setTimeout(() => {
-            document.body.classList.add("css-loaded");
-          }, 50); // Small delay for CDN to process styles
+          revealTimer = setTimeout(markCssLoaded, 50); // Small delay for CDN to process styles
         };
+        script.onerror = markCssLoaded;
         document.head.appendChild(script);
+      } else {
+        // CDN/config already exists (for example after client-side navigation).
+        markCssLoaded();
       }
     }
+
+    return () => {
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+      }
+      if (revealTimer) {
+        clearTimeout(revealTimer);
+      }
+    };
   }, []);
 
   return null;

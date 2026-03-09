@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+import { normalizeImageSrc } from "@/lib/utils";
 
 export interface CartItem {
   id: number;
@@ -64,7 +65,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(raw) as CartItem[];
         // Basic validation: must be array of objects with id & quantity
         if (Array.isArray(parsed) && parsed.every((i) => typeof i.id === "number")) {
-          setItems(parsed);
+          setItems(parsed.map((item) => ({ ...item, image: normalizeImageSrc(item.image) })));
         }
       }
     } catch {
@@ -103,7 +104,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           matchItem(i, item.id, item.size) ? { ...i, quantity: newQty } : i
         );
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, { ...item, image: normalizeImageSrc(item.image), quantity: 1 }];
     });
     return result;
   }, [matchItem]);

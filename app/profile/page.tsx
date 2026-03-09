@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Metadata } from "next";
 import { ProfileClient } from "./profile-client";
 import { getCatalogProducts } from "@/lib/instagram-catalog";

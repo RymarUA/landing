@@ -24,9 +24,17 @@ import Script from "next/script";
 /* ─── Extend Window for fbq / gtag ──────────────────────── */
 declare global {
   interface Window {
-    fbq: (...args: unknown[]) => void;
-    _fbq: unknown;
-    gtag: (...args: unknown[]) => void;
+    fbq?: (
+      command: string,
+      eventName: string,
+      params?: Record<string, any>
+    ) => void;
+    _fbq?: unknown;
+    gtag?: (
+      command: string,
+      targetId: string,
+      config?: Record<string, any>
+    ) => void;
     dataLayer: unknown[];
   }
 }

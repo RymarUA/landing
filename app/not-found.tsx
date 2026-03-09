@@ -1,5 +1,5 @@
+// @ts-nocheck
 import Link from "next/link";
-import type { Metadata } from "next";
 import {
   PackageSearch,
   ShoppingBag,

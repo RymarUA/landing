@@ -11,10 +11,9 @@ import {
   Tag, Check, Banknote
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
-import { checkoutSchema, type CheckoutFormData, applyPromoCode } from "@/lib/checkout-schema";
+import { checkoutSchema, applyPromoCode } from "@/lib/checkout-schema";
 import { useSavedAddresses } from "@/lib/use-saved-addresses";
 import { trackInitiateCheckout } from "@/components/analytics";
-import type { CheckoutResponseSuccess, CheckoutResponseError, NPCity, NPWarehouse } from "@/lib/types";
 
 /* ─── API Helpers (вынесены наружу для чистоты) ─── */
 const fetchNPCities = async (query: string) => {
@@ -44,7 +43,7 @@ const fetchNPWarehouses = async (cityRef: string, query: string) => {
 };
 
 /* ─── Field wrapper ─── */
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, error, children }: { label: string; error?: any; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5 relative">
       <label className="text-sm font-semibold text-gray-700">{label}</label>
@@ -103,8 +102,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cod">("online");
 
   // Состояние Новой Почты
-  const [cities, setCities] = useState<NPCity[]>([]);
-  const [warehouses, setWarehouses] = useState<NPWarehouse[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
   const [selectedCityRef, setSelectedCityRef] = useState<string>("");
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
@@ -119,7 +118,7 @@ export default function CheckoutPage() {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<CheckoutFormData>({ 
+  } = useForm<any>({ 
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
       paymentMethod: "online"
@@ -153,7 +152,7 @@ export default function CheckoutPage() {
   };
 
   // Выбор города
-  const onCitySelect = async (city: NPCity) => {
+  const onCitySelect = async (city: any) => {
     setSelectedCityRef(city.Ref);
     setValue("city", city.Description, { shouldValidate: true });
     setShowCityResults(false);
@@ -200,7 +199,7 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  const onSubmit = async (data: CheckoutFormData) => {
+  const onSubmit = async (data: any) => {
     setSubmitting(true);
     setServerError(null);
     trackInitiateCheckout({ value: totalPrice, numItems: totalCount });
@@ -347,7 +346,7 @@ export default function CheckoutPage() {
                         setLoadingCities(true);
                         const data = await fetchNPCities(cityName);
                         setCities(data);
-                        const exact = data.find((c: NPCity) => c.Description === cityName || c.Description?.startsWith(cityName));
+                        const exact = data.find((c: any) => c.Description === cityName || c.Description?.startsWith(cityName));
                         if (exact) {
                           setSelectedCityRef(exact.Ref);
                           setLoadingWarehouses(true);

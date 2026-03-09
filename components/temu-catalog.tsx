@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   ShoppingCart,
@@ -390,7 +389,6 @@ function TemuProductCard({
 
 /* ─── Main Catalog Component ─────────────────────────── */
 export function TemuCatalog({ products }: TemuCatalogProps) {
-  const router = useRouter();
   const { addItem } = useCart();
 
   const [activeCategory, setActiveCategory] = useState("Всі");

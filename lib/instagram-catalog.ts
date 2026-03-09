@@ -27,6 +27,7 @@ import {
   type SitniksProduct,
   type SitniksVariation,
 } from "./sitniks-api";
+import { getAllProducts, getProductById as getFallbackProductById } from "./products";
 
 // ─── Type (same shape as before — nothing else in the app needs to change) ─────
 export interface CatalogProduct {
@@ -178,6 +179,7 @@ export async function getCatalogProductById(id: number): Promise<CatalogProduct 
     if (!p) return null;
     return mapSitniksProduct(p);
   } catch {
-    return null;
+    const fallbackProduct = await getFallbackProductById(id);
+    return fallbackProduct ? mapFallbackProductToCatalogProduct(fallbackProduct) : null;
   }
 }

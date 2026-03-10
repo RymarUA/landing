@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 import {
   Phone, KeyRound, LogOut, Package, ChevronLeft,
   Loader2, CheckCircle, RefreshCw, User, ShoppingBag,
-  AlertCircle, ChevronRight, Heart, Tag, Copy, Truck, RotateCcw,
+  AlertCircle, ChevronRight, Heart, Copy, Truck, RotateCcw,
 } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
@@ -79,31 +79,6 @@ function statusStyle(status: string) {
   return STATUS_LABELS[status] ?? { label: status, color: "text-gray-600 bg-gray-50 border-gray-100" };
 }
 
-/* ─── Input ──────────────────────────────────────────── */
-function InputField({
-  label, type = "text", value, onChange, placeholder, disabled, maxLength, autoComplete,
-}: {
-  label: string; type?: string; value: string;
-  onChange: (v: string) => void; placeholder?: string;
-  disabled?: boolean; maxLength?: number; autoComplete?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-semibold text-gray-700">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        disabled={disabled}
-        maxLength={maxLength}
-        autoComplete={autoComplete}
-        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 transition disabled:opacity-60 disabled:cursor-not-allowed"
-      />
-    </div>
-  );
-}
-
 const PROFILE_NAME_KEY = "fhm_profile_name";
 const PROMO_CODE = "FIRST10";
 
@@ -141,6 +116,19 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setShowPromoBlock(!!localStorage.getItem("fhm_popup_seen"));
   }, [step]);
 
+  /* ── Load orders from API (AbortController prevents setState on unmount) ── */
+  const loadOrders = useCallback(async (_phone: string, abortController?: AbortController) => {
+    setOrdersLoading(true);
+    try {
+      await new Promise((r) => setTimeout(r, 600));
+      if (!abortController?.signal.aborted) setOrders([]);
+    } catch {
+      if (!abortController?.signal.aborted) setOrders([]);
+    } finally {
+      if (!abortController?.signal.aborted) setOrdersLoading(false);
+    }
+  }, []);
+
   /* ── Check existing session ── */
   useEffect(() => {
     const abortController = new AbortController();
@@ -164,7 +152,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     })();
     
     return () => { abortController.abort(); };
-  }, []);
+  }, [loadOrders]);
 
   /* ── Resend countdown ── */
   const startResendTimer = useCallback(() => {
@@ -181,19 +169,6 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   }, []);
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
-
-  /* ── Load orders from API (AbortController prevents setState on unmount) ── */
-  const loadOrders = useCallback(async (_phone: string, abortController?: AbortController) => {
-    setOrdersLoading(true);
-    try {
-      await new Promise((r) => setTimeout(r, 600));
-      if (!abortController?.signal.aborted) setOrders([]);
-    } catch {
-      if (!abortController?.signal.aborted) setOrders([]);
-    } finally {
-      if (!abortController?.signal.aborted) setOrdersLoading(false);
-    }
-  }, []);
 
   /* ── Step 1: Send OTP ── */
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -230,17 +205,16 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   };
 
   /* ── Step 2: Verify OTP ── */
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleVerifyOtp = useCallback(async (e: React.FormEvent | { preventDefault: () => void }) => {
     e.preventDefault();
-    const code = otp.join("");
-    if (code.length !== 6) return;
+    if (otpString.length !== 6) return;
     setBusy(true);
     setError("");
     try {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalizePhoneForApi(phone), otp: code }),
+        body: JSON.stringify({ phone: normalizePhoneForApi(phone), otp: otpString }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Невірний код");
@@ -252,7 +226,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     } finally {
       setBusy(false);
     }
-  };
+  }, [otpString, phone, loadOrders]);
 
   const lastAutoSubmittedOtp = useRef("");
   useEffect(() => {
@@ -264,7 +238,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     if (lastAutoSubmittedOtp.current === otpString) return;
     lastAutoSubmittedOtp.current = otpString;
     handleVerifyOtp({ preventDefault: () => {} } as React.FormEvent);
-  }, [otpString, busy]);
+  }, [otpString, busy, handleVerifyOtp]);
 
   /* ── Logout (with optional confirmation) ── */
   const [confirmLogout, setConfirmLogout] = useState(false);

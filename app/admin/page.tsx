@@ -14,6 +14,7 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import {
   Plus, Trash2, Save, Eye, LogOut,
@@ -123,7 +124,7 @@ function saveProducts(products: Product[]) {
 
 // ── Sub-components ────────────────────────────────────────
 
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
+function StatCard({ icon, label, value, color }: { icon: ReactNode; label: string; value: string | number; color: string }) {
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
@@ -154,7 +155,7 @@ function ProductRow({
       <td className="py-3 px-4">
         <div className="w-12 h-12 relative rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
           {product.image ? (
-            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+            <Image src={product.image} alt={product.name} fill sizes="48px" className="object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-300">
               <Package size={20} />
@@ -247,9 +248,10 @@ function ProductEditor({
   onClose: () => void;
 }) {
   const isNew = !product;
-  const [form, setForm] = useState<Omit<Product, "id">>(
-    product ? { ...product } : { ...EMPTY_PRODUCT }
-  );
+  const initialValue: Omit<Product, "id"> = product ? { ...product } : { ...EMPTY_PRODUCT };
+  const formState = useState(initialValue);
+  const form = formState[0];
+  const setForm = formState[1];
   const [sizeInput, setSizeInput] = useState("");
   const [saved, setSaved] = useState(false);
 
@@ -301,7 +303,7 @@ function ProductEditor({
           {/* Preview */}
           {form.image && (
             <div className="relative h-40 rounded-2xl overflow-hidden bg-gray-100">
-              <img src={form.image} alt="preview" className="w-full h-full object-cover" />
+              <Image src={form.image} alt="preview" fill sizes="(max-width: 768px) 100vw, 512px" className="object-cover" />
               {discount && (
                 <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-black w-9 h-9 rounded-full flex items-center justify-center">
                   -{discount}%
@@ -365,7 +367,7 @@ function ProductEditor({
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">
-                Стара ціна (грн) {discount ? <span className="text-red-500 normal-case font-black">→ -{discount}%</span> : <span className="normal-case text-gray-400">(необов'язково)</span>}
+                Стара ціна (грн) {discount ? <span className="text-red-500 normal-case font-black">→ -{discount}%</span> : <span className="normal-case text-gray-400">(необов’язково)</span>}
               </label>
               <input
                 type="number"
@@ -403,15 +405,15 @@ function ProductEditor({
             <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.isHit ? "border-amber-400 bg-amber-50" : "border-gray-200 hover:border-amber-300"}`}>
               <input type="checkbox" checked={form.isHit} onChange={(e) => set("isHit", e.target.checked)} className="accent-amber-400 w-4 h-4" />
               <div>
-                <p className="text-sm font-bold text-gray-800 flex items-center gap-1"><Flame size={14} className="text-amber-500" /> ХІТ продажів</p>
-                <p className="text-xs text-gray-400">Показується в "Топ продажів"</p>
+                <p className="text-sm font-bold text-gray-800 flex items-center gap-1"><Flame size={14} className="text-amber-500" /> Хіт продажів</p>
+                <p className="text-xs text-gray-400">Показується в &quot;Топ продажів&quot;</p>
               </div>
             </label>
             <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.isNew ? "border-orange-400 bg-orange-50" : "border-gray-200 hover:border-orange-300"}`}>
               <input type="checkbox" checked={form.isNew} onChange={(e) => set("isNew", e.target.checked)} className="accent-orange-400 w-4 h-4" />
               <div>
                 <p className="text-sm font-bold text-gray-800 flex items-center gap-1"><Sparkles size={14} className="text-orange-500" /> Новинка</p>
-                <p className="text-xs text-gray-400">Показується в "Нові надходження"</p>
+                <p className="text-xs text-gray-400">Показується в &quot;Нові надходження&quot;</p>
               </div>
             </label>
           </div>
@@ -427,7 +429,7 @@ function ProductEditor({
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
               />
               {form.stock <= 5 && form.stock > 0 && (
-                <p className="text-xs text-amber-500 mt-1 flex items-center gap-1"><Flame size={10} /> Покаже "Залишилось {form.stock} шт."</p>
+                <p className="text-xs text-amber-500 mt-1 flex items-center gap-1"><Flame size={10} /> Покаже &laquo;Залишилось {form.stock} шт.&raquo;</p>
               )}
             </div>
             <div>
@@ -526,7 +528,6 @@ function ProductEditor({
 
 // ── Main Admin Page ───────────────────────────────────────
 export default function AdminPage() {
-  // Require admin password to be set for security (only in production)
   if (process.env.NODE_ENV === "production" && !ADMIN_PASSWORD) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -541,6 +542,10 @@ export default function AdminPage() {
     );
   }
 
+  return <AdminApp />;
+}
+
+function AdminApp() {
   const [authed, setAuthed] = useState(false);
   const [password, setPassword] = useState("");
   const [pwError, setPwError] = useState(false);

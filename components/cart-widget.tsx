@@ -19,7 +19,6 @@ export function CartWidget() {
     totalSavings,
     hydrated,
     isCartOpen,
-    openCart,
     closeCart,
     toggleCart,
     lastQuantityToast,

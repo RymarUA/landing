@@ -102,10 +102,6 @@ export function Analytics() {
    TRACKING HELPERS — call from any "use client" component
    ═══════════════════════════════════════════════════════════ */
 
-type FbqEventName =
-  | "Purchase" | "AddToCart" | "InitiateCheckout" | "ViewContent"
-  | "Search" | "AddToWishlist" | "Lead" | "CompleteRegistration";
-
 interface PurchaseParams {
   value: number;
   currency?: string;

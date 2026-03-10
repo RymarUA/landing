@@ -36,13 +36,13 @@ export function ShopFaq() {
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 bg-[#E7EFEA] text-[#1F6B5E] text-xs font-bold px-4 py-2 rounded-full mb-4 uppercase tracking-widest">
             <HelpCircle size={14} />
-            ������� �� ������
+            Питання та відповіді
           </div>
           <h2 className="text-3xl md:text-4xl font-heading text-[#0F2D2A] mb-2">
-            ���� ���������
+            Часті запитання
           </h2>
           <p className="text-[#7A8A84]">
-            �� ������� �������? �������� ��� ������������� � �������� ������.
+            Не знайшли відповідь? Напишіть нам у месенджер або зателефонуйте.
           </p>
         </div>
 
@@ -84,13 +84,14 @@ export function ShopFaq() {
 
         <div className="mt-10 text-center bg-[#F6F4EF] rounded-3xl p-8 border border-[#E7EFEA]">
           <p className="text-[#24312E] font-semibold mb-4">
-            ������� �������� � �������? �� ������ �� ������.
+            Потрібна допомога з вибором? Ми завжди на звʼязку.
           </p>
           <a
             href="#guide"
             className="inline-flex items-center gap-2 bg-[#1F6B5E] hover:bg-[#0F2D2A] text-white font-bold px-8 py-3.5 rounded-2xl transition-colors"
+            aria-label="Дізнатися більше про гід"
           >
-            ϳ������ ����
+            Підібрати засіб
           </a>
         </div>
       </div>

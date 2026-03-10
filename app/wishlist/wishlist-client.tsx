@@ -21,9 +21,10 @@ export function WishlistPageClient({ allProducts }: Props) {
   const items = useMemo(() => allProducts.filter((p) => ids.has(p.id)), [allProducts, ids]);
 
   useEffect(() => {
+    const timers = timeoutsRef.current;
     return () => {
-      timeoutsRef.current.forEach(clearTimeout);
-      timeoutsRef.current.clear();
+      timers.forEach(clearTimeout);
+      timers.clear();
     };
   }, []);
 

@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
+    console.error("[nova-poshta] request failed:", error);
     return NextResponse.json({ success: false, error: "Ошибка API Новой Почты" }, { status: 500 });
   }
 }

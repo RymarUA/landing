@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { siteConfig } from "@/lib/site-config";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
@@ -12,6 +12,7 @@ import { blurProps } from "@/lib/utils";
 
 const INITIAL_VISIBLE = 8;
 const LOAD_STEP = 8;
+const FALLBACK_CATEGORIES = ["Всі"] as const;
 
 function ProductCard({
   product,
@@ -82,11 +83,11 @@ function ProductCard({
 
         <div className="mt-3 flex items-baseline gap-2">
           <span className="text-lg font-bold text-[#0F2D2A]">
-            {product.price.toLocaleString("uk-UA")} ���
+            {product.price.toLocaleString("uk-UA")} ₴
           </span>
           {product.oldPrice && (
             <span className="text-xs text-[#7A8A84] line-through">
-              {product.oldPrice.toLocaleString("uk-UA")} ���
+              {product.oldPrice.toLocaleString("uk-UA")} ₴
             </span>
           )}
         </div>
@@ -98,8 +99,9 @@ function ProductCard({
               ? "bg-[#C9B27C] text-[#0F2D2A]"
               : "bg-[#1F6B5E] text-white hover:bg-[#0F2D2A]"
           }`}
+          aria-label={`${added ? "Товар додано до кошика" : "Додати до кошика"}: ${product.name}`}
         >
-          {added ? "������ ?" : "�� ������"}
+          {added ? "Додано ✓" : "До кошика"}
         </button>
       </div>
     </div>
@@ -109,28 +111,38 @@ function ProductCard({
 export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
   const { addItem } = useCart();
   const searchParams = useSearchParams();
-  const [activeCategory, setActiveCategory] = useState(
-    searchParams.get("category") || siteConfig.catalogCategories[0] || "��",
-  );
+  const categories = (siteConfig.catalogCategories?.length
+    ? siteConfig.catalogCategories
+    : FALLBACK_CATEGORIES) as readonly string[];
+  const initialCategory = searchParams.get("category") ?? categories[0];
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  const timerRefs = useRef<NodeJS.Timeout[]>([]);
 
   const searchQuery = (searchParams.get("search") ?? "").trim();
-  const categories = siteConfig.catalogCategories ?? ["��"];
 
   useEffect(() => {
-    if (searchParams.get("category")) {
-      setActiveCategory(searchParams.get("category") as string);
+    const paramCategory = searchParams.get("category");
+    if (paramCategory) {
+      setActiveCategory(paramCategory);
+    } else {
+      setActiveCategory(categories[0]);
     }
-  }, [searchParams]);
+  }, [categories, searchParams]);
 
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE);
   }, [activeCategory, searchQuery]);
 
+  useEffect(() => () => {
+    timerRefs.current.forEach(clearTimeout);
+    timerRefs.current = [];
+  }, []);
+
   const filtered = useMemo(() => {
     let list = products;
-    if (activeCategory && activeCategory !== "��") {
+    if (activeCategory && activeCategory !== categories[0]) {
       list = list.filter((p) => p.category === activeCategory);
     }
     if (searchQuery) {
@@ -143,7 +155,7 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
       if (a.isHit === b.isHit) return b.rating - a.rating;
       return a.isHit ? -1 : 1;
     });
-  }, [products, activeCategory, searchQuery]);
+  }, [products, activeCategory, searchQuery, categories]);
 
   const visible = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
@@ -158,13 +170,14 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
       oldPrice: product.oldPrice ?? null,
     });
     setAddedIds((prev) => new Set(prev).add(product.id));
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       setAddedIds((prev) => {
         const next = new Set(prev);
         next.delete(product.id);
         return next;
       });
     }, 1400);
+    timerRefs.current.push(timeoutId);
   };
 
   return (
@@ -172,9 +185,9 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8B6B3E]">���������</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8B6B3E]">Рекомендоване</p>
             <h2 className="mt-2 font-heading text-2xl md:text-3xl text-[#0F2D2A]">
-              ճ�� ���������� �� ��������
+              Топ товари для здорового життя
             </h2>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -187,6 +200,8 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
                     ? "bg-[#1F6B5E] text-white"
                     : "bg-[#F6F4EF] text-[#7A8A84] hover:text-[#1F6B5E]"
                 }`}
+                aria-pressed={activeCategory === cat}
+                aria-label={`Фільтрувати за категорією: ${cat}`}
               >
                 {cat}
               </button>
@@ -196,7 +211,7 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
 
         {searchQuery && (
           <p className="mt-4 text-sm text-[#7A8A84]">
-            ���������� ������ �� �������: <span className="font-semibold text-[#24312E]">{searchQuery}</span>
+            Показуємо результати за запитом: <span className="font-semibold text-[#24312E]">{searchQuery}</span>
           </p>
         )}
 
@@ -213,7 +228,7 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
 
         {filtered.length === 0 && (
           <div className="mt-10 rounded-2xl border border-[#E7EFEA] bg-[#F6F4EF] p-8 text-center text-sm text-[#7A8A84]">
-            ͳ���� �� ��������. ��������� ������ �������� ��� �����.
+            Нічого не знайшли. Змініть категорію або пошуковий запит.
           </div>
         )}
 
@@ -223,7 +238,7 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
               onClick={() => setVisibleCount((c) => c + LOAD_STEP)}
               className="rounded-full border border-[#1F6B5E] px-6 py-3 text-sm font-semibold text-[#1F6B5E] hover:bg-[#1F6B5E] hover:text-white transition"
             >
-              �������� ��
+              Показати ще
             </button>
           </div>
         )}

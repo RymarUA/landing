@@ -5,7 +5,7 @@
  *
  * ENV VARS:
  *   RESEND_API_KEY     — API key from Resend dashboard
- *   EMAIL_FROM         — verified sender address, e.g. "FamilyHub Market <noreply@familyhubmarket.com>"
+ *   EMAIL_FROM         — verified sender address, e.g. "Здоровʼя Сходу <noreply@zdorovia-skhodu.com>"
  *   EMAIL_ADMIN        — admin email to receive order copies
  *
  * Installation:  npm install resend
@@ -14,6 +14,8 @@
  * ⚠️  If RESEND_API_KEY is missing, all functions skip silently (console.warn)
  *     so the checkout never breaks in development.
  */
+
+import { siteConfig } from "@/lib/site-config";
 
 export interface OrderEmailPayload {
   orderId: string | number;
@@ -62,7 +64,7 @@ async function sendEmail({
   html: string;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? "FamilyHub Market <noreply@familyhubmarket.com>";
+  const from = process.env.EMAIL_FROM ?? "Здоровʼя Сходу <noreply@zdorovia-skhodu.com>";
 
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY not set — skipping email");
@@ -118,8 +120,8 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload): Pr
       <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">
         <!-- Header -->
         <tr>
-          <td style="background:linear-gradient(135deg,#f43f5e,#e11d48);padding:32px;text-align:center;">
-            <h1 style="color:#fff;margin:0;font-size:24px;font-weight:900;">FamilyHub Market</h1>
+          <td style="background:linear-gradient(135deg,#1F6B5E,#0F2D2A);padding:32px;text-align:center;">
+            <h1 style="color:#fff;margin:0;font-size:24px;font-weight:900;">Здоровʼя Сходу</h1>
             <p style="color:rgba(255,255,255,.85);margin:8px 0 0;font-size:14px;">Дякуємо за замовлення!</p>
           </td>
         </tr>
@@ -141,14 +143,14 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload): Pr
             </thead>
             <tbody>
               ${itemRows}
-              <tr style="background:#fef2f2;">
+              <tr style="background:#f0f5f3;">
                 <td colspan="2" style="padding:12px;font-weight:bold;color:#111;">Разом</td>
-                <td style="padding:12px;text-align:right;font-size:18px;font-weight:900;color:#f43f5e;">${payload.totalPrice.toLocaleString("uk-UA")} грн</td>
+                <td style="padding:12px;text-align:right;font-size:18px;font-weight:900;color:#1F6B5E;">${payload.totalPrice.toLocaleString("uk-UA")} грн</td>
               </tr>
             </tbody>
           </table>
 
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f9ff;border-radius:10px;padding:16px;margin-bottom:24px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f4ef;border-radius:10px;padding:16px;margin-bottom:24px;">
             <tr>
               <td style="padding:4px 0;font-size:13px;color:#555;">📦 <strong>Доставка:</strong> ${escapeHtml(payload.city)}, ${escapeHtml(payload.warehouse)}</td>
             </tr>
@@ -162,7 +164,7 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload): Pr
           </p>
 
           <div style="text-align:center;">
-            <a href="https://familyhubmarket.com" style="display:inline-block;background:#f43f5e;color:#fff;font-weight:bold;font-size:14px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+            <a href="${siteConfig.url}" style="display:inline-block;background:#1F6B5E;color:#fff;font-weight:bold;font-size:14px;padding:14px 32px;border-radius:12px;text-decoration:none;">
               Продовжити покупки
             </a>
           </div>
@@ -170,7 +172,7 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload): Pr
         <!-- Footer -->
         <tr>
           <td style="background:#f9f9f9;padding:20px;text-align:center;border-top:1px solid #f0f0f0;">
-            <p style="margin:0;font-size:12px;color:#aaa;">FamilyHub Market · Доставка Новою Поштою по всій Україні</p>
+            <p style="margin:0;font-size:12px;color:#aaa;">Здоровʼя Сходу · Ритуали східної медицини</p>
             <p style="margin:4px 0 0;font-size:11px;color:#ccc;">Цей лист згенеровано автоматично, будь ласка, не відповідайте на нього.</p>
           </td>
         </tr>
@@ -182,7 +184,7 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload): Pr
 
   await sendEmail({
     to: payload.customerEmail,
-    subject: `✅ Замовлення #${payload.orderReference ?? payload.orderId} прийнято — FamilyHub Market`,
+    subject: `✅ Замовлення #${payload.orderReference ?? payload.orderId} прийнято — Здоровʼя Сходу`,
     html,
   });
 }
@@ -204,7 +206,6 @@ export async function sendOrderConfirmation(params: SendOrderConfirmationParams)
     )
     .join("");
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://familyhubmarket.com";
   const html = `
 <!DOCTYPE html>
 <html lang="uk">
@@ -214,8 +215,8 @@ export async function sendOrderConfirmation(params: SendOrderConfirmationParams)
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">
         <tr>
-          <td style="background:linear-gradient(135deg,#ea580c,#c2410c);padding:32px;text-align:center;">
-            <h1 style="color:#fff;margin:0;font-size:24px;font-weight:900;">FamilyHub Market</h1>
+          <td style="background:linear-gradient(135deg,#1F6B5E,#0F2D2A);padding:32px;text-align:center;">
+            <h1 style="color:#fff;margin:0;font-size:24px;font-weight:900;">Здоровʼя Сходу</h1>
             <p style="color:rgba(255,255,255,.9);margin:8px 0 0;font-size:14px;">Дякуємо за замовлення!</p>
           </td>
         </tr>
@@ -231,12 +232,12 @@ export async function sendOrderConfirmation(params: SendOrderConfirmationParams)
               </tr>
             </thead>
             <tbody>${itemRows}
-              <tr style="background:#fff7ed;"><td colspan="2" style="padding:12px;font-weight:bold;">Разом</td>
-                <td style="padding:12px;text-align:right;font-weight:900;color:#ea580c;">${params.total.toLocaleString("uk-UA")} грн</td></tr>
+              <tr style="background:#f0f5f3;"><td colspan="2" style="padding:12px;font-weight:bold;">Разом</td>
+                <td style="padding:12px;text-align:right;font-weight:900;color:#1F6B5E;">${params.total.toLocaleString("uk-UA")} грн</td></tr>
             </tbody>
           </table>
           <p style="color:#555;font-size:13px;">📦 Доставка: ${escapeHtml(params.delivery.city)}, ${escapeHtml(params.delivery.warehouse)}</p>
-          <p style="color:#888;font-size:12px;margin-top:24px;">FamilyHub Market · familyhubmarket.com</p>
+          <p style="color:#888;font-size:12px;margin-top:24px;">Здоровʼя Сходу · Ритуали східної медицини</p>
         </td></tr>
       </table>
     </td></tr>
@@ -246,7 +247,7 @@ export async function sendOrderConfirmation(params: SendOrderConfirmationParams)
 
   await sendEmail({
     to: params.to,
-    subject: `✅ Замовлення ${params.orderReference} — FamilyHub Market`,
+    subject: `✅ Замовлення ${params.orderReference} — Здоровʼя Сходу`,
     html,
   });
 }
@@ -274,36 +275,35 @@ export async function sendAdminOrderCopy(params: SendAdminOrderCopyParams): Prom
 
   await sendEmail({
     to: adminEmail,
-    subject: `[FHM] Замовлення ${params.orderReference} — ${escapeHtml(params.customerName)}`,
+    subject: `[ЗС] Замовлення ${params.orderReference} — ${escapeHtml(params.customerName)}`,
     html,
   });
 }
 
 /**
- * Subscription confirmation with promo code (subject: Ваш промокод −10%: FIRST10).
+ * Subscription confirmation with promo code (subject: Ваш промокод −12%: EAST12).
  */
 export async function sendSubscriptionConfirmation(params: {
   to: string;
   promoCode: string;
 }): Promise<void> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://familyhubmarket.com";
   const html = `
 <!DOCTYPE html>
 <html lang="uk">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:32px;background:#f8f8f8;font-family:-apple-system,sans-serif;">
   <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">
-    <div style="background:linear-gradient(135deg,#ea580c,#c2410c);padding:28px;text-align:center;">
-      <h1 style="color:#fff;margin:0;font-size:22px;font-weight:900;">FamilyHub Market</h1>
+    <div style="background:linear-gradient(135deg,#1F6B5E,#0F2D2A);padding:28px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:22px;font-weight:900;">Здоровʼя Сходу</h1>
     </div>
     <div style="padding:28px;">
-      <h2 style="font-size:18px;color:#111;margin:0 0 12px;">Ваш промокод на знижку −10%</h2>
-      <p style="color:#555;font-size:14px;margin:0 0 20px;">Дякуємо за підписку! Скористайтесь промокодом при оформленні замовлення.</p>
-      <div style="text-align:center;padding:20px;background:#fff7ed;border:2px dashed #ea580c;border-radius:12px;margin-bottom:24px;">
-        <span style="font-size:28px;font-weight:900;letter-spacing:.1em;color:#c2410c;">${escapeHtml(params.promoCode)}</span>
+      <h2 style="font-size:18px;color:#111;margin:0 0 12px;">Ваш промокод на знижку −12%</h2>
+      <p style="color:#555;font-size:14px;margin:0 0 20px;">Дякуємо за підписку! Скористайтесь промокодом при оформленні першого замовлення.</p>
+      <div style="text-align:center;padding:20px;background:#f6f4ef;border:2px dashed #C9B27C;border-radius:12px;margin-bottom:24px;">
+        <span style="font-size:28px;font-weight:900;letter-spacing:.1em;color:#1F6B5E;">${escapeHtml(params.promoCode)}</span>
       </div>
       <div style="text-align:center;">
-        <a href="${siteUrl}/#catalog" style="display:inline-block;background:#ea580c;color:#fff;font-weight:bold;font-size:14px;padding:14px 28px;border-radius:12px;text-decoration:none;">Перейти до каталогу</a>
+        <a href="${siteConfig.url}#catalog" style="display:inline-block;background:#1F6B5E;color:#fff;font-weight:bold;font-size:14px;padding:14px 28px;border-radius:12px;text-decoration:none;">Перейти до каталогу</a>
       </div>
     </div>
   </div>
@@ -312,7 +312,7 @@ export async function sendSubscriptionConfirmation(params: {
 
   await sendEmail({
     to: params.to,
-    subject: `Ваш промокод −10%: ${params.promoCode}`,
+    subject: `Ваш промокод −12%: ${params.promoCode}`,
     html,
   });
 }
@@ -341,7 +341,7 @@ export async function sendOrderAdminEmail(payload: OrderEmailPayload): Promise<v
 
   await sendEmail({
     to: adminEmail,
-    subject: `[FHM] Нове замовлення #${payload.orderId} — ${payload.customerName}`,
+    subject: `[ЗС] Нове замовлення #${payload.orderId} — ${payload.customerName}`,
     html,
   });
 }
@@ -357,21 +357,21 @@ export async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
 <head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:32px;background:#f8f8f8;font-family:-apple-system,sans-serif;">
   <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">
-    <div style="background:linear-gradient(135deg,#f43f5e,#e11d48);padding:28px;text-align:center;">
-      <h1 style="color:#fff;margin:0;font-size:22px;font-weight:900;">FamilyHub Market</h1>
+    <div style="background:linear-gradient(135deg,#1F6B5E,#0F2D2A);padding:28px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:22px;font-weight:900;">Здоровʼя Сходу</h1>
     </div>
     <div style="padding:28px;">
-      <h2 style="font-size:18px;color:#111;margin:0 0 12px;">Ласкаво просимо! 🎉</h2>
+      <h2 style="font-size:18px;color:#111;margin:0 0 12px;">Ласкаво просимо! �</h2>
       <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px;">
-        Ви підписалися на розсилку FamilyHub Market. Ми надсилатимемо вам:
+        Ви підписалися на розсилку «Здоровʼя Сходу». Ми надсилатимемо вам:
       </p>
       <ul style="color:#555;font-size:14px;line-height:2;padding-left:20px;margin:0 0 20px;">
-        <li>🆕 Сповіщення про нові надходження</li>
-        <li>💰 Ексклюзивні знижки для підписників</li>
-        <li>🔥 Хіти продажів та акції</li>
+        <li>� Рекомендації з підбору чаїв та ритуалів</li>
+        <li>� Поради експертів східної медицини</li>
+        <li>✨ Ексклюзивні знижки та промокоди</li>
       </ul>
       <div style="text-align:center;">
-        <a href="https://familyhubmarket.com/#catalog" style="display:inline-block;background:#f43f5e;color:#fff;font-weight:bold;font-size:14px;padding:12px 28px;border-radius:12px;text-decoration:none;">
+        <a href="${siteConfig.url}#catalog" style="display:inline-block;background:#1F6B5E;color:#fff;font-weight:bold;font-size:14px;padding:12px 28px;border-radius:12px;text-decoration:none;">
           Переглянути каталог
         </a>
       </div>
@@ -382,7 +382,7 @@ export async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
 
   await sendEmail({
     to: email,
-    subject: "Ласкаво просимо до FamilyHub Market! 🎉",
+    subject: "Ласкаво просимо до «Здоровʼя Сходу»! �",
     html,
   });
 }
@@ -398,8 +398,8 @@ export async function sendOtpOrRecoveryEmail(params: {
 }): Promise<void> {
   const isRecovery = params.type === "recovery";
   const subject = isRecovery
-    ? "Код для відновлення доступу — FamilyHub Market"
-    : "Код підтвердження — FamilyHub Market";
+    ? "Код для відновлення доступу — Здоровʼя Сходу"
+    : "Код підтвердження — Здоровʼя Сходу";
   const title = isRecovery ? "Відновлення доступу" : "Код підтвердження";
   const intro = isRecovery
     ? "Ви запросили відновлення доступу до особистого кабінету. Введіть код нижче:"
@@ -411,14 +411,14 @@ export async function sendOtpOrRecoveryEmail(params: {
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:32px;background:#f8f8f8;font-family:-apple-system,sans-serif;">
   <div style="max-width:420px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">
-    <div style="background:linear-gradient(135deg,#ea580c,#c2410c);padding:24px;text-align:center;">
-      <h1 style="color:#fff;margin:0;font-size:20px;font-weight:900;">FamilyHub Market</h1>
+    <div style="background:linear-gradient(135deg,#1F6B5E,#0F2D2A);padding:24px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:20px;font-weight:900;">Здоровʼя Сходу</h1>
       <p style="color:rgba(255,255,255,.9);margin:6px 0 0;font-size:13px;">${title}</p>
     </div>
     <div style="padding:24px;">
       <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px;">${intro}</p>
-      <div style="text-align:center;padding:20px;background:#fff7ed;border:2px dashed #ea580c;border-radius:12px;margin-bottom:20px;">
-        <span style="font-size:32px;font-weight:900;letter-spacing:.25em;color:#c2410c;">${escapeHtml(params.code)}</span>
+      <div style="text-align:center;padding:20px;background:#f6f4ef;border:2px dashed #C9B27C;border-radius:12px;margin-bottom:20px;">
+        <span style="font-size:32px;font-weight:900;letter-spacing:.25em;color:#1F6B5E;">${escapeHtml(params.code)}</span>
       </div>
       <p style="color:#888;font-size:12px;margin:0;">Код дійсний 5 хвилин. Не передавайте нікому.</p>
     </div>

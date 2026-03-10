@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
   const msg = [
     "📦 Замовлення " + orderReference + " відправлено",
     "ТТН: " + ttn,
+    phone ? "Телефон: " + phone : "",
     estimatedDate ? "Очікувана доставка: " + estimatedDate : "",
   ]
     .filter(Boolean)

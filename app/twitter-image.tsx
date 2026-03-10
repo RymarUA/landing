@@ -1,14 +1,15 @@
 import { ImageResponse } from "next/og";
-import { siteConfig } from "@/lib/site-config";
+import { getResolvedSiteConfig } from "@/lib/site-config-safe";
+
+const config = getResolvedSiteConfig();
+const dynamicOgEnabled = process.env.NEXT_PUBLIC_DYNAMIC_OG === "1";
 
 export const runtime = "edge";
-export const alt = siteConfig.name;
+export const alt = config.name;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default async function TwitterImage() {
-  const displayUrl = siteConfig.url.replace(/^https?:\/\//, "");
-
+function renderTwitterImage(displayUrl: string) {
   return new ImageResponse(
     (
       <div
@@ -19,8 +20,8 @@ export default async function TwitterImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: siteConfig.ogBackground,
-          backgroundImage: `radial-gradient(circle at 25% 25%, ${siteConfig.ogAccent1} 0%, transparent 50%), radial-gradient(circle at 75% 75%, ${siteConfig.ogAccent2} 0%, transparent 50%)`,
+          backgroundColor: config.ogBackground,
+          backgroundImage: `radial-gradient(circle at 25% 25%, ${config.ogAccent1} 0%, transparent 50%), radial-gradient(circle at 75% 75%, ${config.ogAccent2} 0%, transparent 50%)`,
           color: "white",
           fontFamily: "serif",
         }}
@@ -43,7 +44,7 @@ export default async function TwitterImage() {
               letterSpacing: "-0.02em",
             }}
           >
-            {siteConfig.name}
+            {config.name}
           </div>
           <div
             style={{
@@ -51,7 +52,7 @@ export default async function TwitterImage() {
               color: "rgba(255, 255, 255, 0.75)",
             }}
           >
-            {siteConfig.tagline}
+            {config.tagline}
           </div>
         </div>
         <div
@@ -72,5 +73,21 @@ export default async function TwitterImage() {
     ),
     { ...size },
   );
+}
+
+export default async function TwitterImage(request: Request) {
+  if (!dynamicOgEnabled) {
+    const staticUrl = new URL("/og-image-static.png", request.url);
+    return fetch(staticUrl);
+  }
+
+  try {
+    const siteUrl = (config.url ?? "https://example.com").replace(/\/$/, "");
+    const displayUrl = siteUrl.replace(/^https?:\/\//, "");
+    return renderTwitterImage(displayUrl);
+  } catch (error) {
+    console.error("[Twitter Image] Generation failed", error);
+    return renderTwitterImage("example.com");
+  }
 }
 

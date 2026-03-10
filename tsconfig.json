@@ -4,6 +4,9 @@
       "dom",
       "dom.iterable",
       "es5",
+      "es2015",
+      "es2015.iterable",
+      "es2017",
       "esnext"
     ],
     "allowJs": true,

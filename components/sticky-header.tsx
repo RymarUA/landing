@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { ShoppingCart, Menu, X, Heart, Search, User, Instagram, Facebook } from "lucide-react";
 
@@ -84,7 +85,9 @@ export function StickyHeader() {
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <a href="#" className="flex items-center gap-2 flex-shrink-0">
-          <img src="/logo.png" alt="FamilyHub Market" className="h-8 w-auto" />
+          <div className="relative h-8 w-20">
+            <Image src="/logo.png" alt="FamilyHub Market" fill sizes="80px" className="object-contain" priority />
+          </div>
           <span className="font-black text-gray-900 text-lg hidden sm:block">
             FamilyHub<span className="text-orange-500">Market</span>
           </span>

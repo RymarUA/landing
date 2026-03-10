@@ -5,10 +5,10 @@
 
 export const siteConfig = {
   // Basic Info
-  name: "Семейный Магазин",
-  tagline: "Магазин для всей семьи с товарами и услугами на каждый день",
+  name: "Здоровʼя Сходу",
+  tagline: "Ритуали східної медицини для дому та клініки",
   description:
-    "Онлайн-магазин товаров для повседневных нужд: качественная одежда, товары для дома, косметика, бытовая техника, детские товары, спортивное питание. Доставка товаров, быстрая оплата, удобный возврат, круглосуточная поддержка.",
+    "Центр східної медицини: лікувальні чаї, зігріваючі пластирі, ароматерапія та ортези з доставкою по Україні. Персональні рекомендації та підтримка від експертів щодня.",
 
   // Site URL (replaced automatically on deploy)
   url: process.env.NEXT_PUBLIC_URL || "https://your-app.kleap.io",
@@ -19,27 +19,26 @@ export const siteConfig = {
   // Navigation links (only used when showNavbar is true)
   navLinks: [
     { title: "Каталог", link: "/#catalog" },
-    { title: "Рекомендации", link: "/#featured" },
-    { title: "О нас", link: "/#guide" },
-    { title: "О нас", link: "/about" },
+    { title: "Рекомендації", link: "/#featured" },
+    { title: "Про нас", link: "/#guide" },
+    { title: "Контакти", link: "/about" },
   ] as { title: string; link: string }[],
 
   // SEO Keywords
   keywords: [
-    "семейные товары",
-    "повседневные нужды",
-    "товары для дома",
-    "онлайн магазин",
-    "качественная одежда",
-    "бытовая техника",
-    "детские товары",
-    "спортивное питание",
-    "доставка",
+    "східна медицина",
+    "лікувальні чаї",
+    "зігріваючі пластирі",
+    "ароматерапія",
+    "ортези та бандажі",
+    "масла та бальзами",
+    "ритуали здоровʼя",
+    "консультація травника",
   ],
 
   // Author/Company
-  author: "Семейный Магазин",
-  company: "Семейный Магазин",
+  author: "Здоровʼя Сходу",
+  company: "Здоровʼя Сходу",
 
   // OG Image: set to a generated image URL for rich link previews
   ogImage: "",
@@ -52,29 +51,30 @@ export const siteConfig = {
   // -- Announcement Bar -------------------------------------------------
   // Set announcementText to "" to hide the bar entirely.
   // Plain text only (HTML not supported for security).
-  announcementText: "?? ������� ����������: ?12% �� ���� ����������. ��������: EAST12",
+  announcementText:
+    "✨ Подарунок від «Здоровʼя Сходу»: використайте промокод EAST12 для ритуалів турботи та отримайте -12% вже зараз",
 
   // -- Catalog Categories -----------------------------------------------
   // Sync these with your Sitniks CRM status labels.
-  // "��" must always be first � it shows all products.
+  // "Всі" must always be first – it shows all products.
   catalogCategories: [
-    "��",
-    "˳�������� �������",
-    "������ �� ������",
-    "��������",
-    "��� �� �����",
-    "����������� �������",
-    "��������� �������",
-    "���� ������",
+    "Всі",
+    "Чаї та настої",
+    "Зігріваючі пластирі",
+    "Ароматерапія",
+    "Ортези та підтримка",
+    "Масла і бальзами",
+    "Дитячі протоколи",
+    "Подарункові сети",
   ] as const,
 
   // -- Contact / Support links ------------------------------------------
   // Used by SupportButton floating widget. Set to "" to hide that channel.
-  telegramUsername: "",
-  viberPhone: "+380936174140",             // viber://chat?number=...
-  instagramUsername: "",
-  phone: "+380936174140",
-  twitterHandle: "",
+  telegramUsername: "zdorovia_skhodu",
+  viberPhone: "+380441231212",             // viber://chat?number=...
+  instagramUsername: "zdorovia.skhodu",
+  phone: "+380441231212",
+  twitterHandle: "zdorovia_skhodu",
 };
 
 export type SiteConfig = typeof siteConfig;

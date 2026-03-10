@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { getResolvedSiteConfig } from "@/lib/site-config-safe";
 
 export const size = {
   width: 32,
@@ -6,7 +7,7 @@ export const size = {
 };
 export const contentType = "image/png";
 
-export default function Icon() {
+function renderIcon(label: string) {
   return new ImageResponse(
     (
       <div
@@ -24,10 +25,21 @@ export default function Icon() {
           borderRadius: "50%",
         }}
       >
-        ТМ
+        {label}
       </div>
     ),
     { ...size },
   );
+}
+
+export default function Icon() {
+  try {
+    const config = getResolvedSiteConfig();
+    const initials = config.name?.slice(0, 2).toUpperCase() || "ТМ";
+    return renderIcon(initials);
+  } catch (error) {
+    console.error("[App Icon] Generation failed", error);
+    return renderIcon("ТМ");
+  }
 }
 

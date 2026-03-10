@@ -9,16 +9,20 @@ import {
 import { siteConfig } from "@/lib/site-config";
 
 export const metadata: Metadata = {
-  title: `404 - страница не найдена | ${siteConfig.name}`,
-  description: `Страница не найдена. Вернитесь на главную страницу ${siteConfig.name}.`,
+  title: `404 - сторінка не знайдена | ${siteConfig.name}`,
+  description: `Сторінка не знайдена. Поверніться на головну сторінку ${siteConfig.name}.`,
   robots: { index: false, follow: false },
 };
 
 const quickLinks = [
-  { href: "/#catalog", label: "Каталог товаров", icon: ShoppingBag },
-  { href: "/?category=Спортивное%20питание#catalog", label: "Спортивное питание", icon: ShoppingBag },
+  { href: "/#catalog", label: "Каталог товарів", icon: ShoppingBag },
+  {
+    href: "/?category=Спортивне%20харчування#catalog",
+    label: "Спортивне харчування",
+    icon: ShoppingBag,
+  },
   { href: "/?category=Косметика#catalog", label: "Косметика", icon: ShoppingBag },
-  { href: "/about", label: "О нас", icon: Home },
+  { href: "/about", label: "Про нас", icon: Home },
 ];
 
 export default function NotFound() {
@@ -37,10 +41,11 @@ export default function NotFound() {
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-heading text-[#0F2D2A] mb-3 leading-tight">
-          �� ������� �� ��������
+          Сторінка не знайдена
         </h1>
         <p className="text-[#7A8A84] text-base mb-8 max-w-sm mx-auto leading-relaxed">
-          �������, ��������� �������� ��� ����� ����� �����������. �������� �� �������� �� ������ ���� ������� ��� ����������.
+          Вибачте, сторінку, яку ви шукаєте, перемістили або видалили. Скористайтеся каталогом нижче чи поверніться на
+          головну.
         </p>
 
         <Link
@@ -48,12 +53,12 @@ export default function NotFound() {
           className="inline-flex items-center justify-center gap-2.5 bg-[#1F6B5E] hover:bg-[#0F2D2A] text-white font-bold py-4 px-8 rounded-2xl transition-all duration-200 shadow-lg shadow-[#1F6B5E]/30 text-base mb-6"
         >
           <ShoppingBag size={20} className="shrink-0" />
-          �� ��������
+          На головну
         </Link>
 
         <div className="flex items-center gap-3 text-[#C9B27C] mb-6">
           <div className="flex-1 h-px bg-[#E7EFEA]" />
-          <span className="text-xs font-medium text-[#8B6B3E]">��� �������� ��</span>
+          <span className="text-xs font-medium text-[#8B6B3E]">Або скористайтесь</span>
           <div className="flex-1 h-px bg-[#E7EFEA]" />
         </div>
 
@@ -72,7 +77,7 @@ export default function NotFound() {
 
         {siteConfig.phone && (
           <div className="bg-white border border-[#E7EFEA] rounded-2xl px-5 py-4 shadow-sm flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 text-sm text-[#7A8A84]">
-            <span className="font-semibold text-[#24312E]">������� ��������?</span>
+            <span className="font-semibold text-[#24312E]">Потрібна допомога?</span>
             <a
               href={`tel:${siteConfig.phone}`}
               className="inline-flex items-center gap-1.5 text-[#1F6B5E] font-semibold transition-colors"

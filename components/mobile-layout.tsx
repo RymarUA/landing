@@ -15,7 +15,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
       <TemuSearchBar />
 
       {/* Main content with top padding for fixed search bar */}
-      <div className="pt-[76px]">
+      <div className="pt-[76px] pb-[92px]">
         {children}
       </div>
 

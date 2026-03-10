@@ -1,11 +1,11 @@
 "use client";
 
 import { Home, Grid3x3, User, ShoppingBag, Sparkles } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export function TemuBottomNav() {
-  const router = useRouter();
   const pathname = usePathname();
   const [hash, setHash] = useState("");
 
@@ -19,55 +19,62 @@ export function TemuBottomNav() {
   const navItems = [
     {
       icon: Home,
-      label: "Главная",
+      label: "Головна",
       href: "/",
       isActive: pathname === "/",
+      ariaLabel: "Перейти на головну",
     },
     {
       icon: Grid3x3,
       label: "Каталог",
       href: "/#catalog",
       isActive: pathname === "/" && hash.includes("catalog"),
+      ariaLabel: "Переглянути каталог",
     },
     {
       icon: Sparkles,
-      label: "Гид",
+      label: "Гід",
       href: "/#guide",
       isActive: pathname === "/" && hash.includes("guide"),
+      ariaLabel: "Дізнатися про гід",
     },
     {
       icon: ShoppingBag,
-      label: "Корзина",
+      label: "Кошик",
       href: "/cart",
       isActive: pathname === "/cart",
+      ariaLabel: "Відкрити кошик",
     },
     {
       icon: User,
-      label: "Профиль",
+      label: "Профіль",
       href: "/profile",
       isActive: pathname?.includes("profile"),
+      ariaLabel: "Профіль клієнта",
     },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 md:hidden">
-      <div className="flex justify-around items-center py-2">
+    <div className="fixed bottom-0 left-0 right-0 bg-[#0F2D2A]/95 border-t border-[#1F6B5E]/40 backdrop-blur z-50 md:hidden">
+      <nav className="flex justify-around items-center py-2" aria-label="Нижня навігація">
         {navItems.map((item) => (
-          <button
+          <Link
             key={item.href}
-            onClick={() => router.push(item.href)}
-            className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+            href={item.href}
+            className={`flex flex-col items-center p-2 rounded-2xl transition-colors ${
               item.isActive
-                ? "text-blue-600 bg-blue-50"
-                : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                ? "text-[#C9B27C]"
+                : "text-white/70 hover:text-white"
             }`}
+            aria-label={item.ariaLabel}
+            aria-current={item.isActive ? "page" : undefined}
+            prefetch={false}
           >
             <item.icon size={20} />
-            <span className="text-xs mt-1">{item.label}</span>
-          </button>
+            <span className="text-xs mt-1 font-medium">{item.label}</span>
+          </Link>
         ))}
-      </div>
+      </nav>
     </div>
   );
-}ൽ
-
+}

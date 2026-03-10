@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { isBrowserEnv, isDevelopmentEnv } from "@/lib/runtime-env";
 
 /**
  * 🛡️ DevTools Guard - Prevents corrupted React DevTools from crashing the app
@@ -17,7 +18,7 @@ import { useEffect } from "react";
  */
 export function DevToolsGuard() {
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!isBrowserEnv()) return;
 
     const hook = (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__;
 
@@ -40,7 +41,7 @@ export function DevToolsGuard() {
       hook.supportsFiber = true;
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (isDevelopmentEnv()) {
       console.log(
         "✅ DevTools guard active - protected against broken extensions",
       );

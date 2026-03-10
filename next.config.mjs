@@ -3,8 +3,8 @@ import path from "path";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Standalone output for optimized Docker builds (~150MB vs 1.7GB)
-  output: "standalone",
+  // Note: output: "standalone" removed - using regular next start for PM2
+  // Standalone mode doesn't work with MDX in Next.js 15.5.12
 
   // Turbopack configuration
   turbopack: {
@@ -112,6 +112,15 @@ const nextConfig = {
       "@constants": path.resolve("./constants"),
       "@context": path.resolve("./context"),
     };
+
+    if (!dev) {
+      config.output.devtoolModuleFilenameTemplate = (info) => {
+        const rel = info.resourcePath
+          .replace(/\\/g, "/")
+          .replace(/^.*node_modules\//, "node_modules/");
+        return `webpack:///./${rel}`;
+      };
+    }
 
     // Kleap source injector: adds data-kleap-source="file:line" to JSX elements
     // Only in dev mode — enables design panel to precisely edit source code

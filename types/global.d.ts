@@ -1,4 +1,4 @@
-/ Глобальные типы для window объекта
+// Глобальные типы для window объекта
 
 interface Window {
   gtag?: (

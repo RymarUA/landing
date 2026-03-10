@@ -442,12 +442,12 @@ html {
 }
 
 /* Prose size variants */
-.porange-lg {
+.prose-lg {
   font-size: 1.25rem;
   line-height: 1.8;
 }
 
-.porange-xl {
+.prose-xl {
   font-size: 1.375rem;
   line-height: 1.8;
 }
@@ -460,6 +460,7 @@ html {
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

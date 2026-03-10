@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import {
   ShoppingCart,
   X,
@@ -264,11 +263,14 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
 
   // Cleanup timers on unmount
   useEffect(() => {
+    const toastTimersMap = toastTimers.current;
+    const addedTimersMap = addedTimers.current;
+
     return () => {
-      toastTimers.current.forEach((t) => clearTimeout(t));
-      toastTimers.current.clear();
-      addedTimers.current.forEach((t) => clearTimeout(t));
-      addedTimers.current.clear();
+      toastTimersMap.forEach((t) => clearTimeout(t));
+      toastTimersMap.clear();
+      addedTimersMap.forEach((t) => clearTimeout(t));
+      addedTimersMap.clear();
     };
   }, []);
 

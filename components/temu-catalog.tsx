@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
   ShoppingCart,
@@ -68,13 +68,11 @@ function HorizontalScroll({
   title,
   onOpen,
   onAddToCart,
-  showFreeShipping = false,
 }: {
   items: Product[];
   title: string;
   onOpen: (p: Product) => void;
   onAddToCart: (p: Product) => void;
-  showFreeShipping?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const { has, toggle } = useWishlist();
@@ -394,7 +392,6 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
   const [activeCategory, setActiveCategory] = useState("Всі");
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
-  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
 
   // Filters and sorting
   const [sortKey, setSortKey] = useState<SortKey>("default");
@@ -405,7 +402,7 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [onlyFreeShipping, setOnlyFreeShipping] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const timerRefs = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  const timersRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   // Read search from URL hash
   useEffect(() => {
@@ -483,17 +480,12 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
       size: product.sizes[0] ?? undefined,
     });
 
-    setAddedIds((prev) => new Set(prev).add(product.id));
-    const timer = setTimeout(() => {
-      setAddedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(product.id);
-        return next;
-      });
-      timerRefs.current.delete(product.id);
+    const timeout = setTimeout(() => {
+      timersRef.current.delete(product.id);
     }, 1500);
-    timerRefs.current.set(product.id, timer);
+    timersRef.current.set(product.id, timeout);
   };
+/* ... */
 
 
   // Reset visible count when category changes
@@ -503,9 +495,11 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
 
   // Cleanup timers on unmount
   useEffect(() => {
+    const timersMap = timersRef.current;
+
     return () => {
-      timerRefs.current.forEach(timer => clearTimeout(timer));
-      timerRefs.current.clear();
+      timersMap.forEach((timer) => clearTimeout(timer));
+      timersMap.clear();
     };
   }, []);
 
@@ -570,7 +564,6 @@ export function TemuCatalog({ products }: TemuCatalogProps) {
               title="Безкоштовна доставка"
               onOpen={setModalProduct}
               onAddToCart={handleAddToCart}
-              showFreeShipping
             />
           )}
 

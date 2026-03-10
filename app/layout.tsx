@@ -31,6 +31,8 @@ const notoSerif = Noto_Serif({
   weight: ["400", "500", "600", "700"],
 });
 
+const dynamicOgEnabled = process.env.NEXT_PUBLIC_DYNAMIC_OG === "1";
+
 export const metadata: Metadata = {
   title: {
     default: `${siteConfig.name} - ${siteConfig.tagline}`,
@@ -63,18 +65,23 @@ export const metadata: Metadata = {
     siteName: siteConfig.name,
     title: `${siteConfig.name} - ${siteConfig.tagline}`,
     description: siteConfig.description,
-    ...(siteConfig.ogImage
-      ? {
-          images: [
-            {
-              url: siteConfig.ogImage,
-              width: 1200,
-              height: 630,
-              alt: `${siteConfig.name} - ${siteConfig.tagline}`,
-            },
-          ],
-        }
-      : {}),
+    images: siteConfig.ogImage
+      ? [
+          {
+            url: siteConfig.ogImage,
+            width: 1200,
+            height: 630,
+            alt: `${siteConfig.name} - ${siteConfig.tagline}`,
+          },
+        ]
+      : [
+          {
+            url: dynamicOgEnabled ? "/opengraph-image" : "/og-image-static.png",
+            width: 1200,
+            height: 630,
+            alt: `${siteConfig.name} - ${siteConfig.tagline}`,
+          },
+        ],
   },
   twitter: {
     card: "summary_large_image",
@@ -87,7 +94,9 @@ export const metadata: Metadata = {
             : `@${siteConfig.twitterHandle}`,
         }
       : {}),
-    ...(siteConfig.ogImage ? { images: [siteConfig.ogImage] } : {}),
+    images: siteConfig.ogImage
+      ? [siteConfig.ogImage]
+      : [dynamicOgEnabled ? "/opengraph-image" : "/og-image-static.png"],
   },
   metadataBase: new URL(siteConfig.url),
   alternates: {
@@ -104,39 +113,6 @@ export default function RootLayout({
     <html lang="uk">
       <head>
         <meta name="color-scheme" content="light" />
-        <style precedence="high">{`
-          .bg-white { background-color: white; }
-          .bg-black { background-color: black; }
-          .text-white { color: white; }
-          .text-black { color: black !important; }
-          .text-neutral-700 { color: rgb(64 64 64) !important; }
-          .text-neutral-600 { color: rgb(82 82 82) !important; }
-          .text-neutral-500 { color: rgb(115 115 115) !important; }
-          .text-muted { color: rgb(82 82 82) !important; }
-          .antialiased { -webkit-font-smoothing: antialiased; }
-          .h-full { height: 100%; }
-          .w-full { width: 100%; }
-          .bg-primary { background-color: oklch(0.205 0 0); }
-          .text-primary-foreground { color: oklch(0.985 0 0); }
-          .hover\\:bg-primary\\/90:hover { background-color: oklch(0.205 0 0 / 0.9); }
-          .bg-secondary { background-color: oklch(0.97 0 0); }
-          .text-secondary-foreground { color: oklch(0.205 0 0); }
-          .hover\\:bg-secondary\\/80:hover { background-color: oklch(0.97 0 0 / 0.8); }
-          .bg-destructive { background-color: oklch(0.577 0.245 27.325); }
-          .text-destructive-foreground { color: oklch(0.985 0 0); }
-          .hover\\:bg-destructive\\/90:hover { background-color: oklch(0.577 0.245 27.325 / 0.9); }
-          .border-input { border-color: oklch(0.922 0 0); }
-          .bg-background { background-color: oklch(1 0 0); }
-          .text-foreground { color: oklch(0.145 0 0); }
-          .bg-accent { background-color: oklch(0.97 0 0); }
-          .text-accent-foreground { color: oklch(0.205 0 0); }
-          .hover\\:bg-accent:hover { background-color: oklch(0.97 0 0); }
-          .hover\\:text-accent-foreground:hover { color: oklch(0.205 0 0); }
-          .ring-offset-background { --tw-ring-offset-color: oklch(1 0 0); }
-          .focus-visible\\:ring-ring:focus-visible { --tw-ring-color: oklch(0.708 0 0); }
-          body { opacity: 1; }
-          body:not(.css-loaded) { opacity: 0; }
-        `}</style>
       </head>
       <body
         className={cn(

@@ -6,8 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ShoppingCart, ChevronLeft, Trash2, Loader2,
-  CreditCard, ExternalLink, Shield, Truck, Video, Search, MapPin,
+  ShoppingCart, ChevronLeft, Loader2,
+  CreditCard, ExternalLink, MapPin,
   Tag, Check, Banknote
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
@@ -90,7 +90,7 @@ function RedirectingScreen() {
 
 /* ─── Main Component ─── */
 export default function CheckoutPage() {
-  const { items, totalCount, totalPrice, removeItem } = useCart();
+  const { items, totalCount, totalPrice } = useCart();
   const { saved: savedAddress, save: saveAddress, hydrated: addressHydrated } = useSavedAddresses();
   const [submitting, setSubmitting] = useState(false);
   const [redirecting, setRedirecting] = useState(false);

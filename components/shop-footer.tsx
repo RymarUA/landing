@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Instagram, Facebook, MapPin, Phone, Mail, ChevronRight, Check, Heart, Loader2 } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
 
@@ -14,7 +15,7 @@ function TikTokIcon({ size = 20 }: { size?: number }) {
 
 // Build category links from siteConfig — stays in sync with catalog tabs and Sitniks
 const catalogLinks = siteConfig.catalogCategories
-  .filter((c) => c !== "��")
+  .filter((c) => c !== "Всі")
   .map((label) => ({ label, href: `/?category=${encodeURIComponent(label)}#catalog` }));
 
 const infoLinks = [
@@ -76,7 +77,9 @@ export function ShopFooter() {
 
           {/* ── Brand ── */}
           <div className="sm:col-span-2 lg:col-span-1">
-            <img src="/logo.png" alt="FamilyHub Market" className="h-12 w-auto mb-4" />
+            <div className="relative h-12 w-32 mb-4">
+              <Image src="/logo.png" alt="FamilyHub Market" fill sizes="128px" className="object-contain" priority />
+            </div>
             <div className="text-xl font-black mb-3 text-white">
               FamilyHub<span className="text-orange-400">Market</span>
             </div>

@@ -3,8 +3,6 @@
  * Prevents console spam in production
  */
 
-type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
-
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 export const logger = {

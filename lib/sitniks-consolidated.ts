@@ -10,7 +10,6 @@
  */
 
 // ─── Config ────────────────────────────────────────────────────────────────────
-const BASE_URL = (process.env.SITNIKS_API_URL ?? "https://crm.sitniks.com").replace(/\/$/, "");
 const API_KEY  = process.env.SITNIKS_API_KEY ?? "";
 
 if (!API_KEY && process.env.NODE_ENV !== "test") {

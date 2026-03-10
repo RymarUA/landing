@@ -793,3 +793,4 @@ export function CatalogSkeleton({ count = 20 }: { count?: number }) {
     </section>
   );
 }
+

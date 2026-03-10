@@ -81,3 +81,4 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 export function useWishlist() {
   return useContext(WishlistContext);
 }
+

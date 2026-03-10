@@ -94,3 +94,4 @@ export const DesktopNavbar = ({ navItems }: Props) => {
     </div>
   );
 };
+

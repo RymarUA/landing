@@ -7,6 +7,8 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function TwitterImage() {
+  const displayUrl = siteConfig.url.replace(/^https?:\/\//, "");
+
   return new ImageResponse(
     (
       <div
@@ -19,6 +21,8 @@ export default async function TwitterImage() {
           justifyContent: "center",
           backgroundColor: siteConfig.ogBackground,
           backgroundImage: `radial-gradient(circle at 25% 25%, ${siteConfig.ogAccent1} 0%, transparent 50%), radial-gradient(circle at 75% 75%, ${siteConfig.ogAccent2} 0%, transparent 50%)`,
+          color: "white",
+          fontFamily: "serif",
         }}
       >
         <div
@@ -28,26 +32,23 @@ export default async function TwitterImage() {
             alignItems: "center",
             justifyContent: "center",
             gap: "20px",
+            textAlign: "center",
+            maxWidth: "900px",
           }}
         >
           <div
             style={{
               fontSize: 72,
               fontWeight: 800,
-              color: "white",
               letterSpacing: "-0.02em",
-              textAlign: "center",
-              maxWidth: "900px",
             }}
           >
             {siteConfig.name}
           </div>
           <div
             style={{
-              fontSize: 32,
-              color: "rgba(255, 255, 255, 0.7)",
-              textAlign: "center",
-              maxWidth: "800px",
+              fontSize: 28,
+              color: "rgba(255, 255, 255, 0.75)",
             }}
           >
             {siteConfig.tagline}
@@ -62,12 +63,14 @@ export default async function TwitterImage() {
             gap: "8px",
             color: "rgba(255, 255, 255, 0.5)",
             fontSize: 20,
+            fontFamily: "sans-serif",
           }}
         >
-          familyhubmarket.ua
+          {displayUrl}
         </div>
       </div>
     ),
     { ...size },
   );
 }
+

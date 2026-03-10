@@ -206,3 +206,4 @@ export function WishlistPageClient({ allProducts }: Props) {
     </div>
   );
 }
+

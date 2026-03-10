@@ -21,3 +21,4 @@ export function blurProps() {
     blurDataURL: BLUR_DATA_URL,
   };
 }
+

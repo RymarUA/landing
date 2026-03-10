@@ -24,6 +24,7 @@ import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
 import Image from "next/image";
 import { blurProps } from "@/lib/utils";
+import { siteConfig } from "@/lib/site-config";
 
 /* ─── Types ──────────────────────────────────────────── */
 type Step = "loading" | "phone" | "otp" | "profile";
@@ -632,7 +633,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
               </div>
               <p className="font-bold text-gray-500 mb-1">Замовлень поки немає</p>
               <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto leading-relaxed">
-                Ваші майбутні замовлення з FamilyHub Market будуть відображатися тут.
+                Ваші майбутні замовлення з ������� ����� будуть відображатися тут.
               </p>
               <Link
                 href="/#catalog"
@@ -754,18 +755,22 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         </div>
 
         {/* Support link */}
-        <p className="text-center text-xs text-gray-400 mt-6">
-          Питання щодо замовлення?{" "}
+                <p className="text-center text-xs text-gray-400 mt-6">
+          ������� ���� ����������?{" "}
           <a
-            href="https://www.instagram.com/familyhub_market/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-orange-500 font-semibold hover:underline"
+            href={`tel:${siteConfig.phone}`}
+            className="text-[#1F6B5E] font-semibold hover:underline"
           >
-            Напишіть нам в Instagram
+            �������������
           </a>
         </p>
       </div>
     </div>
   );
 }
+
+
+
+
+
+

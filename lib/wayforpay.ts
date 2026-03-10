@@ -186,3 +186,4 @@ export function getWfpConfig(): WfpConfig {
 
   return { merchantAccount, merchantDomainName, secretKey, siteUrl };
 }
+

@@ -22,13 +22,20 @@ export function JsonLd({ data, id = "json-ld" }: JsonLdProps) {
    Common schema generators — automatically read from site-config.ts
    ───────────────────────────────────────────────────────────────────────── */
 
+const socialLinks = [
+  siteConfig.instagramUsername
+    ? `https://www.instagram.com/${siteConfig.instagramUsername}`
+    : null,
+  siteConfig.telegramUsername ? `https://t.me/${siteConfig.telegramUsername}` : null,
+].filter(Boolean) as string[];
+
 export const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: siteConfig.company,
   url: siteConfig.url,
   logo: `${siteConfig.url}/logo.png`,
-  sameAs: ["https://www.instagram.com/familyhub_market", "https://www.tiktok.com/@familyhub_market"],
+  sameAs: socialLinks,
 };
 
 export const websiteSchema = {
@@ -157,3 +164,4 @@ export function generateBreadcrumbSchema(items: Array<{ name: string; url: strin
     })),
   };
 }
+

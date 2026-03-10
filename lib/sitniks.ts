@@ -304,3 +304,4 @@ export function normalizePhone(raw: string): string {
   if (raw.startsWith("+") && /^\+\d{12}$/.test(raw.replace(/\D/g, ""))) return raw;
   throw new Error("Invalid phone format. Expected Ukrainian number");
 }
+

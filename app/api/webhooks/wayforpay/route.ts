@@ -162,3 +162,4 @@ function buildAcceptanceResponse(
 
   return NextResponse.json(response, { status: 200 });
 }
+

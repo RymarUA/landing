@@ -56,3 +56,4 @@ export function useWindow() {
     document: isClient ? document : null,
   };
 }
+

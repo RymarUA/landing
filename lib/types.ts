@@ -347,3 +347,4 @@ export interface InstagramMediaResponse {
     next?: string;
   };
 }
+

@@ -28,3 +28,4 @@ export async function GET(req: NextRequest) {
   const orders = await getSitniksOrdersByPhone(payload.phone);
   return NextResponse.json({ orders });
 }
+

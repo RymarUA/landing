@@ -282,3 +282,4 @@ export async function getSitniksOrderStatuses(): Promise<Array<{ id: number; nam
   );
   return res.data;
 }
+

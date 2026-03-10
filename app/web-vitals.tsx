@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useReportWebVitals } from 'next/web-vitals';
 import type { Metric } from 'web-vitals';
@@ -61,3 +61,4 @@ export function WebVitals() {
 
   return null;
 }
+

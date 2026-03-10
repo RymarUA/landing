@@ -5,10 +5,10 @@
 
 export const siteConfig = {
   // Basic Info
-  name: "FamilyHub Market",
-  tagline: "Одяг, іграшки, аксесуари для всієї родини — доставка по Україні",
+  name: "Семейный Магазин",
+  tagline: "Магазин для всей семьи с товарами и услугами на каждый день",
   description:
-    "Жіночий, чоловічий та дитячий одяг, іграшки, товари для дому та авто. Доставка Новою Поштою по всій Україні. Якість від перевірених постачальників.",
+    "Онлайн-магазин товаров для повседневных нужд: качественная одежда, товары для дома, косметика, бытовая техника, детские товары, спортивное питание. Доставка товаров, быстрая оплата, удобный возврат, круглосуточная поддержка.",
 
   // Site URL (replaced automatically on deploy)
   url: process.env.NEXT_PUBLIC_URL || "https://your-app.kleap.io",
@@ -17,47 +17,65 @@ export const siteConfig = {
   showNavbar: false,
 
   // Navigation links (only used when showNavbar is true)
-  navLinks: [] as { title: string; link: string }[],
+  navLinks: [
+    { title: "Каталог", link: "/#catalog" },
+    { title: "Рекомендации", link: "/#featured" },
+    { title: "О нас", link: "/#guide" },
+    { title: "О нас", link: "/about" },
+  ] as { title: string; link: string }[],
 
   // SEO Keywords
-  keywords: ["одяг з Китаю", "дитячі іграшки", "кросівки репліка", "Нова Пошта", "FamilyHub Market", "Одеса"],
+  keywords: [
+    "семейные товары",
+    "повседневные нужды",
+    "товары для дома",
+    "онлайн магазин",
+    "качественная одежда",
+    "бытовая техника",
+    "детские товары",
+    "спортивное питание",
+    "доставка",
+  ],
 
   // Author/Company
-  author: "FamilyHub Market",
-  company: "FamilyHub Market",
+  author: "Семейный Магазин",
+  company: "Семейный Магазин",
 
   // OG Image: set to a generated image URL for rich link previews
   ogImage: "",
 
   // Theme colors for OG image (fallback when ogImage is empty)
-  ogBackground: "#020022",
-  ogAccent1: "#1a1a4e",
-  ogAccent2: "#2d1b4e",
+  ogBackground: "#0F2D2A",
+  ogAccent1: "#1F6B5E",
+  ogAccent2: "#C9B27C",
 
-  // ── Announcement Bar ─────────────────────────────────────────
+  // -- Announcement Bar -------------------------------------------------
   // Set announcementText to "" to hide the bar entirely.
   // Plain text only (HTML not supported for security).
-  announcementText: "🔥 Акція до 31 березня: -15% на весь одяг! Промокод: FAMILY15",
+  announcementText: "?? ������� ����������: ?12% �� ���� ����������. ��������: EAST12",
 
-  // ── Catalog Categories ────────────────────────────────────────
+  // -- Catalog Categories -----------------------------------------------
   // Sync these with your Sitniks CRM status labels.
-  // "Всі" must always be first — it shows all products.
+  // "��" must always be first � it shows all products.
   catalogCategories: [
-    "Всі",
-    "Для жінок",
-    "Для чоловіків",
-    "Для дітей",
-    "Іграшки",
-    "Дім",
-    "Авто",
+    "��",
+    "˳�������� �������",
+    "������ �� ������",
+    "��������",
+    "��� �� �����",
+    "����������� �������",
+    "��������� �������",
+    "���� ������",
   ] as const,
 
-  // ── Contact / Support links ──────────────────────────────────
+  // -- Contact / Support links ------------------------------------------
   // Used by SupportButton floating widget. Set to "" to hide that channel.
-  telegramUsername: "familyhub_market",   // t.me/familyhub_market
+  telegramUsername: "",
   viberPhone: "+380936174140",             // viber://chat?number=...
-  instagramUsername: "familyhub_market",  // instagram.com/familyhub_market
+  instagramUsername: "",
   phone: "+380936174140",
+  twitterHandle: "",
 };
 
 export type SiteConfig = typeof siteConfig;
+

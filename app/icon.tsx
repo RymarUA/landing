@@ -14,19 +14,20 @@ export default function Icon() {
           fontSize: 14,
           fontWeight: 800,
           letterSpacing: "0.04em",
-          background: "linear-gradient(90deg, #667eea 0%, #764ba2 100%)",
+          background: "linear-gradient(135deg, #1F6B5E 0%, #0F2D2A 100%)",
           width: "100%",
           height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "white",
+          color: "#F6F4EF",
           borderRadius: "50%",
         }}
       >
-        FH
+        ТМ
       </div>
     ),
     { ...size },
   );
 }
+

@@ -46,9 +46,9 @@ const fetchNPWarehouses = async (cityRef: string, query: string) => {
 function Field({ label, error, children }: { label: string; error?: any; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5 relative">
-      <label className="text-sm font-semibold text-gray-700">{label}</label>
+      <label className="text-sm font-semibold text-[#24312E]">{label}</label>
       {children}
-      {error && <p className="text-xs text-orange-500 font-medium mt-0.5">{error}</p>}
+      {error && <p className="text-xs text-[#1F6B5E] font-medium mt-0.5">{error}</p>}
     </div>
   );
 }
@@ -56,14 +56,14 @@ function Field({ label, error, children }: { label: string; error?: any; childre
 /* ─── Screens (Empty/Redirect) ─── */
 function EmptyCartScreen() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
+    <div className="min-h-screen bg-[#F6F4EF] flex items-center justify-center px-4 py-16">
       <div className="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
-        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <ShoppingCart size={40} className="text-gray-300" />
+        <div className="w-20 h-20 bg-[#E7EFEA] rounded-full flex items-center justify-center mx-auto mb-6">
+          <ShoppingCart size={40} className="text-[#7A8A84]" />
         </div>
-        <h1 className="text-2xl font-black text-gray-900 mb-2">Кошик порожній</h1>
-        <p className="text-gray-500 mb-8 text-sm">Додайте товари до кошика, щоб перейти до оплати.</p>
-        <Link href="/#catalog" className="inline-flex items-center justify-center gap-2 bg-orange-500 text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-orange-600 transition-colors shadow-lg">
+        <h1 className="text-2xl font-black text-[#0F2D2A] mb-2">Кошик порожній</h1>
+        <p className="text-[#7A8A84] mb-8 text-sm">Додайте товари до кошика, щоб перейти до оплати.</p>
+        <Link href="/#catalog" className="inline-flex items-center justify-center gap-2 bg-[#1F6B5E] text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-[#0F2D2A] transition-colors shadow-lg">
           <ShoppingCart size={18} /> До каталогу
         </Link>
       </div>
@@ -73,14 +73,14 @@ function EmptyCartScreen() {
 
 function RedirectingScreen() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
+    <div className="min-h-screen bg-[#F6F4EF] flex items-center justify-center px-4 py-16">
       <div className="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
-        <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Loader2 size={40} className="text-orange-500 animate-spin" />
+        <div className="w-20 h-20 bg-[#F6F4EF] rounded-full flex items-center justify-center mx-auto mb-6">
+          <Loader2 size={40} className="text-[#1F6B5E] animate-spin" />
         </div>
-        <h1 className="text-2xl font-black text-gray-900 mb-2">Замовлення створено!</h1>
-        <p className="text-gray-500 text-sm leading-relaxed">Перенаправляємо вас на сторінку оплати WayForPay…</p>
-        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400">
+        <h1 className="text-2xl font-black text-[#0F2D2A] mb-2">Замовлення створено!</h1>
+        <p className="text-[#7A8A84] text-sm leading-relaxed">Перенаправляємо вас на сторінку оплати WayForPay…</p>
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-[#7A8A84]">
           <ExternalLink size={13} /> secure.wayforpay.com
         </div>
       </div>
@@ -251,15 +251,15 @@ export default function CheckoutPage() {
   if (redirecting) return <RedirectingScreen />;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="min-h-screen bg-[#F6F4EF] py-10 px-4">
       <div className="max-w-5xl mx-auto">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-6 transition-colors">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm text-[#7A8A84] hover:text-[#24312E] mb-6 transition-colors">
           <ChevronLeft size={16} /> Назад до магазину
         </Link>
 
-        <h1 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-3">
+        <h1 className="text-3xl font-black text-[#0F2D2A] mb-8 flex items-center gap-3">
           Оформлення замовлення
-          <span className="text-sm font-semibold bg-orange-100 text-orange-600 px-3 py-1 rounded-full">{totalCount}</span>
+          <span className="text-sm font-semibold bg-[#E7EFEA] text-[#1F6B5E] px-3 py-1 rounded-full">{totalCount}</span>
         </h1>
 
         <div className="grid lg:grid-cols-5 gap-8">
@@ -268,24 +268,24 @@ export default function CheckoutPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
               
               {/* 1. Contacts */}
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-5">
+              <div className="bg-white rounded-3xl shadow-sm border border-[#E7EFEA] p-6 flex flex-col gap-5">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-7 h-7 bg-orange-100 rounded-full flex items-center justify-center text-xs font-black text-orange-600">1</div>
-                  <h2 className="text-lg font-black text-gray-900">Контактні дані</h2>
+                  <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">1</div>
+                  <h2 className="text-lg font-black text-[#0F2D2A]">Контактні дані</h2>
                 </div>
                 <Field label="Ваше ім'я *" error={errors.name?.message}>
-                  <input {...register("name")} placeholder="Наприклад: Олена Коваль" className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition" />
+                  <input {...register("name")} placeholder="Наприклад: Олена Коваль" className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition" />
                 </Field>
                 <Field label="Телефон *" error={errors.phone?.message}>
-                  <input {...register("phone")} onBlur={() => registerAbandonedCart(nameValue, phoneValue)} placeholder="+380..." className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition" />
+                  <input {...register("phone")} onBlur={() => registerAbandonedCart(nameValue, phoneValue)} placeholder="+380..." className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition" />
                 </Field>
               </div>
 
               {/* 2. Delivery */}
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-5 overflow-visible">
+              <div className="bg-white rounded-3xl shadow-sm border border-[#E7EFEA] p-6 flex flex-col gap-5 overflow-visible">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-7 h-7 bg-orange-100 rounded-full flex items-center justify-center text-xs font-black text-orange-600">2</div>
-                  <h2 className="text-lg font-black text-gray-900">Доставка Новою Поштою</h2>
+                  <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">2</div>
+                  <h2 className="text-lg font-black text-[#0F2D2A]">Доставка Новою Поштою</h2>
                 </div>
 
                 {addressHydrated && savedAddress && (
@@ -302,7 +302,7 @@ export default function CheckoutPage() {
                         setLoadingWarehouses(false);
                       }
                     }}
-                    className="flex items-center gap-2 text-sm font-semibold text-orange-600 hover:text-orange-700"
+                    className="flex items-center gap-2 text-sm font-semibold text-[#1F6B5E] hover:text-[#0F2D2A]"
                   >
                     <MapPin size={16} />
                     Використати збережену адресу
@@ -321,19 +321,19 @@ export default function CheckoutPage() {
                         setValue("city", v, { shouldValidate: true });
                         onCitySearch(v);
                       }}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition"
+                      className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition"
                     />
-                    {loadingCities && <Loader2 className="absolute right-3 top-3 animate-spin text-orange-500" size={18} />}
+                    {loadingCities && <Loader2 className="absolute right-3 top-3 animate-spin text-[#1F6B5E]" size={18} />}
                     
                     {showCityResults && cities.length > 0 && (
-                      <div className="absolute z-[100] w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden">
+                      <div className="absolute z-[100] w-full mt-1 bg-white border border-[#E7EFEA] rounded-xl shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden">
                         {cities.map((city) => (
                           <div 
                             key={city.Ref} 
                             onClick={() => onCitySelect(city)} 
-                            className="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm border-b border-gray-50 last:border-none transition-colors flex items-center gap-2"
+                            className="px-4 py-3 hover:bg-[#F6F4EF] cursor-pointer text-sm border-b border-[#E7EFEA] last:border-none transition-colors flex items-center gap-2"
                           >
-                            <MapPin size={14} className="text-gray-400" />
+                            <MapPin size={14} className="text-[#7A8A84]" />
                             {city.Description}
                           </div>
                         ))}
@@ -344,7 +344,7 @@ export default function CheckoutPage() {
 
                 {/* Quick cities */}
                 <div className="flex flex-wrap gap-2">
-                  <span className="text-xs font-semibold text-gray-500 w-full">Швидкі міста:</span>
+                  <span className="text-xs font-semibold text-[#7A8A84] w-full">Швидкі міста:</span>
                   {(["Київ", "Одеса", "Харків", "Дніпро", "Львів"] as const).map((cityName) => (
                     <button
                       key={cityName}
@@ -365,7 +365,7 @@ export default function CheckoutPage() {
                         }
                         setLoadingCities(false);
                       }}
-                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:border-orange-300 hover:text-orange-600 transition-colors"
+                      className="px-3 py-1.5 rounded-lg border border-[#E7EFEA] text-sm font-medium text-[#24312E] hover:border-[#C9B27C]/50 hover:text-[#1F6B5E] transition-colors"
                     >
                       {cityName}
                     </button>
@@ -378,23 +378,23 @@ export default function CheckoutPage() {
                     <select
                       {...register("warehouse")}
                       disabled={!selectedCityRef || loadingWarehouses}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:ring-2 focus:ring-orange-400 outline-none disabled:bg-gray-50 transition appearance-none cursor-pointer"
+                      className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] bg-white text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none disabled:bg-[#F6F4EF] transition appearance-none cursor-pointer"
                     >
                       <option value="">{loadingWarehouses ? "Завантаження..." : "Оберіть відділення"}</option>
                       {warehouses.map((wh) => (
                         <option key={wh.Ref} value={wh.Description}>{wh.Description}</option>
                       ))}
                     </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#7A8A84]">▼</div>
                   </div>
                 </Field>
               </div>
 
               {/* 3. Payment method */}
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4">
+              <div className="bg-white rounded-3xl shadow-sm border border-[#E7EFEA] p-6 flex flex-col gap-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-7 h-7 bg-orange-100 rounded-full flex items-center justify-center text-xs font-black text-orange-600">3</div>
-                  <h2 className="text-lg font-black text-gray-900">Спосіб оплати</h2>
+                  <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">3</div>
+                  <h2 className="text-lg font-black text-[#0F2D2A]">Спосіб оплати</h2>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {([
@@ -407,38 +407,38 @@ export default function CheckoutPage() {
                       onClick={() => setPaymentMethod(opt.value)}
                       className={`flex flex-col items-start gap-1 p-4 rounded-2xl border-2 text-left transition-all ${
                         paymentMethod === opt.value
-                          ? "border-orange-500 bg-orange-50"
-                          : "border-gray-200 hover:border-orange-300"
+                          ? "border-[#1F6B5E] bg-[#F6F4EF]"
+                          : "border-[#E7EFEA] hover:border-[#C9B27C]/50"
                       }`}
                     >
-                      <div className={`flex items-center gap-2 font-bold text-sm ${paymentMethod === opt.value ? "text-orange-600" : "text-gray-700"}`}>
+                      <div className={`flex items-center gap-2 font-bold text-sm ${paymentMethod === opt.value ? "text-[#1F6B5E]" : "text-[#24312E]"}`}>
                         {opt.icon}
                         {opt.label}
-                        {paymentMethod === opt.value && <Check size={14} className="ml-auto text-orange-500" />}
+                        {paymentMethod === opt.value && <Check size={14} className="ml-auto text-[#1F6B5E]" />}
                       </div>
-                      <span className="text-xs text-gray-400 ml-7">{opt.sublabel}</span>
+                      <span className="text-xs text-[#7A8A84] ml-7">{opt.sublabel}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* 4. Promo code */}
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+              <div className="bg-white rounded-3xl shadow-sm border border-[#E7EFEA] p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-7 h-7 bg-orange-100 rounded-full flex items-center justify-center text-xs font-black text-orange-600">4</div>
-                  <h2 className="text-lg font-black text-gray-900">Промокод</h2>
+                  <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">4</div>
+                  <h2 className="text-lg font-black text-[#0F2D2A]">Промокод</h2>
                 </div>
                 {promoResult ? (
-                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
-                    <div className="flex items-center gap-2 text-green-700 font-bold text-sm">
+                  <div className="flex items-center justify-between bg-[#E7EFEA] border border-[#C9B27C]/40 rounded-2xl px-4 py-3">
+                    <div className="flex items-center gap-2 text-[#1F6B5E] font-bold text-sm">
                       <Check size={16} />
                       <span>{promoInput.toUpperCase()}</span>
-                      <span className="text-green-600 text-xs font-medium">— {promoResult.label}</span>
+                      <span className="text-[#1F6B5E] text-xs font-medium">— {promoResult.label}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => { setPromoResult(null); setPromoInput(""); setPromoError(""); }}
-                      className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                      className="text-xs text-[#7A8A84] hover:text-red-500 transition-colors"
                     >
                       Скасувати
                     </button>
@@ -446,14 +446,14 @@ export default function CheckoutPage() {
                 ) : (
                   <div className="flex gap-2">
                     <div className="relative flex-1">
-                      <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A8A84]" />
                       <input
                         type="text"
                         value={promoInput}
                         onChange={(e) => { setPromoInput(e.target.value.toUpperCase()); setPromoError(""); }}
-                        placeholder="FAMILY15 або FIRST10"
+                        placeholder="EAST12 або FIRST10"
                         maxLength={32}
-                        className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition uppercase"
+                        className="w-full pl-9 pr-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition uppercase"
                       />
                     </div>
                     <button
@@ -463,7 +463,7 @@ export default function CheckoutPage() {
                         if (result) { setPromoResult(result); setPromoError(""); }
                         else setPromoError("Промокод не знайдено або вже використано");
                       }}
-                      className="px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-colors whitespace-nowrap"
+                      className="px-4 py-3 bg-[#1F6B5E] hover:bg-[#0F2D2A] text-white font-bold rounded-xl text-sm transition-colors whitespace-nowrap"
                     >
                       Застосувати
                     </button>
@@ -476,7 +476,7 @@ export default function CheckoutPage() {
                 <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm font-medium">⚠️ {serverError}</div>
               )}
 
-              <button type="submit" disabled={submitting} className="flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98]">
+              <button type="submit" disabled={submitting} className="flex items-center justify-center gap-3 bg-[#1F6B5E] hover:bg-[#0F2D2A] disabled:opacity-60 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98]">
                 {submitting ? <Loader2 size={20} className="animate-spin" /> : (
                   <>
                     {paymentMethod === "online" ? <CreditCard size={20} /> : <Banknote size={20} />}
@@ -489,36 +489,36 @@ export default function CheckoutPage() {
 
           {/* RIGHT: SUMMARY */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sticky top-24">
-              <h2 className="text-base font-black text-gray-900 mb-4">Ваше замовлення</h2>
+            <div className="bg-white rounded-3xl shadow-sm border border-[#E7EFEA] p-6 sticky top-24">
+              <h2 className="text-base font-black text-[#0F2D2A] mb-4">Ваше замовлення</h2>
               <div className="flex flex-col gap-3 max-h-72 overflow-y-auto mb-5 scrollbar-thin">
                 {items.map((item) => (
                   <div key={`${item.id}-${item.size ?? ""}`} className="flex items-center gap-3 group">
-                    <div className="relative w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                    <div className="relative w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-[#E7EFEA]">
                       <Image src={item.image} alt={item.name} fill sizes="48px" className="object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
-                      <p className="text-xs text-gray-400">× {item.quantity}</p>
+                      <p className="text-sm font-bold text-[#0F2D2A] truncate">{item.name}</p>
+                      <p className="text-xs text-[#7A8A84]">× {item.quantity}</p>
                     </div>
-                    <div className="text-sm font-semibold text-gray-900">{(item.price * item.quantity).toLocaleString()} грн</div>
+                    <div className="text-sm font-semibold text-[#0F2D2A]">{(item.price * item.quantity).toLocaleString()} грн</div>
                   </div>
                 ))}
               </div>
-              <div className="border-t border-gray-100 pt-4 space-y-2">
-                <div className="flex justify-between text-sm text-gray-500"><span>Доставка</span><span className="text-green-600 font-semibold">За тарифами НП</span></div>
+              <div className="border-t border-[#E7EFEA] pt-4 space-y-2">
+                <div className="flex justify-between text-sm text-[#7A8A84]"><span>Доставка</span><span className="text-[#1F6B5E] font-semibold">За тарифами НП</span></div>
                 {discountAmount > 0 && (
                   <>
-                    <div className="flex justify-between text-sm text-gray-500">
+                    <div className="flex justify-between text-sm text-[#7A8A84]">
                       <span>Товари</span><span>{totalPrice.toLocaleString()} грн</span>
                     </div>
-                    <div className="flex justify-between text-sm text-green-600 font-semibold">
+                    <div className="flex justify-between text-sm text-[#1F6B5E] font-semibold">
                       <span>Знижка ({promoResult?.discountPct}%)</span>
                       <span>−{discountAmount.toLocaleString()} грн</span>
                     </div>
                   </>
                 )}
-                <div className="flex justify-between items-center"><span className="font-semibold text-gray-900">До оплати:</span><span className="text-xl font-semibold text-orange-500">{finalPrice.toLocaleString()} грн</span></div>
+                <div className="flex justify-between items-center"><span className="font-semibold text-[#0F2D2A]">До оплати:</span><span className="text-xl font-semibold text-[#1F6B5E]">{finalPrice.toLocaleString()} грн</span></div>
               </div>
             </div>
           </div>
@@ -527,3 +527,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+

@@ -290,3 +290,4 @@ export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
     </section>
   );
 }
+

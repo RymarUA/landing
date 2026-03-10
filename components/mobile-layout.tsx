@@ -11,11 +11,11 @@ interface MobileLayoutProps {
 export function MobileLayout({ children }: MobileLayoutProps) {
   return (
     <>
-      {/* Temu-style Search Bar */}
+      {/* Brand Top Bar */}
       <TemuSearchBar />
 
       {/* Main content with top padding for fixed search bar */}
-      <div className="pt-[52px]">
+      <div className="pt-[76px]">
         {children}
       </div>
 
@@ -27,3 +27,4 @@ export function MobileLayout({ children }: MobileLayoutProps) {
     </>
   );
 }
+

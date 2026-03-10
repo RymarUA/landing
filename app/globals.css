@@ -1,8 +1,15 @@
 /* CSS Custom Properties for design system */
 :root {
   /* Aceternity custom properties */
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
   --radius: 0.625rem;
+
+  /* Brand palette */
+  --brand-ink: #0f2d2a;
+  --brand-primary: #1f6b5e;
+  --brand-gold: #c9b27c;
+  --brand-cream: #f6f4ef;
+  --brand-mist: #e7efea;
+  --brand-graphite: #24312e;
 
   /* Neutral colors for Aceternity components */
   --color-neutral-50: rgb(250 250 250);
@@ -56,8 +63,17 @@
 }
 
 body {
-  background-color: hsl(0 0% 100%);
-  color: hsl(240 10% 3.9%);
+  background-color: var(--brand-cream);
+  color: var(--brand-graphite);
+  font-family: var(--font-body);
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-body {
+  font-family: var(--font-body);
 }
 
 /* Custom utility classes compatible with Tailwind CDN */
@@ -228,7 +244,7 @@ body {
 }
 
 html {
-  scroll-padding-top: 80px;
+  scroll-padding-top: 96px;
   scroll-behavior: smooth;
 }
 

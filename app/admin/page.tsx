@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * FamilyHub Market — Адмін-панель
+ * Семейный Магазин — Адмін-панель
  * Файл: app/admin/page.tsx
  *
  * Як підключити:
@@ -629,7 +629,7 @@ export default function AdminPage() {
               <Package size={28} className="text-white" />
             </div>
             <h1 className="text-2xl font-black text-gray-900">Адмін-панель</h1>
-            <p className="text-gray-500 text-sm mt-1">FamilyHub Market</p>
+            <p className="text-gray-500 text-sm mt-1">������� �����</p>
           </div>
           <div className="space-y-4">
             <div>
@@ -673,7 +673,7 @@ export default function AdminPage() {
               <Package size={18} className="text-white" />
             </div>
             <div>
-              <span className="font-black text-gray-900">FamilyHub</span>
+              <span className="font-black text-gray-900">�������</span>
               <span className="font-black text-orange-500">Admin</span>
             </div>
           </div>
@@ -819,3 +819,4 @@ export default function AdminPage() {
     </div>
   );
 }
+

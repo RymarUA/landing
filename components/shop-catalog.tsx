@@ -843,3 +843,4 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
 }
 
 export default React.memo(ShopCatalog);
+

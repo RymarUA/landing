@@ -20,3 +20,4 @@ export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "price_desc",label: "Від дорогих" },
   { value: "rating",    label: "За рейтингом" },
 ];
+

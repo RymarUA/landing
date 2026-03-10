@@ -1,7 +1,7 @@
 import type { Metadata } from "next/types";
 import type { ReactNode } from "react";
 import "./globals.css";
-import { GeistSans } from "geist/font/sans";
+import { Noto_Sans, Noto_Serif } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { DevToolsGuard } from "./devtools-guard";
 import { TailwindCDNClient } from "@/components/tailwind-cdn-client";
@@ -16,6 +16,20 @@ import { WebVitals } from "./web-vitals";
 
 // Validate environment variables on server startup (single evaluation)
 validateEnv();
+
+const notoSans = Noto_Sans({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-body",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+const notoSerif = Noto_Serif({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-heading",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: {
@@ -45,7 +59,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    locale: "en_US",
+    locale: "uk_UA",
     siteName: siteConfig.name,
     title: `${siteConfig.name} - ${siteConfig.tagline}`,
     description: siteConfig.description,
@@ -66,7 +80,13 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${siteConfig.name} - ${siteConfig.tagline}`,
     description: siteConfig.description,
-    creator: "@familyhub_market",
+    ...(siteConfig.twitterHandle
+      ? {
+          creator: siteConfig.twitterHandle.startsWith("@")
+            ? siteConfig.twitterHandle
+            : `@${siteConfig.twitterHandle}`,
+        }
+      : {}),
     ...(siteConfig.ogImage ? { images: [siteConfig.ogImage] } : {}),
   },
   metadataBase: new URL(siteConfig.url),
@@ -120,7 +140,8 @@ export default function RootLayout({
       </head>
       <body
         className={cn(
-          GeistSans.className,
+          notoSans.variable,
+          notoSerif.variable,
           "bg-white antialiased h-full w-full",
         )}
       >
@@ -140,3 +161,4 @@ export default function RootLayout({
     </html>
   );
 }
+

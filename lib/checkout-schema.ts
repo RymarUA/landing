@@ -62,8 +62,8 @@ export type CheckoutFormData = z.infer<typeof checkoutSchema>;
    Add / edit codes here. discountPct = percent off total (0–100).
    ─────────────────────────────────────────────────────────────── */
 export const PROMO_CODES: Record<string, { discountPct: number; label: string }> = {
-  FAMILY15: { discountPct: 15, label: "−15% на весь одяг" },
-  FIRST10:  { discountPct: 10, label: "−10% на перше замовлення" },
+  EAST12: { discountPct: 12, label: "−12% на хіти відновлення" },
+  FIRST10: { discountPct: 10, label: "−10% на перше замовлення" },
 };
 
 /** Validate a promo code and return discount percentage (0 if invalid). */
@@ -71,3 +71,4 @@ export function applyPromoCode(code: string): { discountPct: number; label: stri
   const entry = PROMO_CODES[code.trim().toUpperCase()];
   return entry ?? null;
 }
+

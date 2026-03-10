@@ -230,3 +230,4 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
     </div>
   );
 }
+

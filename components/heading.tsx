@@ -39,3 +39,4 @@ export const Heading = ({
     </Tag>
   );
 };
+

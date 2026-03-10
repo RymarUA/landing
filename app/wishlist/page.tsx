@@ -1,13 +1,14 @@
 import { WishlistPageClient } from "./wishlist-client";
 import { getCatalogProducts } from "@/lib/instagram-catalog";
+import { siteConfig } from "@/lib/site-config";
 
 export const metadata = {
-  title: "Список бажань",
-  description: "Ваші збережені товари в FamilyHub Market. Переглядайте та замовляйте у зручний час.",
+  title: "������ ������",
+  description: `���� �������� ������ � ${siteConfig.name}. ������������ �� ���������� � ������� ���.`,
 };
 
 export default async function WishlistPage() {
-  // Fetch all products server-side so the client can filter by wishlisted IDs
   const products = await getCatalogProducts();
   return <WishlistPageClient allProducts={products} />;
 }
+

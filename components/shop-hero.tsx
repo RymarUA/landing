@@ -7,3 +7,4 @@
 export function ShopHero() {
   return null;
 }
+

@@ -1,7 +1,9 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, Phone } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
+import { siteConfig } from "@/lib/site-config";
 
 export function TemuSearchBar() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -9,28 +11,50 @@ export function TemuSearchBar() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Use proper URL structure with query parameter and hash
       window.location.href = `/?search=${encodeURIComponent(searchQuery)}#catalog`;
     }
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-orange-500 to-orange-600 shadow-lg">
-      <div className="max-w-7xl mx-auto px-3 py-2.5">
-        {/* Search Input - Full Width */}
-        <form onSubmit={handleSearch} className="w-full">
+    <div className="fixed top-0 left-0 right-0 z-50 border-b border-[#0F2D2A]/10 bg-[#0F2D2A]/95 text-white backdrop-blur">
+      <div className="max-w-6xl mx-auto px-3 py-3 flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#C9B27C]/60 bg-[#1F6B5E] text-[#F6F4EF] text-sm font-semibold">
+            ТМ
+          </span>
+          <div className="hidden sm:block leading-tight">
+            <div className="font-heading text-base text-[#F6F4EF]">Семейный Магазин</div>
+            <div className="text-[10px] text-white/60">
+              Магазин для всей семьи
+            </div>
+          </div>
+        </Link>
+
+        <form onSubmit={handleSearch} className="flex-1">
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="плаття принцеси для дівчинки"
-              className="w-full h-11 pl-11 pr-4 rounded-full bg-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
+              placeholder="Поиск: товары, услуги, категории..."
+              className="w-full h-11 pl-11 pr-4 rounded-full bg-white text-sm text-[#24312E] placeholder:text-[#7A8A84] focus:outline-none focus:ring-2 focus:ring-[#C9B27C]/70"
             />
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A8A84]" />
           </div>
         </form>
+
+        {siteConfig.phone && (
+          <a
+            href={`tel:${siteConfig.phone}`}
+            className="hidden md:flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/90 hover:bg-white/20 transition"
+            aria-label="Звонить"
+          >
+            <Phone className="w-4 h-4" />
+            <span className="hidden lg:inline">{siteConfig.phone}</span>
+          </a>
+        )}
       </div>
     </div>
   );
 }
+

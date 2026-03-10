@@ -40,3 +40,4 @@ export const logger = {
 
 // Export individual methods for convenience
 export const { log, info, warn, error, debug } = logger;
+

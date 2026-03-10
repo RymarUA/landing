@@ -58,3 +58,4 @@ export function ScrollReveal({
     </div>
   );
 }
+

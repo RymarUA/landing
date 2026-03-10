@@ -148,3 +148,4 @@ function DefaultSuspenseFallback() {
     </div>
   );
 }
+

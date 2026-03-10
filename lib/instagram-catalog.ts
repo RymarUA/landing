@@ -76,7 +76,7 @@ function getFirstImage(product: SitniksProduct, variation?: SitniksVariation): s
   // Пріоритет: фото варіації → фото продукту → заглушка
   if (variation?.attachments?.length) return variation.attachments[0].url;
   if (product.attachments?.length)    return product.attachments[0].url;
-  return "/images/placeholder.jpg";
+  return "/images/placeholder.svg";
 }
 
 function getSizes(product: SitniksProduct): string[] {
@@ -218,3 +218,4 @@ export async function getCatalogProductById(id: number): Promise<CatalogProduct 
     return fallbackProduct ? mapFallbackProductToCatalogProduct(fallbackProduct) : null;
   }
 }
+

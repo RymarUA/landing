@@ -12,3 +12,4 @@ export default async function ProfilePage() {
   const products = await getCatalogProducts();
   return <ProfileClient allProducts={products} />;
 }
+

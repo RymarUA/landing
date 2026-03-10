@@ -288,3 +288,4 @@ export function trackInitiateCheckout(params: { value: number; numItems: number 
     console.warn("[analytics] trackInitiateCheckout error:", e);
   }
 }
+

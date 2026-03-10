@@ -1,6 +1,7 @@
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
+import typescriptEslint from "@typescript-eslint/eslint-plugin";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -10,8 +11,11 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...compat.extends("next/core-web-vitals"),
   {
+    plugins: {
+      "@typescript-eslint": typescriptEslint,
+    },
     rules: {
       // 🔴 ERROR - Prevents runtime crashes
       "react-hooks/rules-of-hooks": "error", // Hooks in correct order = no crash

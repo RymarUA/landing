@@ -104,3 +104,4 @@ export function normalizePhoneForAuth(raw: string): string {
   if (digits.length === 9) return `+380${digits}`;
   return raw.startsWith("+") ? raw : `+${digits}`;
 }
+

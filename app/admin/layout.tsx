@@ -10,7 +10,7 @@
  */
 
 export const metadata = {
-  title: "Адмін-панель — FamilyHub Market",
+  title: "Адмін-панель — Семейный Магазин",
   robots: "noindex, nofollow", // пошукові системи не індексують
 };
 
@@ -22,3 +22,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
 }
+

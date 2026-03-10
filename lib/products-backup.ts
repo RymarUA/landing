@@ -111,3 +111,4 @@ export async function getCategories(): Promise<string[]> {
   const cats = new Set(STATIC_PRODUCTS.map((p) => p.category));
   return ["Всі", ...Array.from(cats)];
 }
+

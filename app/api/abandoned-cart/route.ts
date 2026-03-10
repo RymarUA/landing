@@ -151,3 +151,4 @@ export async function DELETE(req: NextRequest) {
 function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+

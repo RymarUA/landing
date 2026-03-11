@@ -182,7 +182,7 @@ function HorizontalScroll({
 
                   {/* Price */}
                   <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-red-500 font-bold text-base">₴{product.price}</span>
+                    <span className="text-red-500 font-semibold text-base">₴{product.price}</span>
                     {product.oldPrice && (
                       <span className="text-gray-400 text-xs line-through">₴{product.oldPrice}</span>
                     )}
@@ -359,7 +359,7 @@ function TemuProductCard({
 
         {/* Price */}
         <div className="flex items-baseline gap-1 mb-2">
-          <span className="text-red-500 font-bold text-lg">
+          <span className="text-red-500 font-semibold text-lg">
             ₴{product.price.toLocaleString("uk-UA")}
           </span>
           {product.oldPrice && (

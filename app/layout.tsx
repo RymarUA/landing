@@ -11,6 +11,7 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { WishlistProvider } from "@/components/wishlist-context";
 import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
+import { AbandonedCartNotification } from "@/components/abandoned-cart-notification";
 import { validateEnv } from "@/lib/env-validation";
 import { WebVitals } from "./web-vitals";
 
@@ -130,6 +131,7 @@ export default function RootLayout({
             <MobileLayout>
               {children}
               <DiscountPopup />
+              <AbandonedCartNotification />
             </MobileLayout>
           </WishlistProvider>
         </CartProvider>

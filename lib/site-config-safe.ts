@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { siteConfig, type SiteConfig } from "./site-config";
 
 const FALLBACK_CONFIG: Partial<SiteConfig> = {

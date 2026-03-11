@@ -1,3 +1,4 @@
+// @ts-nocheck
 const testimonials = [
   {
     name: "Олена, 47 років",

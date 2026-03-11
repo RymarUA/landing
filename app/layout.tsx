@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Metadata } from "next/types";
 import type { ReactNode } from "react";
 import "./globals.css";

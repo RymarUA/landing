@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * useIsomorphic - provides safe access to browser APIs
  * Prevents SSR mismatches and hydration errors

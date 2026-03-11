@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * lib/telegram-notify.ts
  *

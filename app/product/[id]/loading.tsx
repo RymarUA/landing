@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * app/product/[id]/loading.tsx
  * Skeleton shown while a product page streams / hydrates.

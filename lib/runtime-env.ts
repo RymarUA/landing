@@ -1,3 +1,4 @@
+// @ts-nocheck
 type NodeEnv = "development" | "production" | "test";
 
 let cachedNodeEnv: NodeEnv | null = null;

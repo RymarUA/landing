@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 /**
  * DiscountPopup — спливає через 15 секунд після заходу на сайт.

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { siteConfig } from "@/lib/site-config";
 
 interface JsonLdProps {

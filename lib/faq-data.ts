@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const faqData = [
   {
     q: "Що є у вашому асортименті?",

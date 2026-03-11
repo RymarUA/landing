@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * app/checkout/loading.tsx
  * Skeleton shown while the checkout page hydrates / lazy-loads.

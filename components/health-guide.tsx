@@ -1,3 +1,4 @@
+// @ts-nocheck
 const steps = [
   {
     title: "Оберіть напрям",

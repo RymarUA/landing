@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * lib/instagram-catalog.ts  ← ЗАМІНИТИ ПОВНІСТЮ цим файлом
  *

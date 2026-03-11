@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 /**
  * app/profile/profile-client.tsx

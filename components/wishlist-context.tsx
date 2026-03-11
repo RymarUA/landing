@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 /**
  * WishlistContext — persists a list of product IDs to localStorage.

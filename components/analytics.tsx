@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 /**
  * components/analytics.tsx

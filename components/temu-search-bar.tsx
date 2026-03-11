@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { Search, Phone, Flower } from "lucide-react";

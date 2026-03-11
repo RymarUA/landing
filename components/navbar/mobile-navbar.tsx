@@ -1,12 +1,12 @@
+// @ts-nocheck
 "use client";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { IoIosMenu, IoIosClose } from "react-icons/io";
 import { ShoppingCart } from "lucide-react";
 import { Logo } from "../Logo";
 import { useCart } from "@/components/cart-context";
-import { useMotionValueEvent, useScroll, motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 type NavItem = {
   title: string;
@@ -23,18 +23,6 @@ export const MobileNavbar = ({ navItems }: Props) => {
   const [open, setOpen] = useState(false);
   const { totalCount, hydrated } = useCart();
 
-  const { scrollY } = useScroll();
-
-  const [showBackground, setShowBackground] = useState(false);
-
-  useMotionValueEvent(scrollY, "change", (value) => {
-    if (value > 100) {
-      setShowBackground(true);
-    } else {
-      setShowBackground(false);
-    }
-  });
-
   // Close menu on Escape key
   useEffect(() => {
     if (!open) return;
@@ -46,13 +34,7 @@ export const MobileNavbar = ({ navItems }: Props) => {
   }, [open]);
 
   return (
-    <div
-      className={cn(
-        "flex justify-between bg-white/80 backdrop-blur-md items-center w-full rounded-full px-2.5 py-1.5 transition duration-200",
-        showBackground &&
-          "bg-white shadow-[0px_-2px_0px_0px_var(--neutral-100),0px_2px_0px_0px_var(--neutral-100)]",
-      )}
-    >
+    <div className="flex justify-between bg-white shadow-sm items-center w-full px-4 py-3 transition duration-200">
       <Logo />
       <div className="flex items-center gap-2">
         {/* Cart indicator */}

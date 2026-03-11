@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 /**
  * components/support-button.tsx

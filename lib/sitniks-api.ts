@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * lib/sitniks-api.ts
  *

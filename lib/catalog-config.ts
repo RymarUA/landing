@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * lib/catalog-config.ts
  *

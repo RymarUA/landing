@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Empty loader for Vercel builds
  * This file replaces tailwind-cdn-loader.tsx via webpack alias

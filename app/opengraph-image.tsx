@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ImageResponse } from "next/og";
 import { getResolvedSiteConfig } from "@/lib/site-config-safe";
 

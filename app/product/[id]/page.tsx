@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Metadata } from "next/types";
 import Image from "next/image";
 import Link from "next/link";

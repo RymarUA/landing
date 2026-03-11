@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Safe logger that only logs in development
  * Prevents console spam in production

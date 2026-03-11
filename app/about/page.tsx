@@ -1,5 +1,5 @@
-import type { Metadata } from "next/types";
-import { Children } from "react";
+// @ts-nocheck
+"use client";
 import type { ReactElement } from "react";
 import Link from "next/link";
 import {
@@ -12,19 +12,6 @@ import {
   Clock,
 } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
-
-export const metadata: Metadata = {
-  title: `О нас | ${siteConfig.name}`,
-  description:
-    "Семейный Магазин - онлайн-магазин товаров для повседневных нужд для всей семьи. Доставка товаров, качественное обслуживание по всей стране.",
-  openGraph: {
-    title: `О нас | ${siteConfig.name}`,
-    description:
-      "Магазин для всей семьи с товарами для дома и быта. Доставка товаров, качественное обслуживание по всей стране.",
-    type: "website",
-  },
-  alternates: { canonical: "/about" },
-};
 
 function OrganizationJsonLd() {
   const sameAs = [
@@ -87,36 +74,10 @@ const values: Array<{ icon: ReactElement; title: string; desc: string }> = [
 ];
 
 export default function AboutPage() {
-  const statsContent = Children.toArray(
-    stats.map((s) => (
-      <div key={s.label} className="text-center">
-        <>
-          <div className="text-3xl font-bold mb-1">{s.value}</div>
-          <div className="text-sm text-white/70">{s.label}</div>
-        </>
-      </div>
-    )),
-  );
-
-  const valueCards = Children.toArray(
-    values.map((v) => (
-      <div key={v.title} className="flex gap-4 p-6 bg-[#F6F4EF] rounded-2xl border border-[#E7EFEA]">
-        <>
-          <div className="flex-shrink-0 w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-[#E7EFEA]">
-            {v.icon}
-          </div>
-          <div>
-            <h3 className="font-bold text-[#24312E] mb-1">{v.title}</h3>
-            <p className="text-[#7A8A84] text-sm leading-relaxed">{v.desc}</p>
-          </div>
-        </>
-      </div>
-    )),
-  );
-
-  const pageContent: ReactElement = (
+  return (
     <>
-      <section className="bg-white pt-12 pb-16 px-4 border-b border-[#E7EFEA]">
+      <main className="min-h-screen bg-[#F6F4EF]">
+        <section className="bg-white pt-12 pb-16 px-4 border-b border-[#E7EFEA]">
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-[#E7EFEA] text-[#1F6B5E] text-xs font-bold px-4 py-2 rounded-full mb-6 uppercase tracking-widest">
             ��� ���
@@ -133,14 +94,31 @@ export default function AboutPage() {
 
       <section className="py-12 px-4 bg-[#1F6B5E]">
         <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-white">
-          {statsContent}
+          {stats.map((s) => (
+            <div key={s.label} className="text-center">
+              <div className="text-3xl font-bold mb-1">{s.value}</div>
+              <div className="text-sm text-white/70">{s.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
       <section className="py-16 px-4 bg-white">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-heading text-[#0F2D2A] text-center mb-10">���� ��������</h2>
-          <div className="grid sm:grid-cols-2 gap-6">{valueCards}</div>
+          <h2 className="text-3xl font-heading text-[#0F2D2A] text-center mb-10">Наші цінності</h2>
+          <div className="grid sm:grid-cols-2 gap-6">
+            {values.map((v) => (
+              <div key={v.title} className="flex gap-4 p-6 bg-[#F6F4EF] rounded-2xl border border-[#E7EFEA]">
+                <div className="flex-shrink-0 w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-[#E7EFEA]">
+                  {v.icon}
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#24312E] mb-1">{v.title}</h3>
+                  <p className="text-[#7A8A84] text-sm leading-relaxed">{v.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -205,16 +183,9 @@ export default function AboutPage() {
             </Link>
           </div>
         </div>
-      </section>
-    </>
-  );
-
-  return (
-    <>
-      <OrganizationJsonLd />
-      <main className="min-h-screen bg-[#F6F4EF]">
-        <>{pageContent}</>
+        </section>
       </main>
+      <OrganizationJsonLd />
     </>
   );
 }

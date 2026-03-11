@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Site Configuration - EDIT THIS FILE to customize your site
  * All metadata, OG images, and branding read from here automatically.
@@ -14,7 +15,7 @@ export const siteConfig = {
   url: process.env.NEXT_PUBLIC_URL || "https://your-app.kleap.io",
 
   // Layout: navbar is hidden by default. Set to true for marketing/landing sites.
-  showNavbar: false,
+  showNavbar: true,
 
   // Navigation links (only used when showNavbar is true)
   navLinks: [

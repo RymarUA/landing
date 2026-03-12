@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Instagram, Facebook, MapPin, Phone, Mail, ChevronRight, Check, Heart, Loader2 } from "lucide-react";
+import { Instagram, Facebook, MapPin, Phone, Mail, ChevronRight, Check, Loader2 } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
 import { TikTokIcon } from "@/components/icons/tiktok-icon";
 
@@ -179,7 +179,7 @@ export function ShopFooter() {
               <div className="flex items-center gap-2 bg-green-500/15 border border-green-500/25 text-green-400 rounded-xl px-4 py-3 text-sm font-semibold">
                 <Check size={15} />
                 Дякуємо за підписку!
-              </div>
+              </div>  
             ) : (
               <form onSubmit={handleSubscribe} className="flex flex-col gap-2">
                 <input
@@ -211,14 +211,6 @@ export function ShopFooter() {
             <p className="text-stone-600 text-xs mt-3">
               Без спаму. Відписатися можна будь-коли.
             </p>
-
-            <Link
-              href="/wishlist"
-              className="mt-4 flex items-center gap-2 text-stone-500 hover:text-orange-400 text-sm transition-colors group"
-            >
-              <Heart size={13} className="text-orange-500 group-hover:fill-orange-400 transition-all" />
-              Список бажань
-            </Link>
           </div>
         </div>
 

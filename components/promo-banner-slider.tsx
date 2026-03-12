@@ -76,7 +76,7 @@ export function PromoBannerSlider() {
 
   return (
     <div className="relative w-full overflow-hidden rounded-2xl shadow-lg mb-6">
-      <div className={`relative bg-gradient-to-r ${currentBanner.bgGradient} px-6 py-8 md:py-10`}>
+      <div className={`relative bg-gradient-to-r ${currentBanner.bgGradient} px-6 py-5 md:py-6`}>
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
             key={currentBanner.id}
@@ -89,10 +89,10 @@ export function PromoBannerSlider() {
               x: { type: "spring", stiffness: 300, damping: 30 },
               opacity: { duration: 0.2 },
             }}
-            className="flex items-center justify-center gap-3 text-white"
+            className="flex items-center justify-center gap-2.5 text-white"
           >
-            <Icon size={28} className="flex-shrink-0" />
-            <p className="text-lg md:text-xl font-bold text-center">{currentBanner.text}</p>
+            <Icon size={22} className="flex-shrink-0" />
+            <p className="text-base md:text-lg font-bold text-center">{currentBanner.text}</p>
           </motion.div>
         </AnimatePresence>
 

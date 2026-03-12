@@ -9,10 +9,7 @@
  */
 
 import { z } from "zod";
-
-/** Ukrainian mobile / landline phone regex.
- *  Accepts: 0XXXXXXXXX | +380XXXXXXXXX | 380XXXXXXXXX */
-const PHONE_UA = /^(\+?38)?0\d{9}$/;
+import { isValidUkrainianPhone, normalizePhone } from "./phone-utils";
 
 /** Payment method: online (WayForPay) or cash-on-delivery */
 export const PAYMENT_METHODS = ["online", "cod"] as const;
@@ -30,7 +27,8 @@ export const checkoutSchema = z.object({
   phone: z
     .string()
     .trim()
-    .regex(PHONE_UA, "Невірний формат. Приклад: 0671234567 або +380671234567"),
+    .refine(isValidUkrainianPhone, "Невірний формат. Приклад: 0671234567 або +380671234567")
+    .transform(normalizePhone),
 
   /** Nova Poshta city */
   city: z

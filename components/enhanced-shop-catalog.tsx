@@ -2,22 +2,16 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import dynamic from "next/dynamic";
 import { X, Search, ArrowUpDown, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { useCart } from "@/components/cart-context";
-import { ProductModalSkeleton } from "@/components/product-modal-skeleton";
 import { PromoBannerSlider } from "@/components/promo-banner-slider";
-import { CategoryIconsSlider } from "@/components/category-icons-slider";
 import { ModernProductCard } from "@/components/modern-product-card";
+import { ProductModal } from "@/components/product-modal";
 import { QuickBuyModal } from "@/components/quick-buy-modal";
 import { ALL_CATEGORIES, SORT_OPTIONS, type SortKey } from "@/lib/catalog-config";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
-
-const ProductModal = dynamic(
-  () => import("@/components/product-modal").then(m => ({ default: m.ProductModal })),
-  { loading: () => <ProductModalSkeleton /> }
-);
+import { trackAddToCart } from "@/components/analytics";
 
 export type { Product };
 
@@ -41,8 +35,6 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
   const [maxPrice, setMaxPrice] = useState("");
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const [catalogVisible, setCatalogVisible] = useState(true);
   const toastTimers = useRef<Map<number, number>>(new Map());
   const { addItem } = useCart();
 
@@ -70,7 +62,6 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
       const searchMatch = hash.match(/search=([^&]*)/);
       if (searchMatch) {
         setSearchQuery(decodeURIComponent(searchMatch[1].replace(/^#/, "")));
-        searchInputRef.current?.focus();
       }
       const catMatch = hash.match(/category=([^&#]*)/);
       if (catMatch) {
@@ -130,13 +121,27 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
         oldPrice: product.oldPrice ?? null,
       });
       addToast(product.name);
+      
+      // Track add to cart event
+      trackAddToCart({
+        contentId: product.id,
+        contentName: product.name,
+        value: product.price,
+        currency: "UAH",
+      });
     },
     [addItem, addToast]
   );
 
+  const handleCategoryChange = useCallback((category: string) => {
+    setActive(category);
+    window.location.hash = `category=${encodeURIComponent(category)}`;
+    setVisibleCount(INITIAL_VISIBLE);
+  }, []);
+
   const handleSwipe = useCallback((_: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
     const { offset, velocity } = info;
-    if (Math.abs(offset.x) > 40 && Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(velocity.x) > 200) {
+    if (Math.abs(offset.x) > 50 && Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(velocity.x) > 300) {
       const idx = ALL_CATEGORIES.indexOf(active as (typeof ALL_CATEGORIES)[number]);
       let nextIdx;
       if (offset.x < 0) {
@@ -146,14 +151,10 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
       }
       if (nextIdx !== idx) {
         const nextCat = ALL_CATEGORIES[nextIdx];
-        setActive(nextCat);
-        window.history.replaceState(null, "", `#category=${encodeURIComponent(nextCat)}`);
-        setVisibleCount(INITIAL_VISIBLE);
-        setCatalogVisible(false);
-        setTimeout(() => setCatalogVisible(true), 120);
+        handleCategoryChange(nextCat);
       }
     }
-  }, [active]);
+  }, [active, handleCategoryChange]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -199,43 +200,18 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
         ))}
       </div>
 
-      <motion.section id="catalog" className="bg-gray-50 py-8 px-4">
+      <motion.section 
+        id="catalog" 
+        className="bg-gray-50 py-8 px-4"
+        onPanEnd={handleSwipe}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.15}
+        dragSnapToOrigin={true}
+      >
         <div className="max-w-6xl mx-auto">
           {/* Promo Banner */}
           {active === "Всі" && !searchQuery && <PromoBannerSlider />}
-
-          {/* Category Icons Slider */}
-          <CategoryIconsSlider
-            onCategoryChange={(cat) => {
-              setActive(cat);
-              setVisibleCount(INITIAL_VISIBLE);
-              setCatalogVisible(false);
-              setTimeout(() => setCatalogVisible(true), 120);
-              window.history.replaceState(null, "", `#category=${encodeURIComponent(cat)}`);
-            }}
-            initialCategory={active}
-          />
-
-          {/* Search bar */}
-          <div className="relative mb-5 mt-6 max-w-xl mx-auto">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Пошук за назвою, категорією…"
-              className="w-full pl-9 pr-10 py-3 rounded-2xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white shadow-sm"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X size={15} />
-              </button>
-            )}
-          </div>
 
           {/* Toolbar */}
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
@@ -347,15 +323,8 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
             </div>
           ) : (
             <>
-              <motion.div
-                className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity duration-150 ${catalogVisible ? "opacity-100" : "opacity-0"}`}
-                onPanEnd={handleSwipe}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.2}
-                dragSnapToOrigin={true}
-              >
-                <AnimatePresence mode="wait">
+              <div className="grid grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-1 md:gap-4 md:px-0">
+                <AnimatePresence mode="popLayout">
                   {visibleSorted.map((product) => (
                     <motion.div
                       key={product.id}
@@ -363,6 +332,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
+                      className="h-full"
                     >
                       <ModernProductCard
                         product={product}
@@ -374,7 +344,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
                     </motion.div>
                   ))}
                 </AnimatePresence>
-              </motion.div>
+              </div>
               {hasMore && (
                 <div className="mt-6 flex justify-center">
                   <button

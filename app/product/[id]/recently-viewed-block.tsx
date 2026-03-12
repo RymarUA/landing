@@ -51,13 +51,23 @@ export function RecentlyViewedBlock({ products, currentId }: Props) {
               <p className="text-xs text-gray-400 mb-0.5 line-clamp-1">{p.category}</p>
               <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-1.5">{p.name}</p>
               <div className="flex items-center gap-0.5 mb-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    size={10}
-                    className={i < Math.round(p.rating) ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}
-                  />
-                ))}
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const isFull = i < Math.floor(p.rating);
+                  const isHalf = i === Math.floor(p.rating) && p.rating % 1 >= 0.3 && p.rating % 1 < 0.8;
+                  return (
+                    <div key={i} className="relative" style={{ width: 10, height: 10 }}>
+                      <Star
+                        size={10}
+                        className={isFull ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}
+                      />
+                      {isHalf && (
+                        <div className="absolute inset-0 overflow-hidden" style={{ width: '5px' }}>
+                          <Star size={10} className="fill-amber-400 text-amber-400" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 <span className="text-xs text-gray-400 ml-0.5">({p.reviews})</span>
               </div>
               <p className="text-orange-500 font-semibold text-sm">{p.price.toLocaleString("uk-UA")} грн</p>

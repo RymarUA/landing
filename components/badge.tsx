@@ -1,4 +1,15 @@
 // @ts-nocheck
+/**
+ * components/badge.tsx
+ * 
+ * Animated badge button component with gradient hover effect.
+ * Perfect for CTAs, announcements, or promotional banners.
+ * 
+ * @example
+ * <Badge onClick={() => router.push('/promo')}>
+ *   🎉 Спеціальна пропозиція
+ * </Badge>
+ */
 import React from "react";
 
 export const Badge: React.FC<

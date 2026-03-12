@@ -21,7 +21,7 @@ export function HealthFooter() {
           <div>
             <div className="font-heading text-xl">Здоровʼя Сходу</div>
             <p className="mt-3 text-sm text-white/70">
-              Персональні ритуали східної медицини для дому та клінік. Допомагаємо підібрати чаї, пластирі, масла й ортези за рекомендацією експертів.
+              Допомагаємо підібрати чаї, пластирі, масла й ортези за рекомендацією експертів.
             </p>
             {siteConfig.phone && (
               <a
@@ -31,7 +31,7 @@ export function HealthFooter() {
                 {siteConfig.phone}
               </a>
             )}
-            <p className="mt-2 text-xs text-white/60">Графік консультацій: щодня 09:00–21:00</p>
+            <p className="mt-2 text-xs text-white/60">Графік консультацій: щодня 09:00–17:00</p>
           </div>
 
           <div>
@@ -78,7 +78,7 @@ export function HealthFooter() {
 
         <div className="mt-10 border-t border-white/10 pt-6 text-xs text-white/50 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <span> 2026 «Здоровʼя Сходу». Всі права захищені.</span>
-          <span>Піклуємось про вас щодня 09:00–21:00</span>
+          <span>Піклуємось про вас щодня 09:00–17:00</span>
         </div>
       </div>
     </footer>

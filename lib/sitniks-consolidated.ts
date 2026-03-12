@@ -211,7 +211,7 @@ async function sitniksSafe<T>(
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
-      next: { revalidate: 300 },
+      next: { revalidate: 60 },
     });
 
     clearTimeout(timeout);

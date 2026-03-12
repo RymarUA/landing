@@ -13,8 +13,12 @@ import { WishlistProvider } from "@/components/wishlist-context";
 import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
 import { AbandonedCartNotification } from "@/components/abandoned-cart-notification";
+import { AnnouncementBar } from "@/components/announcement-bar";
+import { SupportButton } from "@/components/support-button";
+import { JsonLd, organizationSchema, websiteSchema } from "@/components/seo/JsonLd";
 import { validateEnv } from "@/lib/env-validation";
 import { WebVitals } from "./web-vitals";
+import { getCatalogProducts } from "@/lib/instagram-catalog";
 
 // Validate environment variables on server startup (single evaluation)
 validateEnv();
@@ -105,15 +109,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
+  const products = await getCatalogProducts();
+
   return (
     <html lang="uk">
       <head>
         <meta name="color-scheme" content="light" />
+        <JsonLd data={organizationSchema} id="organization" />
+        <JsonLd data={websiteSchema} id="website" />
       </head>
       <body suppressHydrationWarning
         className={cn(
@@ -126,13 +134,15 @@ export default function RootLayout({
         <WebVitals />
         <TailwindCDNClient />
         <DevToolsGuard />
+        <AnnouncementBar />
         <CartProvider>
           <WishlistProvider>
-            <MobileLayout>
+            <MobileLayout products={products}>
               {children}
               <DiscountPopup />
               <AbandonedCartNotification />
             </MobileLayout>
+            <SupportButton />
           </WishlistProvider>
         </CartProvider>
       </body>

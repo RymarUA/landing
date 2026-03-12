@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { getCatalogProducts } from "@/lib/instagram-catalog";
 import { HealthFooter } from "@/components/health-footer";
+import { ShopFaq } from "@/components/shop-faq";
+import { FeaturedProducts } from "@/components/featured-products";
 
 const CatalogFallback = () => (
   <section className="bg-white py-8" aria-busy="true" aria-live="polite">
@@ -25,12 +27,18 @@ export default async function Home() {
   const products = await getCatalogProducts();
 
   return (
-    <main className="min-h-screen bg-white pt-16">
+    <main className="min-h-screen bg-white">
+      {/* Featured Sections */}
+      <FeaturedProducts products={products} type="hits" />
+      <FeaturedProducts products={products} type="new" />
+      
+      {/* Main Catalog */}
       <div id="catalog">
         <Suspense fallback={<CatalogFallback />}>
           <EnhancedShopCatalog products={products} />
         </Suspense>
       </div>
+      <ShopFaq />
       <HealthFooter />
     </main>
   );

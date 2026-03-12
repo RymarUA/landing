@@ -18,14 +18,24 @@ interface InfiniteProductFeedProps {
 
 function StarRow({ rating, count }: { rating: number; count: number }) {
   return (
-    <div className="flex items-center gap-1">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star
-          key={i}
-          size={11}
-          className={i < Math.round(rating) ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"}
-        />
-      ))}
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => {
+        const isFull = i < Math.floor(rating);
+        const isHalf = i === Math.floor(rating) && rating % 1 >= 0.3 && rating % 1 < 0.8;
+        return (
+          <div key={i} className="relative" style={{ width: 11, height: 11 }}>
+            <Star
+              size={11}
+              className={isFull ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"}
+            />
+            {isHalf && (
+              <div className="absolute inset-0 overflow-hidden" style={{ width: '5.5px' }}>
+                <Star size={11} className="fill-amber-400 text-amber-400" />
+              </div>
+            )}
+          </div>
+        );
+      })}
       <span className="text-xs text-stone-500 ml-0.5">({count})</span>
     </div>
   );

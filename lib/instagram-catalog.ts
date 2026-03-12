@@ -1,25 +1,24 @@
 // @ts-nocheck
 /**
- * lib/instagram-catalog.ts  ← ЗАМІНИТИ ПОВНІСТЮ цим файлом
+ * lib/instagram-catalog.ts
  *
- * Тепер читає товари з Sitniks CRM замість mock-даних.
+ * Читає товари з Sitniks CRM через характеристики (Properties).
  *
  * Як це працює:
  *  1. getAllSitniksProducts() → отримуємо список з Sitniks API
- *  2. mapSitniksProduct() → конвертуємо в CatalogProduct (той самий тип що раніше)
- *  3. Кеш Next.js { revalidate: 300 } — сайт оновлюється кожні 5 хвилин автоматично
+ *  2. mapSitniksProduct() → конвертуємо в CatalogProduct, читаючи дані з характеристик
+ *  3. Кеш Next.js { revalidate: 60 } — сайт оновлюється кожну хвилину автоматично
  *
- * Кастомні поля в Sitniks (auxiliaryInfo):
- *  Щоб додати бейдж, isHit, isNew — заповни поле "Додаткова інформація" товару в Sitniks:
- *  {
- *    "badge": "ХІТ",
- *    "badgeColor": "bg-amber-400 text-gray-900",
- *    "isHit": true,
- *    "isNew": false,
- *    "oldPrice": 1800,
- *    "rating": 4.8,
- *    "reviews": 48
- *  }
+ * Характеристики товару в Sitniks CRM:
+ *  Створіть характеристики для товару:
+ *  - badge: "ХІТ" | "Новинка" | "Знижка" | "Топ" | "Акція"
+ *  - badgeColor: "bg-amber-400 text-gray-900" (опціонально)
+ *  - isHit: "Так" | "True" | "1"
+ *  - isNew: "Так" | "True" | "1"
+ *  - freeShipping: "Так" | "True" | "1"
+ *  - oldPrice: "1800" (число)
+ *  - rati  ng: "4.8" (число 0-5)
+ *  - reviews: "48" (число)
  */
 
 import {
@@ -74,6 +73,30 @@ const DEFAULT_BADGE_COLOR: Record<string, string> = {
   "Акція":   "bg-purple-500 text-white",
 };
 
+/** Шукає значення характеристики по імені (без урахування регістру) */
+function getProp(p: SitniksProduct, key: string, variation?: SitniksVariation): string | undefined {
+  // Спочатку шукаємо в характеристиках варіації
+  if (variation?.properties) {
+    const varProp = variation.properties.find(prop => prop.name?.toLowerCase() === key.toLowerCase());
+    if (varProp?.value) return varProp.value;
+  }
+  
+  // Потім шукаємо в характеристиках продукту
+  if (p.properties) {
+    const prodProp = p.properties.find(prop => prop.name?.toLowerCase() === key.toLowerCase());
+    if (prodProp?.value) return prodProp.value;
+  }
+  
+  return undefined;
+}
+
+/** Перевіряє "Так/True" в характеристиках */
+function isTrue(val?: string): boolean {
+  if (!val) return false;
+  const v = val.toLowerCase().trim();
+  return v === "так" || v === "true" || v === "yes" || v === "1" || v === "да";
+}
+
 function getFirstImage(product: SitniksProduct, variation?: SitniksVariation): string {
   // Пріоритет: фото варіації → фото продукту → заглушка
   if (variation?.attachments?.length) return variation.attachments[0].url;
@@ -101,29 +124,34 @@ function getTotalStock(product: SitniksProduct): number {
 }
 
 function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
-  const aux = (p.auxiliaryInfo ?? {}) as Record<string, unknown>;
   const activeVariations = (p.variations ?? []).filter((v) => v.isActive);
   const firstVariation = activeVariations[0];
 
+  // Читаємо дані з характеристик (Properties) - шукаємо в варіації та продукті
+  const badgeText = getProp(p, "badge", firstVariation);
+  const badgeColorCustom = getProp(p, "badgeColor", firstVariation);
+  const oldPriceRaw = getProp(p, "oldPrice", firstVariation);
+  const ratingRaw = getProp(p, "rating", firstVariation);
+  const reviewsRaw = getProp(p, "reviews", firstVariation);
+
   // Price: з першої варіації
   const price = firstVariation?.price ?? 0;
-  const oldPrice = typeof aux.oldPrice === "number" ? aux.oldPrice : null;
+  const oldPrice = oldPriceRaw ? parseFloat(oldPriceRaw) : null;
 
   // Badge
-  const badge = typeof aux.badge === "string" ? aux.badge || null : null;
-  const badgeColor =
-    typeof aux.badgeColor === "string"
-      ? aux.badgeColor
-      : badge ? (DEFAULT_BADGE_COLOR[badge] ?? "bg-orange-500 text-white") : "";
+  const badge = badgeText || null;
+  const badgeColor = badgeColorCustom
+    ? badgeColorCustom
+    : badge ? (DEFAULT_BADGE_COLOR[badge] ?? "bg-orange-500 text-white") : "";
 
   // Flags
-  const isHit = Boolean(aux.isHit);
-  const isNew = Boolean(aux.isNew);
-  const freeShipping = Boolean(aux.freeShipping);
+  const isHit = isTrue(getProp(p, "isHit", firstVariation));
+  const isNew = isTrue(getProp(p, "isNew", firstVariation));
+  const freeShipping = isTrue(getProp(p, "freeShipping", firstVariation));
 
-  // Rating / reviews (зберігаються в auxiliaryInfo бо Sitniks не має вбудованих)
-  const rating = typeof aux.rating === "number" ? aux.rating : 5.0;
-  const reviews = typeof aux.reviews === "number" ? aux.reviews : 0;
+  // Rating / reviews
+  const rating = ratingRaw ? parseFloat(ratingRaw) : 5.0;
+  const reviews = reviewsRaw ? parseInt(reviewsRaw, 10) : 0;
 
   return {
     id: p.id,
@@ -137,7 +165,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     name: p.title,
     price,
     oldPrice,
-    category: p.category?.name ?? "Інше",
+    category: p.category?.title ?? p.category?.name ?? "Інше",
     badge,
     badgeColor,
     isHit,
@@ -196,7 +224,7 @@ function mapFallbackProductToCatalogProduct(p: Awaited<ReturnType<typeof getAllP
 
 /**
  * Всі активні товари для каталогу.
- * Кешується Next.js на 5 хвилин.
+ * Кешується Next.js на 1 хвилину.
  */
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   try {

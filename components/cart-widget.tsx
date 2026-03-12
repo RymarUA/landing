@@ -47,11 +47,11 @@ export function CartWidget() {
       {/* ── Floating button: on product page move up on mobile to avoid sticky bar ── */}
       <motion.button
         onClick={toggleCart}
-        className={`fixed right-6 z-[100] w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300
-          ${isProductPage ? "bottom-32 md:bottom-6" : "bottom-20 md:bottom-6"}
-          bg-gradient-to-br from-emerald-600 to-emerald-700 text-white
-          hover:scale-110 hover:shadow-emerald-500/50`}
+        className={`fixed right-6 z-[110] w-16 h-16 rounded-full shadow-2xl flex items-center justify-center
+          ${isProductPage ? "bottom-32 md:bottom-24" : "bottom-20 md:bottom-24"}
+          bg-gradient-to-br from-emerald-600 to-emerald-700 text-white`}
         aria-label="Відкрити кошик"
+        whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         animate={animate ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : { scale: 1, rotate: 0 }}
         transition={{ duration: 0.4, ease: "easeInOut" }}
@@ -72,7 +72,7 @@ export function CartWidget() {
       </motion.button>
 
       {/* ── Drawer ──────────────────────────────────── */}
-      <div className={`fixed inset-0 z-40 ${isCartOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
+      <div className={`fixed inset-0 z-[105] ${isCartOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
         <div
           className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isCartOpen ? "opacity-100" : "opacity-0"}`}
           onClick={closeCart}

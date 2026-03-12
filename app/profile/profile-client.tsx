@@ -296,7 +296,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   if (step === "loading") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 size={36} className="text-orange-400 animate-spin" />
+        <Loader2 size={36} className="text-emerald-600 animate-spin" />
       </div>
     );
   }
@@ -312,10 +312,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           </Link>
 
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-            <div className="h-1.5 bg-gradient-to-r from-orange-500 to-amber-500" />
+            <div className="h-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700" />
             <div className="p-8">
-              <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                <User size={30} className="text-orange-500" />
+              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-5">
+                <User size={30} className="text-emerald-600" />
               </div>
               <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Особистий кабінет</h1>
               <p className="text-sm text-gray-500 text-center mb-7 leading-relaxed">
@@ -350,7 +350,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                     placeholder="+38 (067) 123-45-67"
                     disabled={busy}
                     autoComplete="tel"
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 transition disabled:opacity-60 disabled:cursor-not-allowed ${phoneError ? "border-red-400 bg-red-50/50" : "border-gray-200"}`}
+                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition disabled:opacity-60 disabled:cursor-not-allowed ${phoneError ? "border-red-400 bg-red-50/50" : "border-gray-200"}`}
                   />
                   {phoneError && (
                     <p className="text-sm text-red-600 flex items-center gap-1.5">
@@ -370,7 +370,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 <button
                   type="submit"
                   disabled={busy || !phone.trim() || !isValidPhone(phone)}
-                  className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-orange-200"
+                  className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-emerald-200"
                 >
                   {busy ? <Loader2 size={18} className="animate-spin" /> : <Phone size={18} />}
                   {busy ? "Відправляємо…" : "Отримати код"}
@@ -421,10 +421,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           </button>
 
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-            <div className="h-1.5 bg-gradient-to-r from-orange-500 to-amber-500" />
+            <div className="h-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700" />
             <div className="p-8">
-              <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                <KeyRound size={30} className="text-amber-500" />
+              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-5">
+                <KeyRound size={30} className="text-emerald-600" />
               </div>
               <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Введіть код</h1>
               <p className="text-sm text-gray-500 text-center mb-1 leading-relaxed">
@@ -447,7 +447,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                         onChange={(e) => setOtpDigit(i, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
                         disabled={busy}
-                        className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-black rounded-xl border-2 border-gray-200 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 transition disabled:opacity-60"
+                        className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-black rounded-xl border-2 border-gray-200 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition disabled:opacity-60"
                       />
                     ))}
                   </div>
@@ -463,7 +463,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 <button
                   type="submit"
                   disabled={busy || otpString.length !== 6}
-                  className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-orange-200"
+                  className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-emerald-200"
                 >
                   {busy ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
                   {busy ? "Перевіряємо…" : "Підтвердити"}
@@ -474,7 +474,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 <button
                   onClick={handleResend}
                   disabled={resendIn > 0 || busy}
-                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-orange-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
                 >
                   <RefreshCw size={14} />
                   {resendIn > 0 ? `Повторний код через ${resendIn}с` : "Надіслати код ще раз"}
@@ -522,8 +522,8 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         {/* User card */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <User size={28} className="text-orange-500" />
+            <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <User size={28} className="text-emerald-600" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Мій профіль</p>
@@ -543,7 +543,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                   if (typeof window !== "undefined") localStorage.setItem(PROFILE_NAME_KEY, v);
                 }}
                 placeholder="Додати ім'я"
-                className="mt-2 w-full max-w-[200px] px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="mt-2 w-full max-w-[200px] px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
               />
             </div>
           </div>
@@ -554,12 +554,12 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Heart size={18} className="text-orange-500 fill-orange-500" />
+                <Heart size={18} className="text-emerald-600 fill-emerald-600" />
                 <h2 className="text-lg font-black text-gray-900">Список бажань</h2>
               </div>
               <Link
                 href="/wishlist"
-                className="text-sm font-semibold text-orange-500 hover:text-orange-600 flex items-center gap-1"
+                className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
               >
                 {wishlistCount} {wishlistCount === 1 ? "товар" : wishlistCount >= 5 ? "товарів" : "товари"}
                 <ChevronRight size={14} />
@@ -593,13 +593,13 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         {/* Orders section */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-5">
-            <ShoppingBag size={18} className="text-orange-500" />
+            <ShoppingBag size={18} className="text-emerald-600" />
             <h2 className="text-lg font-black text-gray-900">Мої замовлення</h2>
           </div>
 
           {ordersLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 size={28} className="text-orange-400 animate-spin" />
+              <Loader2 size={28} className="text-emerald-600 animate-spin" />
             </div>
           ) : orders.length === 0 ? (
             <div className="text-center py-12">
@@ -612,7 +612,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
               </p>
               <Link
                 href="/#catalog"
-                className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-2xl transition-colors shadow-lg shadow-orange-200 text-sm"
+                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-2xl transition-colors shadow-lg shadow-emerald-200 text-sm"
               >
                 Перейти до каталогу
                 <ChevronRight size={15} />
@@ -628,7 +628,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                         </div>
                         <div className="p-2">
                           <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
-                          <p className="text-xs font-semibold text-orange-500">{product.price.toLocaleString("uk-UA")} грн</p>
+                          <p className="text-xs font-semibold text-emerald-600">{product.price.toLocaleString("uk-UA")} грн</p>
                         </div>
                       </Link>
                     ))}
@@ -665,7 +665,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-gray-50">
                       <span className="text-xs text-gray-400">Разом:</span>
-                      <span className="font-black text-orange-500">{order.total.toLocaleString("uk-UA")} грн</span>
+                      <span className="font-black text-emerald-600">{order.total.toLocaleString("uk-UA")} грн</span>
                     </div>
                     <div className="flex flex-wrap gap-2 pt-2">
                       {order.trackingNumber && (
@@ -716,7 +716,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                           });
                           router.push("/checkout");
                         }}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
                       >
                         <RotateCcw size={14} />
                         Повторити замовлення
@@ -734,7 +734,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           ������� ���� ����������?{" "}
           <a
             href={`tel:${siteConfig.phone}`}
-            className="text-[#1F6B5E] font-semibold hover:underline"
+            className="text-emerald-600 font-semibold hover:underline"
           >
             �������������
           </a>

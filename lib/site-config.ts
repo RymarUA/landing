@@ -73,9 +73,9 @@ export const siteConfig = {
   // -- Contact / Support links ------------------------------------------
   // Used by SupportButton floating widget. Set to "" to hide that channel.
   telegramUsername: "zdorovia_skhodu",
-  viberPhone: "+380441231212",             // viber://chat?number=...
+  viberPhone: "+380507877430",             // viber://chat?number=...
   instagramUsername: "zdorovia.skhodu",
-  phone: "+380441231212",
+  phone: "+380507877430",
   twitterHandle: "zdorovia_skhodu",
 };
 

@@ -75,9 +75,9 @@ export function AbandonedCartNotification() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 50, scale: 0.9 }}
         transition={{ type: "spring", damping: 20, stiffness: 300 }}
-        className="fixed bottom-20 sm:bottom-6 right-4 z-50 max-w-sm"
+        className="fixed bottom-20 sm:bottom-6 right-4 z-[120] max-w-sm"
       >
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl shadow-2xl p-4 relative">
+        <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-2xl shadow-2xl p-4 relative">
           {/* Close button */}
           <button
             onClick={handleDismiss}
@@ -103,7 +103,7 @@ export function AbandonedCartNotification() {
               
               <button
                 onClick={handleOpenCart}
-                className="w-full bg-white text-orange-600 font-bold py-2.5 px-4 rounded-xl hover:bg-orange-50 transition-colors text-sm"
+                className="w-full bg-white text-emerald-600 font-bold py-2.5 px-4 rounded-xl hover:bg-emerald-50 transition-colors text-sm"
               >
                 Завершити покупку
               </button>
@@ -111,7 +111,7 @@ export function AbandonedCartNotification() {
           </div>
 
           {/* Decorative pulse effect */}
-          <div className="absolute -inset-1 bg-orange-400 rounded-2xl opacity-20 blur-xl -z-10 animate-pulse" />
+          <div className="absolute -inset-1 bg-emerald-400 rounded-2xl opacity-20 blur-xl -z-10 animate-pulse" />
         </div>
       </motion.div>
     </AnimatePresence>

@@ -178,13 +178,23 @@ export default async function ProductPage({
               {/* Rating */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      size={16}
-                      className={i < Math.round(product.rating) ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}
-                    />
-                  ))}
+                  {Array.from({ length: 5 }).map((_, i) => {
+                    const isFull = i < Math.floor(product.rating);
+                    const isHalf = i === Math.floor(product.rating) && product.rating % 1 >= 0.3 && product.rating % 1 < 0.8;
+                    return (
+                      <div key={i} className="relative" style={{ width: 16, height: 16 }}>
+                        <Star
+                          size={16}
+                          className={isFull ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}
+                        />
+                        {isHalf && (
+                          <div className="absolute inset-0 overflow-hidden" style={{ width: '8px' }}>
+                            <Star size={16} className="fill-amber-400 text-amber-400" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 <span className="text-sm font-bold text-gray-900">{product.rating}</span>
                 <span className="text-sm text-gray-400">({product.reviews} відгуків)</span>
@@ -262,13 +272,23 @@ export default async function ProductPage({
                     <p className="text-xs text-stone-500 mb-0.5">{rp.category}</p>
                     <p className="text-sm font-bold text-stone-900 leading-tight line-clamp-2 mb-1.5">{rp.name}</p>
                     <div className="flex items-center gap-0.5 mb-1.5">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          size={10}
-                          className={i < Math.round(rp.rating) ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"}
-                        />
-                      ))}
+                      {Array.from({ length: 5 }).map((_, i) => {
+                        const isFull = i < Math.floor(rp.rating);
+                        const isHalf = i === Math.floor(rp.rating) && rp.rating % 1 >= 0.3 && rp.rating % 1 < 0.8;
+                        return (
+                          <div key={i} className="relative" style={{ width: 10, height: 10 }}>
+                            <Star
+                              size={10}
+                              className={isFull ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"}
+                            />
+                            {isHalf && (
+                              <div className="absolute inset-0 overflow-hidden" style={{ width: '5px' }}>
+                                <Star size={10} className="fill-amber-400 text-amber-400" />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                       <span className="text-xs text-stone-500 ml-0.5">({rp.reviews})</span>
                     </div>
                     <div className="flex items-baseline gap-1.5">

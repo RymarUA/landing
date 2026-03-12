@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { Home, Grid3x3, User, ShoppingBag, Sparkles } from "lucide-react";
+import { Home, Grid3x3, User, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -33,13 +33,6 @@ export function TemuBottomNav() {
       ariaLabel: "Переглянути каталог",
     },
     {
-      icon: Sparkles,
-      label: "Гід",
-      href: "/#guide",
-      isActive: pathname === "/" && hash.includes("guide"),
-      ariaLabel: "Дізнатися про гід",
-    },
-    {
       icon: ShoppingBag,
       label: "Кошик",
       href: "/cart",
@@ -56,7 +49,7 @@ export function TemuBottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 border-t border-emerald-700/40 backdrop-blur z-50 md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 border-t border-emerald-700/40 backdrop-blur z-[100] pb-[env(safe-area-inset-bottom)]">
       <nav className="flex justify-around items-center py-2" aria-label="Нижня навігація">
         {navItems.map((item) => (
           <Link

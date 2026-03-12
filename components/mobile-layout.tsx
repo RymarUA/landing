@@ -1,23 +1,29 @@
 // @ts-nocheck
 "use client";
 
-import { TemuSearchBar } from "@/components/temu-search-bar";
+import { SearchBarWithProducts } from "@/components/search-bar-with-products";
+import { StickyCategories } from "@/components/sticky-categories";
 import { TemuBottomNav } from "@/components/temu-bottom-nav";
 import { CookieBanner } from "@/components/cookie-banner";
 import { CartWidget } from "@/components/cart-widget";
+import type { CatalogProduct } from "@/lib/instagram-catalog";
 
 interface MobileLayoutProps {
   children: React.ReactNode;
+  products?: CatalogProduct[];
 }
 
-export function MobileLayout({ children }: MobileLayoutProps) {
+export function MobileLayout({ children, products = [] }: MobileLayoutProps) {
   return (
     <>
       {/* Brand Top Bar */}
-      <TemuSearchBar />
+      <SearchBarWithProducts products={products} />
 
-      {/* Main content with top padding for fixed search bar */}
-      <div className="pt-[76px] pb-[92px]">
+      {/* Sticky Categories Bar */}
+      <StickyCategories />
+
+      {/* Main content with top padding for fixed search bar + categories */}
+      <div className="pt-[144px] pb-[92px]">
         {children}
       </div>
 

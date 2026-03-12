@@ -116,7 +116,7 @@ export default function RootLayout({
       <head>
         <meta name="color-scheme" content="light" />
       </head>
-      <body
+      <body suppressHydrationWarning
         className={cn(
           notoSans.variable,
           notoSerif.variable,

@@ -62,6 +62,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "robot-speed.com",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.sitniks.com",
+      },
     ],
     formats: ["image/avif", "image/webp"],
     // Use sharp for better performance

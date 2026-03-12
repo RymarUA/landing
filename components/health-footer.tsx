@@ -26,7 +26,7 @@ export function HealthFooter() {
             {siteConfig.phone && (
               <a
                 href={`tel:${siteConfig.phone}`}
-                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#C9B27C]"
+                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#D4AF37]"
               >
                 {siteConfig.phone}
               </a>
@@ -63,13 +63,13 @@ export function HealthFooter() {
           <div>
             <div className="text-xs uppercase tracking-[0.2em] text-white/50">Ритуали та бонуси</div>
             <p className="mt-4 text-sm text-white/70">
-              Застосуйте промокод <span className="text-[#C9B27C] font-semibold">EAST12</span> і отримайте -12% на перший сет турботи.
+              Застосуйте промокод <span className="text-[#D4AF37] font-semibold">EAST12</span> і отримайте -12% на перший сет турботи.
             </p>
             <div className="mt-4 flex flex-col gap-2 text-sm">
-              <Link href="#guide" className="text-[#C9B27C] hover:text-white">
+              <Link href="#guide" className="text-[#D4AF37] hover:text-white">
                 Як проходить консультація
               </Link>
-              <Link href="#catalog" className="text-[#C9B27C] hover:text-white">
+              <Link href="#catalog" className="text-[#D4AF37] hover:text-white">
                 Перейти до каталогу
               </Link>
             </div>

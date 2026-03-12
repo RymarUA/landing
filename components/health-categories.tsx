@@ -14,12 +14,12 @@ export function HealthCategories() {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-end justify-between gap-6 mb-8">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8B6B3E]">Категорії</p>
-            <h2 className="mt-2 font-heading text-2xl md:text-3xl text-[#0F2D2A]">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Категорії</p>
+            <h2 className="mt-2 font-heading text-2xl md:text-3xl text-gray-900">
               Оберіть напрям турботи
             </h2>
           </div>
-          <a href="#catalog" className="text-sm font-semibold text-[#1F6B5E] hover:text-[#0F2D2A]">
+          <a href="#catalog" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800">
             Перейти до каталогу →
           </a>
         </div>
@@ -28,18 +28,18 @@ export function HealthCategories() {
           {categories.map((cat) => (
             <div
               key={cat.title}
-              className="group rounded-2xl border border-[#E7EFEA] bg-[#F6F4EF] p-5 transition hover:shadow-[0_14px_30px_rgba(15,45,42,0.12)] hover:-translate-y-1"
+              className="group rounded-2xl border border-emerald-100 bg-emerald-50 p-5 transition hover:shadow-[0_14px_30px_rgba(6,95,70,0.12)] hover:-translate-y-1"
             >
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-2xl bg-white text-2xl flex items-center justify-center border border-[#E7EFEA]">
+                <div className="h-12 w-12 rounded-2xl bg-white text-2xl flex items-center justify-center border border-emerald-100">
                   {cat.tag}
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-[#24312E]">{cat.title}</h3>
-                  <p className="text-xs text-[#7A8A84] mt-1">{cat.desc}</p>
+                  <h3 className="text-base font-semibold text-gray-900">{cat.title}</h3>
+                  <p className="text-xs text-gray-600 mt-1">{cat.desc}</p>
                 </div>
               </div>
-              <div className="mt-4 text-xs text-[#8B6B3E]">Переглянути всі →</div>
+              <div className="mt-4 text-xs text-emerald-700">Переглянути всі →</div>
             </div>
           ))}
         </div>

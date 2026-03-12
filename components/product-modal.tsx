@@ -4,40 +4,12 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { X, Star, ShoppingCart, Flame, Heart } from "lucide-react";
+import { X, ShoppingCart, Flame, Heart } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
 import { blurProps } from "@/lib/utils";
-
-function Highlight({ text, query }: { text: string; query: string }) {
-  if (!query.trim()) return <>{text}</>;
-  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
-  const parts = text.split(regex);
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === query.toLowerCase() ? (
-          <mark key={i} className="bg-amber-200 text-gray-900 rounded px-0.5">{part}</mark>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
-  );
-}
-
-function StarRow({ rating, count }: { rating: number; count: number }) {
-  return (
-    <div className="flex items-center gap-1">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star key={i} size={11}
-          className={i < Math.round(rating) ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}
-        />
-      ))}
-      <span className="text-xs text-gray-400 ml-0.5">({count})</span>
-    </div>
-  );
-}
+import { Highlight } from "@/components/shared/highlight";
+import { StarRating } from "@/components/shared/star-rating";
 
 export interface ProductModalProps {
   product: Product;
@@ -148,7 +120,7 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
               </h2>
             </div>
 
-            <StarRow rating={product.rating} count={product.reviews} />
+            <StarRating rating={product.rating} count={product.reviews} />
 
             <div className="flex items-baseline gap-3">
               <span className="text-3xl font-semibold text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>

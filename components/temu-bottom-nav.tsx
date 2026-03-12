@@ -56,7 +56,7 @@ export function TemuBottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-[#0F2D2A]/95 border-t border-[#1F6B5E]/40 backdrop-blur z-50 md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 border-t border-emerald-700/40 backdrop-blur z-50 md:hidden">
       <nav className="flex justify-around items-center py-2" aria-label="Нижня навігація">
         {navItems.map((item) => (
           <Link
@@ -64,7 +64,7 @@ export function TemuBottomNav() {
             href={item.href}
             className={`flex flex-col items-center p-2 rounded-2xl transition-colors ${
               item.isActive
-                ? "text-[#C9B27C]"
+                ? "text-[#D4AF37]"
                 : "text-white/70 hover:text-white"
             }`}
             aria-label={item.ariaLabel}

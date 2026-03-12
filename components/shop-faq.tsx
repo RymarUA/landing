@@ -35,7 +35,7 @@ export function ShopFaq() {
       <FaqJsonLd />
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 bg-[#E7EFEA] text-[#1F6B5E] text-xs font-bold px-4 py-2 rounded-full mb-4 uppercase tracking-widest">
+          <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 text-xs font-bold px-4 py-2 rounded-full mb-4 uppercase tracking-widest">
             <HelpCircle size={14} />
             Питання та відповіді
           </div>
@@ -53,20 +53,20 @@ export function ShopFaq() {
               key={i}
               className={`border rounded-2xl overflow-hidden transition-all duration-200 ${
                 open === i
-                  ? "border-[#C9B27C]/60 shadow-[0_10px_24px_rgba(15,45,42,0.12)]"
-                  : "border-[#E7EFEA] hover:border-[#C9B27C]/50"
+                  ? "border-[#D4AF37]/60 shadow-[0_10px_24px_rgba(6,95,70,0.12)]"
+                  : "border-emerald-100 hover:border-[#D4AF37]/50"
               }`}
             >
               <button
                 onClick={() => toggle(i)}
                 className="w-full flex items-center justify-between gap-4 px-6 py-4 text-left"
               >
-                <span className={`font-semibold text-sm md:text-base transition-colors ${open === i ? "text-[#1F6B5E]" : "text-[#24312E]"}`}>
+                <span className={`font-semibold text-sm md:text-base transition-colors ${open === i ? "text-emerald-700" : "text-gray-900"}`}>
                   {faq.q}
                 </span>
                 <ChevronDown
                   size={20}
-                  className={`flex-shrink-0 text-[#7A8A84] transition-transform duration-200 ${open === i ? "rotate-180 text-[#1F6B5E]" : ""}`}
+                  className={`flex-shrink-0 text-gray-500 transition-transform duration-200 ${open === i ? "rotate-180 text-emerald-700" : ""}`}
                 />
               </button>
 
@@ -83,13 +83,13 @@ export function ShopFaq() {
           ))}
         </div>
 
-        <div className="mt-10 text-center bg-[#F6F4EF] rounded-3xl p-8 border border-[#E7EFEA]">
-          <p className="text-[#24312E] font-semibold mb-4">
+        <div className="mt-10 text-center bg-emerald-50 rounded-3xl p-8 border border-emerald-100">
+          <p className="text-gray-900 font-semibold mb-4">
             Потрібна допомога з вибором? Ми завжди на звʼязку.
           </p>
           <a
             href="#guide"
-            className="inline-flex items-center gap-2 bg-[#1F6B5E] hover:bg-[#0F2D2A] text-white font-bold px-8 py-3.5 rounded-2xl transition-colors"
+            className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-8 py-3.5 rounded-2xl transition-colors"
             aria-label="Дізнатися більше про гід"
           >
             Підібрати засіб

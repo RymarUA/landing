@@ -3,13 +3,13 @@
   /* Aceternity custom properties */
   --radius: 0.625rem;
 
-  /* Brand palette */
-  --brand-ink: #0f2d2a;
-  --brand-primary: #1f6b5e;
-  --brand-gold: #c9b27c;
-  --brand-cream: #f6f4ef;
-  --brand-mist: #e7efea;
-  --brand-graphite: #24312e;
+  /* Brand palette - Medical & Premium */
+  --brand-ink: #065F46;
+  --brand-primary: #065F46;
+  --brand-gold: #D4AF37;
+  --brand-cream: #F9FAFB;
+  --brand-mist: #F9FAFB;
+  --brand-graphite: #1F2937;
 
   /* Neutral colors for Aceternity components */
   --color-neutral-50: rgb(250 250 250);
@@ -63,9 +63,9 @@
 }
 
 body {
-  background-color: var(--brand-cream);
+  background-color: #FFFFFF;
   color: var(--brand-graphite);
-  font-family: var(--font-body);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 }
 
 .font-heading {

@@ -47,7 +47,7 @@ export function DiscountPopup() {
       />
 
       <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-        <div className="h-1.5 bg-gradient-to-r from-[#1F6B5E] via-[#C9B27C] to-[#E7EFEA]" />
+        <div className="h-1.5 bg-gradient-to-r from-emerald-700 via-[#D4AF37] to-emerald-50" />
 
         <button
           onClick={dismiss}
@@ -58,25 +58,25 @@ export function DiscountPopup() {
         </button>
 
         <div className="p-7 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-[#1F6B5E] to-[#C9B27C] mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-emerald-700 to-[#D4AF37] mb-4">
             <Sparkles size={32} className="text-white" />
           </div>
-          <h3 className="text-xl font-heading text-[#0F2D2A] mb-2">
+          <h3 className="text-xl font-heading text-gray-900 mb-2">
             Подарунок від «Здоровʼя Сходу»
           </h3>
-          <p className="text-[#7A8A84] text-sm mb-5">
+          <p className="text-gray-600 text-sm mb-5">
             Використайте промокод на перше замовлення та отримайте знижку -12%.
           </p>
 
-          <div className="flex items-center justify-center gap-2 bg-[#F6F4EF] border-2 border-dashed border-[#C9B27C] rounded-2xl px-6 py-4 mb-6">
-            <Tag size={18} className="text-[#8B6B3E]" />
-            <span className="text-2xl font-black tracking-widest text-[#1F6B5E]">{PROMO_CODE}</span>
+          <div className="flex items-center justify-center gap-2 bg-amber-50 border-2 border-dashed border-[#D4AF37] rounded-2xl px-6 py-4 mb-6">
+            <Tag size={18} className="text-emerald-700" />
+            <span className="text-2xl font-black tracking-widest text-emerald-700">{PROMO_CODE}</span>
           </div>
 
           <Link
             href="/#catalog"
             onClick={dismiss}
-            className="w-full inline-flex items-center justify-center bg-[#1F6B5E] hover:bg-[#0F2D2A] text-white font-bold py-3 rounded-2xl transition-colors"
+            className="w-full inline-flex items-center justify-center bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-2xl transition-colors"
             aria-label="Перейти до каталогу та використати промокод"
           >
             Перейти до каталогу

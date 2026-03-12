@@ -8,20 +8,20 @@ const trustItems = [
 
 export function HealthTrust() {
   return (
-    <section className="bg-[radial-gradient(circle_at_80%_20%,_#f6f4ef_0%,_#fdf7ef_100%)] py-10">
+    <section className="bg-gradient-to-br from-amber-50 to-emerald-50 py-10">
       <div className="max-w-6xl mx-auto px-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {trustItems.map((item, i) => (
             <div
               key={item.title}
-              className="rounded-2xl border border-[#E7EFEA] bg-white/80 backdrop-blur-sm p-5 shadow-[0_10px_25px_rgba(15,45,42,0.08)] hover:shadow-[0_20px_40px_rgba(15,45,42,0.12)] transition-all duration-300 hover:-translate-y-1"
+              className="rounded-2xl border border-emerald-100 bg-white/80 backdrop-blur-sm p-5 shadow-[0_10px_25px_rgba(6,95,70,0.08)] hover:shadow-[0_20px_40px_rgba(6,95,70,0.12)] transition-all duration-300 hover:-translate-y-1"
             >
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#8B6B3E]">
-                <span className="h-2 w-2 rounded-full bg-[#C9B27C]" />
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-emerald-700">
+                <span className="h-2 w-2 rounded-full bg-[#D4AF37]" />
                 {`0${i + 1}`}
               </div>
-              <h3 className="mt-3 text-base font-semibold text-[#24312E]">{item.title}</h3>
-              <p className="mt-1 text-xs text-[#7A8A84]">{item.desc}</p>
+              <h3 className="mt-3 text-base font-semibold text-gray-900">{item.title}</h3>
+              <p className="mt-1 text-xs text-gray-600">{item.desc}</p>
             </div>
           ))}
         </div>

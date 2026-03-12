@@ -14,24 +14,8 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { MessageCircle, X, Instagram } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
-
-/* ─── Viber icon (no lucide equivalent) ─── */
-function ViberIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M11.993 0C5.951 0 1.004 4.762 1.004 10.621c0 3.336 1.636 6.3 4.186 8.282V22.5l3.804-2.09c.921.254 1.9.392 2.91.392C18.045 20.802 23 16.04 23 10.18 23 4.762 18.044 0 11.993 0zm1.21 14.186c-.254.064-.506.096-.76.096-1.623 0-3.02-.87-3.815-2.17a4.43 4.43 0 0 1-.635-2.312c0-2.455 2-4.44 4.46-4.44s4.46 1.985 4.46 4.44a4.41 4.41 0 0 1-3.71 4.386zm.048-7.41a2.936 2.936 0 0 0-2.945 2.924 2.936 2.936 0 0 0 2.945 2.924 2.936 2.936 0 0 0 2.945-2.924 2.936 2.936 0 0 0-2.945-2.924zm0 4.49a1.573 1.573 0 0 1-1.575-1.566c0-.864.705-1.566 1.575-1.566s1.575.702 1.575 1.566a1.573 1.573 0 0 1-1.575 1.566z" />
-    </svg>
-  );
-}
-
-/* ─── Telegram icon ─── */
-function TelegramIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z" />
-    </svg>
-  );
-}
+import { ViberIcon } from "@/components/icons/viber-icon";
+import { TelegramIcon } from "@/components/icons/telegram-icon";
 
 export function SupportButton() {
   const pathname = usePathname();

@@ -5,8 +5,8 @@ import { getCatalogProducts } from "@/lib/instagram-catalog";
 import { HealthFooter } from "@/components/health-footer";
 import { CatalogSkeleton } from "@/components/temu-catalog";
 
-const TemuCatalog = dynamic(
-  () => import("@/components/temu-catalog").then(m => ({ default: m.TemuCatalog })),
+const EnhancedShopCatalog = dynamic(
+  () => import("@/components/enhanced-shop-catalog").then(m => ({ default: m.EnhancedShopCatalog })),
   { 
     loading: () => <CatalogSkeleton count={24} />
   }
@@ -36,7 +36,7 @@ export default async function Home() {
     <main className="min-h-screen bg-white pt-16">
       <div id="catalog">
         <Suspense fallback={<CatalogFallback />}>
-          <TemuCatalog products={products} />
+          <EnhancedShopCatalog products={products} />
         </Suspense>
       </div>
       <HealthFooter />

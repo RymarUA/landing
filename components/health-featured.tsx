@@ -29,15 +29,15 @@ function ProductCard({
     : null;
 
   return (
-    <div className="group rounded-2xl border border-[#E7EFEA] bg-white shadow-[0_10px_30px_rgba(15,45,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(15,45,42,0.12)]">
+    <div className="group rounded-2xl border border-emerald-100 bg-white shadow-[0_10px_30px_rgba(6,95,70,0.08)] transition hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(6,95,70,0.12)]">
       <div className="relative p-4">
         {product.badge && (
-          <span className="absolute left-4 top-4 rounded-full bg-[#C9B27C] px-3 py-1 text-[11px] font-semibold text-[#0F2D2A]">
+          <span className="absolute left-4 top-4 rounded-full bg-[#D4AF37] px-3 py-1 text-[11px] font-semibold text-gray-900">
             {product.badge}
           </span>
         )}
         {discount && (
-          <span className="absolute right-4 top-4 rounded-full bg-[#1F6B5E] px-3 py-1 text-[11px] font-semibold text-white">
+          <span className="absolute right-4 top-4 rounded-full bg-emerald-700 px-3 py-1 text-[11px] font-semibold text-white">
             -{discount}%
           </span>
         )}
@@ -52,30 +52,30 @@ function ProductCard({
               {...blurProps()}
             />
           ) : (
-            <div className="h-full w-full bg-[linear-gradient(135deg,_#E7EFEA,_#F6F4EF)]" />
+            <div className="h-full w-full bg-gradient-to-br from-emerald-50 to-amber-50" />
           )}
         </div>
       </div>
       <div className="px-4 pb-5">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-[#8B6B3E]">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-700">
           {product.category}
         </p>
         <Link
           href={`/product/${product.id}`}
-          className="mt-2 block text-sm font-semibold text-[#24312E] line-clamp-2"
+          className="mt-2 block text-sm font-semibold text-gray-900 line-clamp-2"
         >
           {product.name}
         </Link>
 
-        <div className="mt-2 flex items-center gap-1 text-xs text-[#7A8A84]">
+        <div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
           {Array.from({ length: 5 }).map((_, i) => (
             <Star
               key={i}
               size={12}
               className={
                 i < Math.round(product.rating)
-                  ? "fill-[#C9B27C] text-[#C9B27C]"
-                  : "fill-[#E7EFEA] text-[#E7EFEA]"
+                  ? "fill-amber-400 text-amber-400"
+                  : "fill-gray-200 text-gray-200"
               }
             />
           ))}
@@ -83,11 +83,11 @@ function ProductCard({
         </div>
 
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-lg font-bold text-[#0F2D2A]">
+          <span className="text-lg font-bold text-gray-900">
             {product.price.toLocaleString("uk-UA")} ₴
           </span>
           {product.oldPrice && (
-            <span className="text-xs text-[#7A8A84] line-through">
+            <span className="text-xs text-gray-500 line-through">
               {product.oldPrice.toLocaleString("uk-UA")} ₴
             </span>
           )}
@@ -97,8 +97,8 @@ function ProductCard({
           onClick={() => onAdd(product)}
           className={`mt-4 w-full rounded-xl px-4 py-2 text-sm font-semibold transition ${
             added
-              ? "bg-[#C9B27C] text-[#0F2D2A]"
-              : "bg-[#1F6B5E] text-white hover:bg-[#0F2D2A]"
+              ? "bg-[#D4AF37] text-gray-900"
+              : "bg-emerald-700 text-white hover:bg-emerald-800"
           }`}
           aria-label={`${added ? "Товар додано до кошика" : "Додати до кошика"}: ${product.name}`}
         >
@@ -186,8 +186,8 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8B6B3E]">Рекомендоване</p>
-            <h2 className="mt-2 font-heading text-2xl md:text-3xl text-[#0F2D2A]">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Рекомендоване</p>
+            <h2 className="mt-2 font-heading text-2xl md:text-3xl text-gray-900">
               Топ товари для здорового життя
             </h2>
           </div>
@@ -198,8 +198,8 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
                 onClick={() => setActiveCategory(cat)}
                 className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                   activeCategory === cat
-                    ? "bg-[#1F6B5E] text-white"
-                    : "bg-[#F6F4EF] text-[#7A8A84] hover:text-[#1F6B5E]"
+                    ? "bg-emerald-700 text-white"
+                    : "bg-gray-100 text-gray-600 hover:text-emerald-700"
                 }`}
                 aria-pressed={activeCategory === cat}
                 aria-label={`Фільтрувати за категорією: ${cat}`}
@@ -211,8 +211,8 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
         </div>
 
         {searchQuery && (
-          <p className="mt-4 text-sm text-[#7A8A84]">
-            Показуємо результати за запитом: <span className="font-semibold text-[#24312E]">{searchQuery}</span>
+          <p className="mt-4 text-sm text-gray-600">
+            Показуємо результати за запитом: <span className="font-semibold text-gray-900">{searchQuery}</span>
           </p>
         )}
 
@@ -228,7 +228,7 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
         </div>
 
         {filtered.length === 0 && (
-          <div className="mt-10 rounded-2xl border border-[#E7EFEA] bg-[#F6F4EF] p-8 text-center text-sm text-[#7A8A84]">
+          <div className="mt-10 rounded-2xl border border-emerald-100 bg-emerald-50 p-8 text-center text-sm text-gray-600">
             Нічого не знайшли. Змініть категорію або пошуковий запит.
           </div>
         )}
@@ -237,7 +237,7 @@ export function HealthFeatured({ products }: { products: CatalogProduct[] }) {
           <div className="mt-8 flex justify-center">
             <button
               onClick={() => setVisibleCount((c) => c + LOAD_STEP)}
-              className="rounded-full border border-[#1F6B5E] px-6 py-3 text-sm font-semibold text-[#1F6B5E] hover:bg-[#1F6B5E] hover:text-white transition"
+              className="rounded-full border border-emerald-700 px-6 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-700 hover:text-white transition"
             >
               Показати ще
             </button>

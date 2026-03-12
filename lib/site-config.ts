@@ -45,9 +45,9 @@ export const siteConfig = {
   ogImage: "",
 
   // Theme colors for OG image (fallback when ogImage is empty)
-  ogBackground: "#0F2D2A",
-  ogAccent1: "#1F6B5E",
-  ogAccent2: "#C9B27C",
+  ogBackground: "#065F46",
+  ogAccent1: "#065F46",
+  ogAccent2: "#D4AF37",
 
   // -- Announcement Bar -------------------------------------------------
   // Set announcementText to "" to hide the bar entirely.

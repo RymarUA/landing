@@ -49,8 +49,8 @@ export function CartWidget() {
         onClick={toggleCart}
         className={`fixed right-6 z-[100] w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300
           ${isProductPage ? "bottom-32 md:bottom-6" : "bottom-20 md:bottom-6"}
-          bg-gradient-to-br from-orange-500 to-amber-600 text-white
-          hover:scale-110 hover:shadow-orange-500/50`}
+          bg-gradient-to-br from-emerald-600 to-emerald-700 text-white
+          hover:scale-110 hover:shadow-emerald-500/50`}
         aria-label="Відкрити кошик"
         whileTap={{ scale: 0.95 }}
         animate={animate ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : { scale: 1, rotate: 0 }}
@@ -63,7 +63,7 @@ export function CartWidget() {
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
-              className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-black rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 shadow"
+              className="absolute -top-1 -right-1 bg-[#D4AF37] text-white text-xs font-black rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 shadow"
             >
               {totalCount}
             </motion.span>
@@ -85,10 +85,10 @@ export function CartWidget() {
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
             <div className="flex items-center gap-2">
-              <ShoppingCart size={20} className="text-orange-500" />
+              <ShoppingCart size={20} className="text-emerald-600" />
               <span className="font-black text-gray-900 text-lg">Кошик</span>
               {showBadge && (
-                <span className="bg-orange-100 text-orange-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                <span className="bg-emerald-100 text-emerald-600 text-xs font-bold px-2 py-0.5 rounded-full">
                   {totalCount} шт.
                 </span>
               )}
@@ -130,14 +130,14 @@ export function CartWidget() {
                     {item.size && (
                       <p className="text-xs text-gray-500">Розмір: {item.size}</p>
                     )}
-                    <p className="text-orange-500 font-black text-sm mt-0.5">
+                    <p className="text-emerald-600 font-black text-sm mt-0.5">
                       {(item.price * item.quantity).toLocaleString("uk-UA")} грн
                     </p>
 
                     <div className="flex items-center gap-2 mt-1.5">
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity - 1, item.size)}
-                        className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:border-orange-300 hover:text-orange-500 transition-colors"
+                        className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:border-emerald-300 hover:text-emerald-600 transition-colors"
                         aria-label="Зменшити"
                       >
                         <Minus size={11} />
@@ -145,7 +145,7 @@ export function CartWidget() {
                       <span className="text-sm font-bold text-gray-900 w-5 text-center">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1, item.size)}
-                        className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:border-orange-300 hover:text-orange-500 transition-colors"
+                        className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:border-emerald-300 hover:text-emerald-600 transition-colors"
                         aria-label="Збільшити"
                       >
                         <Plus size={11} />
@@ -206,7 +206,7 @@ export function CartWidget() {
                 <Link
                   href="/checkout"
                   onClick={closeCart}
-                  className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 rounded-2xl transition-colors text-sm shadow-lg shadow-orange-200"
+                  className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl transition-colors text-sm shadow-lg shadow-emerald-200"
                 >
                   Оформити замовлення
                 </Link>

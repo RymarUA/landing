@@ -29,6 +29,15 @@ export function WebVitals() {
     // Отправка в API для мониторинга (опционально)
     if (isProductionEnv()) {
       const data = JSON.stringify(metric);
+      
+      const sendViaFetch = () => {
+        fetch("/api/vitals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: data,
+          keepalive: true,
+        }).catch(console.error);
+      };
 
       if (typeof navigator !== "undefined" && navigator.sendBeacon) {
         const success = navigator.sendBeacon(
@@ -38,21 +47,10 @@ export function WebVitals() {
 
         if (!success) {
           console.warn("[Web Vitals] sendBeacon failed, using fetch");
-          fetch("/api/vitals", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: data,
-            keepalive: true,
-          }).catch(console.error);
+          sendViaFetch();
         }
       } else {
-        // Fallback для старых браузеров
-        fetch("/api/vitals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: data,
-          keepalive: true,
-        }).catch(console.error);
+        sendViaFetch();
       }
     }
   });

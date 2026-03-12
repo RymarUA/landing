@@ -21,7 +21,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { notifyAdmin } from "@/lib/telegram-notify";
+import { sendTelegramNotification } from "@/lib/telegram";
 
 /* ─────────────────────────────────────────────────────────────────────────
    ⚠️ SERVERLESS WARNING ⚠️
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     ].join("\n");
 
     try {
-      await notifyAdmin(message);
+      await sendTelegramNotification(message);
       console.info(`[abandoned-cart] Sent notification for session ${sessionId}`);
     } catch (err) {
       console.error("[abandoned-cart] Failed to send notification:", err);

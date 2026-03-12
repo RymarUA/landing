@@ -211,7 +211,7 @@ async function sitniksSafe<T>(
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
-      cache: "no-store",
+      next: { revalidate: 300 },
     });
 
     clearTimeout(timeout);
@@ -252,7 +252,7 @@ async function sitniks<T>(
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store",
+    next: { revalidate: 300 },
   });
 
   let json: unknown;

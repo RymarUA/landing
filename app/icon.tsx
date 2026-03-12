@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { getResolvedSiteConfig } from "@/lib/site-config-safe";
+import { siteConfig } from "@/lib/site-config";
 
 export const size = {
   width: 32,
@@ -34,8 +34,7 @@ function renderIcon(label: string) {
 
 export default function Icon() {
   try {
-    const config = getResolvedSiteConfig();
-    const initials = config.name?.slice(0, 2).toUpperCase() || "ТМ";
+    const initials = siteConfig.name?.slice(0, 2).toUpperCase() || "ТМ";
     return renderIcon(initials);
   } catch (error) {
     console.error("[App Icon] Generation failed", error);

@@ -15,44 +15,8 @@ import { useCart } from "@/components/cart-context";
 import { checkoutSchema, applyPromoCode } from "@/lib/checkout-schema";
 import { useSavedAddresses } from "@/lib/use-saved-addresses";
 import { trackInitiateCheckout } from "@/components/analytics";
-
-/* ─── API Helpers (вынесены наружу для чистоты) ─── */
-const fetchNPCities = async (query: string) => {
-  const res = await fetch("/api/novaposhta", {
-    method: "POST",
-    body: JSON.stringify({
-      modelName: "Address",
-      calledMethod: "getCities",
-      methodProperties: { FindByString: query, Limit: "20" },
-    }),
-  });
-  const json = await res.json();
-  return json.success ? json.data : [];
-};
-
-const fetchNPWarehouses = async (cityRef: string, query: string) => {
-  const res = await fetch("/api/novaposhta", {
-    method: "POST",
-    body: JSON.stringify({
-      modelName: "Address",
-      calledMethod: "getWarehouses",
-      methodProperties: { CityRef: cityRef, FindByString: query, Limit: "50" },
-    }),
-  });
-  const json = await res.json();
-  return json.success ? json.data : [];
-};
-
-/* ─── Field wrapper ─── */
-function Field({ label, error, children }: { label: string; error?: any; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5 relative">
-      <label className="text-sm font-semibold text-[#24312E]">{label}</label>
-      {children}
-      {error && <p className="text-xs text-[#1F6B5E] font-medium mt-0.5">{error}</p>}
-    </div>
-  );
-}
+import { fetchNPCities, fetchNPWarehouses } from "@/lib/novaposhta-api";
+import { Field } from "@/components/ui/field";
 
 /* ─── Screens (Empty/Redirect) ─── */
 function EmptyCartScreen() {

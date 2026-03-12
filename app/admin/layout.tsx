@@ -9,7 +9,9 @@
  * 2. admin-page.tsx → app/admin/page.tsx
  */
 
-export const metadata = {
+import type { Metadata } from "next/types";
+
+export const metadata: Metadata = {
   title: "Адмін-панель — Семейный Магазин",
   robots: "noindex, nofollow", // пошукові системи не індексують
 };
@@ -17,7 +19,7 @@ export const metadata = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     // Повністю ізольований від root layout
-    <div suppressHydrationWarning>
+    <div>
       {children}
     </div>
   );

@@ -172,8 +172,8 @@ export interface WfpConfig {
 
 /**
  * Reads WayForPay config from environment variables.
- * Throws a descriptive error if any required variable is missing
- * so you catch configuration mistakes at request time.
+ * Throws a descriptive error if any required variable is missing.
+ * Only call this inside request handlers, not at module level!
  */
 export function getWfpConfig(): WfpConfig {
   const merchantAccount = process.env.WAYFORPAY_MERCHANT_ACCOUNT;
@@ -181,10 +181,14 @@ export function getWfpConfig(): WfpConfig {
   const secretKey = process.env.WAYFORPAY_SECRET_KEY;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
-  if (!merchantAccount) throw new Error("Missing env: WAYFORPAY_MERCHANT_ACCOUNT");
-  if (!merchantDomainName) throw new Error("Missing env: WAYFORPAY_MERCHANT_DOMAIN");
-  if (!secretKey) throw new Error("Missing env: WAYFORPAY_SECRET_KEY");
+  const missing: string[] = [];
+  if (!merchantAccount) missing.push("WAYFORPAY_MERCHANT_ACCOUNT");
+  if (!merchantDomainName) missing.push("WAYFORPAY_MERCHANT_DOMAIN");
+  if (!secretKey) missing.push("WAYFORPAY_SECRET_KEY");
+
+  if (missing.length > 0) {
+    throw new Error(`Missing env vars: ${missing.join(", ")}`);
+  }
 
   return { merchantAccount, merchantDomainName, secretKey, siteUrl };
 }
-

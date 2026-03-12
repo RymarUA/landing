@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { X, Search, ArrowUpDown, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -35,7 +34,6 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
   const [quickBuyProduct, setQuickBuyProduct] = useState<Product | null>(null);
   const [toasts, setToasts] = useState<{ id: number; name: string }[]>([]);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
-  const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);

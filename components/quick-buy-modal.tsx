@@ -94,7 +94,7 @@ export function QuickBuyModal({ product, onClose }: QuickBuyModalProps) {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Ваше ім'я
+                      Ваше ім&apos;я
                     </label>
                     <div className="relative">
                       <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -127,7 +127,7 @@ export function QuickBuyModal({ product, onClose }: QuickBuyModalProps) {
                   </div>
 
                   <p className="text-xs text-gray-500">
-                    Наш менеджер зв'яжеться з вами протягом 15 хвилин для підтвердження замовлення
+                    Наш менеджер зв&apos;яжеться з вами протягом 15 хвилин для підтвердження замовлення
                   </p>
 
                   <button
@@ -158,7 +158,7 @@ export function QuickBuyModal({ product, onClose }: QuickBuyModalProps) {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Замовлення прийнято!</h3>
                 <p className="text-gray-600 text-sm">
-                  Ми зв'яжемося з вами найближчим часом
+                  Ми зв&apos;яжемося з вами найближчим часом для підтвердження замовлення
                 </p>
               </div>
             )}

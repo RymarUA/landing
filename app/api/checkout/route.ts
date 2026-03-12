@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     let phone: string;
     try {
       phone = normalizePhone(body.phone);
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: "Невірний формат телефону. Очікується український номер" },
         { status: 400 }

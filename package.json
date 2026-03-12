@@ -11,7 +11,7 @@
     "build": "cross-env NEXT_TELEMETRY_DISABLED=1 next build",
     "build:emergency": "node scripts/emergency-build.js",
     "build:fast": "cross-env NEXT_TELEMETRY_DISABLED=1 NEXT_SKIP_TYPE_CHECK=1 NEXT_SKIP_LINTING=1 next build",
-    "start": "node .next/standalone/server.js",
+    "start": "next start",
     "start:dev": "next start",
     "deploy:check": "bash scripts/check-env.sh",
     "deploy:prod": "bash scripts/deploy-production.sh",

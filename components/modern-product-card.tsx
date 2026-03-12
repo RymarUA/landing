@@ -21,7 +21,7 @@ export function ModernProductCard({
   onAddToCart,
   onClick,
   onQuickBuy,
-  searchQuery = "",
+  searchQuery: _searchQuery,
 }: ModernProductCardProps) {
   const { has, toggle } = useWishlist();
   const isWished = has(product.id);

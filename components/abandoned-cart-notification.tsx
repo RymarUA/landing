@@ -20,7 +20,7 @@ const SHOW_DELAY_MS = 120000; // 2 minutes
 const STORAGE_KEY = "fhm_abandoned_cart_dismissed";
 
 export function AbandonedCartNotification() {
-  const { items, totalCount, totalPrice, hydrated, openCart, sessionStartTime } = useCart();
+  const { totalCount, totalPrice, hydrated, openCart, sessionStartTime } = useCart();
   const [showNotification, setShowNotification] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
 

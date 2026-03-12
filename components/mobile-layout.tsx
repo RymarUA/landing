@@ -4,6 +4,7 @@
 import { TemuSearchBar } from "@/components/temu-search-bar";
 import { TemuBottomNav } from "@/components/temu-bottom-nav";
 import { CookieBanner } from "@/components/cookie-banner";
+import { CartWidget } from "@/components/cart-widget";
 
 interface MobileLayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,9 @@ export function MobileLayout({ children }: MobileLayoutProps) {
         {children}
       </div>
 
+      {/* Floating Cart Widget */}
+      <CartWidget />
+
       {/* Temu-style Bottom Navigation (includes cart) */}
       <TemuBottomNav />
       
@@ -28,4 +32,3 @@ export function MobileLayout({ children }: MobileLayoutProps) {
     </>
   );
 }
-

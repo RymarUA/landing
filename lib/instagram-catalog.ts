@@ -43,6 +43,7 @@ export interface CatalogProduct {
   badgeColor: string;
   isHit: boolean;
   isNew: boolean;
+  freeShipping: boolean;  // безкоштовна доставка
   rating: number;
   reviews: number;
   stock: number;          // availableQuantity першої активної варіації
@@ -118,6 +119,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
   // Flags
   const isHit = Boolean(aux.isHit);
   const isNew = Boolean(aux.isNew);
+  const freeShipping = Boolean(aux.freeShipping);
 
   // Rating / reviews (зберігаються в auxiliaryInfo бо Sitniks не має вбудованих)
   const rating = typeof aux.rating === "number" ? aux.rating : 5.0;
@@ -140,6 +142,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     badgeColor,
     isHit,
     isNew,
+    freeShipping,
     rating,
     reviews,
     stock: getTotalStock(p),
@@ -178,6 +181,7 @@ function mapFallbackProductToCatalogProduct(p: Awaited<ReturnType<typeof getAllP
     badgeColor: p.badgeColor ?? "",
     isHit: Boolean(p.isHit),
     isNew: Boolean(p.isNew),
+    freeShipping: Boolean(p.freeShipping),
     rating: p.rating,
     reviews: p.reviews,
     stock: p.stock,

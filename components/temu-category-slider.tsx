@@ -90,12 +90,12 @@ export function TemuCategorySlider({
               data-category={category}
               onClick={() => handleCategoryClick(category)}
               className={`
-                flex-shrink-0 px-6 py-2.5 rounded-full text-sm font-bold
-                transition-all whitespace-nowrap min-w-fit
+                flex-shrink-0 px-7 py-3 rounded-full text-base font-black
+                transition-all whitespace-nowrap min-w-fit shadow-sm
                 ${
                   isActive
-                    ? "bg-orange-500 text-white shadow-lg shadow-orange-200 scale-105"
-                    : "bg-white text-gray-700 border-2 border-gray-200 hover:border-orange-300 hover:text-orange-500"
+                    ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-200 scale-105"
+                    : "bg-white text-gray-800 border-2 border-gray-300 hover:border-emerald-400 hover:text-emerald-600 hover:shadow-md"
                 }
               `}
             >

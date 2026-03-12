@@ -85,6 +85,11 @@ export function ModernProductCard({
               -{discount}%
             </span>
           )}
+          {product.freeShipping && (
+            <span className="bg-emerald-500 text-white text-xs font-black px-2 py-1 rounded shadow-md">
+              Безкоштовна доставка
+            </span>
+          )}
         </div>
       </div>
 
@@ -118,7 +123,7 @@ export function ModernProductCard({
 
         {/* Price */}
         <div className="flex items-baseline gap-2 mb-3">
-          <span className="text-emerald-600 font-bold text-lg">
+          <span className="text-emerald-600 font-semibold text-lg">
             {product.price} грн
           </span>
           {product.oldPrice && (

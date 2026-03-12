@@ -87,7 +87,13 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
   }, []);
 
   const filtered = products.filter((p) => {
-    if (active !== "Всі" && p.category !== active) return false;
+    // Special category: "Безкоштовна доставка" filters by freeShipping flag
+    if (active === "Безкоштовна доставка") {
+      if (!p.freeShipping) return false;
+    } else if (active !== "Всі" && p.category !== active) {
+      return false;
+    }
+    
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       if (

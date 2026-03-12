@@ -123,11 +123,20 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
             <StarRating rating={product.rating} count={product.reviews} />
 
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-semibold text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
+              <span className="text-3xl font-normal text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
               {product.oldPrice && (
                 <span className="text-lg text-gray-400 line-through">{product.oldPrice} грн</span>
               )}
             </div>
+
+            {product.freeShipping && (
+              <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold bg-emerald-50 px-3 py-2 rounded-xl">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                Безкоштовна доставка
+              </div>
+            )}
 
             {product.stock <= 5 && (
               <div className="flex items-center gap-2 text-amber-600 text-sm font-semibold bg-amber-50 px-3 py-2 rounded-xl">

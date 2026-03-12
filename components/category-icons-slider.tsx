@@ -4,14 +4,14 @@
 import { useState, useRef, useEffect } from "react";
 import { siteConfig } from "@/lib/site-config";
 import { 
-  Coffee, 
-  Flame, 
-  Flower2, 
-  Heart, 
-  Droplet, 
-  Baby, 
-  Gift,
-  Grid3x3
+  Grid3x3,
+  Truck,
+  Activity,
+  Bandage,
+  Shield,
+  Vibrate,
+  Droplets,
+  Shirt
 } from "lucide-react";
 
 interface CategoryIconsSliderProps {
@@ -22,13 +22,14 @@ interface CategoryIconsSliderProps {
 // Map categories to icons
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   "Всі": Grid3x3,
-  "Чаї та настої": Coffee,
-  "Зігріваючі пластирі": Flame,
-  "Ароматерапія": Flower2,
-  "Ортези та підтримка": Heart,
-  "Масла і бальзами": Droplet,
-  "Дитячі протоколи": Baby,
-  "Подарункові сети": Gift,
+  "Безкоштовна доставка": Truck,
+  "Наколінники": Activity,
+  "Лікувальні пластирі": Bandage,
+  "Налокотники": Shield,
+  "Бандажі": Shield,
+  "Масажери": Vibrate,
+  "Мазі та гелі": Droplets,
+  "Компресійна білизна": Shirt,
 };
 
 export function CategoryIconsSlider({

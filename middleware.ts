@@ -1,31 +1,52 @@
-// @ts-nocheck
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// In-memory rate limiting (для production рекомендуется использовать Redis)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
-// Очистка старых записей каждые 5 минут
+// Periodic cleanup to prevent memory leak
+// Runs every minute to remove expired entries
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  const cleanupInterval = setInterval(() => {
     const now = Date.now();
+    let cleaned = 0;
     for (const [key, value] of rateLimitMap.entries()) {
       if (value.resetTime < now) {
         rateLimitMap.delete(key);
+        cleaned++;
       }
     }
-  }, 5 * 60 * 1000);
+    if (cleaned > 0) {
+      console.log(`[middleware] Cleaned ${cleaned} expired rate limit entries`);
+    }
+  }, 60000); // Cleanup every minute
+  
+  // Prevent the interval from keeping the process alive
+  if (cleanupInterval.unref) {
+    cleanupInterval.unref();
+  }
 }
 
 export function middleware(request: NextRequest) {
-  // Rate limiting только для API endpoints
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    const ip = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'anonymous';
+    const ip = request.headers.get('x-forwarded-for') ?? 
+               request.headers.get('x-real-ip') ?? 
+               'unknown';
     const now = Date.now();
-    const windowMs = 60000; // 1 минута
-    const maxRequests = 100; // максимум запросов за окно
+    const windowMs = 60000;
+    let maxRequests = 100;
+    
+    if (request.nextUrl.pathname === '/api/checkout') {
+      maxRequests = 10;
+    }
     
     const key = `${ip}:${request.nextUrl.pathname}`;
+    
+    for (const [k, v] of rateLimitMap.entries()) {
+      if (v.resetTime < now) {
+        rateLimitMap.delete(k);
+      }
+    }
+    
     const limit = rateLimitMap.get(key);
     
     if (limit && limit.resetTime > now) {
@@ -55,7 +76,6 @@ export function middleware(request: NextRequest) {
       });
     }
     
-    // Добавить headers с информацией о rate limit
     const response = NextResponse.next();
     const currentLimit = rateLimitMap.get(key);
     if (currentLimit) {

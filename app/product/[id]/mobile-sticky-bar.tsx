@@ -1,11 +1,12 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AddToCartButton } from "./add-to-cart-button";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 
 const SENTINEL_SELECTOR = "[data-main-cta]";
+const MAX_RETRIES = 10;
 
 /**
  * Mobile sticky purchase bar. Shows only when the main CTA block is out of view (IntersectionObserver).
@@ -13,12 +14,12 @@ const SENTINEL_SELECTOR = "[data-main-cta]";
 export function MobileStickyBar({ product }: { product: CatalogProduct }) {
   const [selectedSize, setSelectedSize] = useState<string>(product.sizes[0] ?? "");
   const [show, setShow] = useState(false);
+  const retriesRef = useRef(0);
 
   useEffect(() => {
     let cleanup: (() => void) | null = null;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const setupObserver = () => {
+    const setupObserver = (): boolean => {
       const el = document.querySelector(SENTINEL_SELECTOR);
       if (!el) return false;
 
@@ -31,16 +32,21 @@ export function MobileStickyBar({ product }: { product: CatalogProduct }) {
       return true;
     };
 
-    if (!setupObserver()) {
-      // Retry shortly after hydration in case the sentinel isn't in the DOM yet
-      retryTimer = setTimeout(() => {
-        setupObserver();
-      }, 100);
-    }
+    const attemptSetup = () => {
+      if (setupObserver()) return;
+      
+      if (retriesRef.current < MAX_RETRIES) {
+        retriesRef.current++;
+        setTimeout(attemptSetup, 100);
+      } else {
+        console.warn('[MobileStickyBar] Sentinel not found after max retries');
+      }
+    };
+
+    attemptSetup();
 
     return () => {
       if (cleanup) cleanup();
-      if (retryTimer) clearTimeout(retryTimer);
     };
   }, []);
 

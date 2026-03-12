@@ -38,7 +38,8 @@ export function StickyHeader() {
   /* Focus search input when opened */
   useEffect(() => {
     if (searchOpen) {
-      setTimeout(() => searchRef.current?.focus(), 50);
+      const timer = setTimeout(() => searchRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
     } else {
       setQuery("");
     }

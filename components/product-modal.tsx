@@ -77,7 +77,7 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
       window.scrollTo(0, scrollYRef.current);
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, []);
 
   const discount = product.oldPrice
     ? Math.round((1 - product.price / product.oldPrice) * 100)

@@ -53,25 +53,38 @@ export const MobileNavbar = ({ navItems }: Props) => {
             )}
           </AnimatePresence>
         </Link>
-        <IoIosMenu
-          className="text-black h-6 w-6"
+        <button
           onClick={() => setOpen(!open)}
-        />
+          aria-label="Відкрити меню"
+          aria-expanded={open}
+          className="p-1"
+        >
+          <IoIosMenu className="text-black h-6 w-6" />
+        </button>
       </div>
       {open && (
         <div 
           className="fixed inset-0 bg-white z-[60] flex flex-col items-start justify-start space-y-10 pt-5 text-xl text-zinc-600 transition duration-200 hover:text-zinc-800"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-menu-title"
           onClick={() => setOpen(false)}
         >
           <div className="flex items-center justify-between w-full px-5" onClick={(e) => e.stopPropagation()}>
             <Logo />
             <div className="flex items-center space-x-2">
-              <IoIosClose
-                className="h-8 w-8 text-black"
+              <button
                 onClick={() => setOpen(!open)}
-              />
+                aria-label="Закрити меню"
+                className="p-1"
+              >
+                <IoIosClose className="h-8 w-8 text-black" />
+              </button>
             </div>
           </div>
+          <h2 id="mobile-menu-title" className="sr-only">
+            Мобільне меню
+          </h2>
           <div className="flex flex-col items-start justify-start gap-[14px] px-8" onClick={(e) => e.stopPropagation()}>
             {navItems.map((navItem) =>
               navItem.children && navItem.children.length > 0 ? (

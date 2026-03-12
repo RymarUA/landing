@@ -1,8 +1,16 @@
 // @ts-nocheck
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { getCatalogProducts } from "@/lib/instagram-catalog";
-import { TemuCatalog } from "@/components/temu-catalog";
 import { HealthFooter } from "@/components/health-footer";
+import { CatalogSkeleton } from "@/components/temu-catalog";
+
+const TemuCatalog = dynamic(
+  () => import("@/components/temu-catalog").then(m => ({ default: m.TemuCatalog })),
+  { 
+    loading: () => <CatalogSkeleton count={24} />
+  }
+);
 
 function CatalogFallback() {
   return (

@@ -13,14 +13,14 @@ type EnvVar = {
 };
 
 const ENV_VARS: EnvVar[] = [
-  // Payment - optional for basic functionality
+  // Payment - required for production
   { key: 'WAYFORPAY_MERCHANT_ACCOUNT', required: false, description: 'WayForPay merchant account' },
   { key: 'WAYFORPAY_MERCHANT_DOMAIN', required: false, description: 'WayForPay merchant domain' },
-  { key: 'WAYFORPAY_SECRET_KEY', required: false, description: 'WayForPay secret key' },
+  { key: 'WAYFORPAY_SECRET_KEY', required: true, description: 'WayForPay secret key' },
   
-  // CRM - optional for basic functionality
-  { key: 'SITNIKS_API_URL', required: false, description: 'Sitniks CRM API URL' },
-  { key: 'SITNIKS_API_KEY', required: false, description: 'Sitniks CRM API key' },
+  // CRM - required for production
+  { key: 'SITNIKS_API_URL', required: true, description: 'Sitniks CRM API URL' },
+  { key: 'SITNIKS_API_KEY', required: true, description: 'Sitniks CRM API key' },
   
   // Notifications - optional for basic functionality
   { key: 'TELEGRAM_BOT_TOKEN', required: false, description: 'Telegram bot token' },
@@ -72,12 +72,7 @@ export function validateEnv() {
     logger.error('\n⚠️  Please check your .env.local file');
     logger.error('📄 Example: .env.local.example\n');
 
-    // Don't throw error in production if all required vars are actually optional
-    // Only throw if there are truly required vars missing
-    if (process.env.NODE_ENV === 'production') {
-      logger.error('🔄 Continuing with optional configuration...');
-      return; // Don't throw, just continue
-    }
+    throw new Error(`Missing env vars: ${missing.map(m => m.split(' ')[0]).join(', ')}`);
   }
   
   if (warnings.length > 0 && process.env.NODE_ENV !== 'production') {

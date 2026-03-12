@@ -22,11 +22,11 @@
  *   SITNIKS_API_URL / SITNIKS_API_KEY — for order status update
  */
 
+// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWfpWebhookSignature, buildWfpResponseSignature } from "@/lib/wayforpay";
-import { updateSitniksOrder, updateSitniksOrderStatus } from "@/lib/sitniks";
+import { updateSitniksOrder, updateSitniksOrderStatus } from "@/lib/sitniks-consolidated";
 import { sendTelegramNotification } from "@/lib/telegram";
-// @ts-nocheck
 
 /* ─────────────────────────────────────────────────────────────────────────
    POST handler

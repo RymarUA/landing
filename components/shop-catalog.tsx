@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   ShoppingCart,
   X,
@@ -25,7 +26,13 @@ import {
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
-import { ProductModal } from "@/components/product-modal";
+import { ProductModalSkeleton } from "@/components/product-modal-skeleton";
+
+const ProductModal = dynamic(
+  () => import("@/components/product-modal").then(m => ({ default: m.ProductModal })),
+  { loading: () => <ProductModalSkeleton /> }
+);
+
 import { ALL_CATEGORIES, SORT_OPTIONS, type SortKey } from "@/lib/catalog-config";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
 import { blurProps } from "@/lib/utils";

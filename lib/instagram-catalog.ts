@@ -27,7 +27,7 @@ import {
   getSitniksProductById as getSitniksProductByIdRaw,
   type SitniksProduct,
   type SitniksVariation,
-} from "./sitniks-api";
+} from "./sitniks-consolidated";
 import { getAllProducts, getProductById as getFallbackProductById } from "./products";
 
 // ─── Type (same shape as before — nothing else in the app needs to change) ─────

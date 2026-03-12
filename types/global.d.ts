@@ -2,7 +2,7 @@
 
 interface Window {
   gtag?: (
-    command: string,
+    command: 'event' | 'config' | 'set',
     targetId: string,
     config?: Record<string, any>
   ) => void;

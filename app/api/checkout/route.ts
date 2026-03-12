@@ -27,6 +27,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
+import { normalizePhone } from "@/lib/phone-utils";
 import { getCatalogProductById } from "@/lib/instagram-catalog";
 import { logger } from "@/lib/logger";
 import { buildWfpPaymentUrl, getWfpConfig } from "@/lib/wayforpay";
@@ -86,6 +87,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let phone: string;
+    try {
+      phone = normalizePhone(body.phone);
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Невірний формат телефону. Очікується український номер" },
+        { status: 400 }
+      );
+    }
+
     const department = body.department ?? body.warehouse ?? "";
 
     // Server-side price: get products from catalog by ID, ignore frontend totalPrice
@@ -132,7 +143,7 @@ export async function POST(req: NextRequest) {
     const dto: CreateOrderDto = {
       client: {
         fullname: body.name,
-        phone: body.phone,
+        phone: phone,
       },
 
       products: resolvedItems.map((item) => ({
@@ -204,7 +215,10 @@ export async function POST(req: NextRequest) {
         paymentUrl = buildWfpPaymentUrl(paymentParams, wfpConfig.secretKey);
       } catch (error) {
         logger.error("[/api/checkout] Failed to generate WayForPay URL:", error);
-        // Continue without payment URL - user will see error on frontend
+        return NextResponse.json(
+          { error: "Не вдалося створити посилання для оплати. Спробуйте пізніше або оберіть накладений платіж." },
+          { status: 500 }
+        );
       }
     }
 

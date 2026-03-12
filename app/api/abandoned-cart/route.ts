@@ -24,12 +24,21 @@ import { z } from "zod";
 import { notifyAdmin } from "@/lib/telegram-notify";
 
 /* ─────────────────────────────────────────────────────────────────────────
-   In-memory timer store (process-scoped, not cluster-safe)
-   For production → replace with Redis SETEX or a DB + cron job
+   ⚠️ SERVERLESS WARNING ⚠️
+   
+   This in-memory Map + setTimeout approach DOES NOT WORK on Vercel/serverless!
+   Each request may hit a different instance, so timers will be lost.
+   
+   PRODUCTION SOLUTION:
+   1. Use Redis (Upstash) with SETEX for timer storage
+   2. Use Vercel Cron Jobs or external scheduler to check expired carts
+   3. Or use a database table with a scheduled job
+   
+   Current implementation works ONLY in local development with single instance.
    ───────────────────────────────────────────────────────────────────────── */
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
-const DELAY_MS = 30 * 60 * 1000; // 30 minutes
+const DELAY_MS = Number(process.env.ABANDONED_CART_DELAY_MS) || 30 * 60 * 1000; // Default: 30 minutes
 
 /* ─────────────────────────────────────────────────────────────────────────
    Validation schema
@@ -86,7 +95,7 @@ export async function POST(req: NextRequest) {
     timers.delete(sessionId);
 
     const itemList = items
-      .map((i) => `• ${i.name} × ${i.quantity} = ${(i.price * i.quantity).toLocaleString("uk-UA")} грн`)
+      .map((i) => `• ${escapeHtml(i.name)} × ${i.quantity} = ${(i.price * i.quantity).toLocaleString("uk-UA")} грн`)
       .join("\n");
 
     const message = [

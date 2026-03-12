@@ -33,7 +33,6 @@ const notoSerif = Noto_Serif({
   weight: ["400", "500", "600", "700"],
 });
 
-const dynamicOgEnabled = process.env.NEXT_PUBLIC_DYNAMIC_OG === "1";
 
 export const metadata: Metadata = {
   title: {
@@ -78,7 +77,7 @@ export const metadata: Metadata = {
         ]
       : [
           {
-            url: dynamicOgEnabled ? "/opengraph-image" : "/og-image-static.png",
+            url: "/og-image-static.png",
             width: 1200,
             height: 630,
             alt: `${siteConfig.name} - ${siteConfig.tagline}`,
@@ -98,7 +97,7 @@ export const metadata: Metadata = {
       : {}),
     images: siteConfig.ogImage
       ? [siteConfig.ogImage]
-      : [dynamicOgEnabled ? "/opengraph-image" : "/og-image-static.png"],
+      : ["/og-image-static.png"],
   },
   metadataBase: new URL(siteConfig.url),
   alternates: {

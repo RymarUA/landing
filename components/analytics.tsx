@@ -31,11 +31,6 @@ declare global {
       params?: Record<string, any>
     ) => void;
     _fbq?: unknown;
-    gtag?: (
-      command: string,
-      targetId: string,
-      config?: Record<string, any>
-    ) => void;
     dataLayer: unknown[];
   }
 }

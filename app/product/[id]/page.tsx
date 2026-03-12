@@ -3,6 +3,7 @@ import type { Metadata } from "next/types";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Star, ChevronLeft, Flame, Sparkles } from "lucide-react";
 import {
   getCatalogProducts,
@@ -13,7 +14,6 @@ import { MobileStickyBar } from "./mobile-sticky-bar";
 import { ProductImageLightbox } from "./product-image-lightbox";
 import { ShareButton } from "./share-button";
 import { RecentlyViewedBlock } from "./recently-viewed-block";
-import { InfiniteProductFeed } from "./infinite-product-feed";
 import { siteConfig } from "@/lib/site-config";
 import {
   JsonLd,
@@ -22,6 +22,12 @@ import {
 } from "@/components/seo/JsonLd";
 import { blurProps } from "@/lib/utils";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { ProductFeedSkeleton } from "@/components/product-feed-skeleton";
+
+const InfiniteProductFeed = dynamic(
+  () => import("./infinite-product-feed").then(m => ({ default: m.InfiniteProductFeed })),
+  { loading: () => <ProductFeedSkeleton /> }
+);
 
 // export async function generateStaticParams() {
 //   const products = await getCatalogProducts();

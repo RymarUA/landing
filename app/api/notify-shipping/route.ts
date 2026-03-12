@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { sendTelegramNotification } from "@/lib/telegram";
-import { updateSitniksOrder } from "@/lib/sitniks";
+import { updateSitniksOrder } from "@/lib/sitniks-consolidated";
 
 export async function POST(req: NextRequest) {
   const adminSecret = process.env.ADMIN_SECRET;

@@ -138,6 +138,12 @@ export default function CheckoutPage() {
   useEffect(() => {
     setMounted(true);
     sessionId.current = crypto.randomUUID();
+    
+    return () => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
   }, []);
 
   // Поиск города
@@ -175,7 +181,21 @@ export default function CheckoutPage() {
 
   const registerAbandonedCart = useCallback(
     async (name: string, phone: string) => {
-      if (!phone || items.length === 0 || lastRegisteredPhone.current === phone) return;
+      if (!phone || items.length === 0) return;
+      
+      // If phone changed, cancel previous abandoned cart
+      if (lastRegisteredPhone.current && lastRegisteredPhone.current !== phone) {
+        try {
+          await fetch("/api/abandoned-cart", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: sessionId.current }),
+          });
+        } catch (error) {
+          console.error("[abandoned-cart] Failed to cancel previous:", error);
+        }
+      }
+      
       lastRegisteredPhone.current = phone;
       try {
         await fetch("/api/abandoned-cart", {

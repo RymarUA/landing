@@ -8,11 +8,11 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWfpWebhookSignature, buildWfpResponseSignature } from "@/lib/wayforpay";
-import { updateSitniksOrder } from "@/lib/sitniks";
+import { updateSitniksOrder } from "@/lib/sitniks-consolidated";
 import { sendTelegramNotification } from "@/lib/telegram";
-// @ts-nocheck
 
 export async function POST(req: NextRequest) {
   let payload: any;

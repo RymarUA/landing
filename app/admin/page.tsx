@@ -255,6 +255,13 @@ function ProductEditor({
   const setForm = formState[1];
   const [sizeInput, setSizeInput] = useState("");
   const [saved, setSaved] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
 
   const set = (key: keyof Omit<Product, "id">, value: unknown) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -276,7 +283,8 @@ function ProductEditor({
   const handleSave = () => {
     if (!form.name.trim() || form.price <= 0) return;
     setSaved(true);
-    setTimeout(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
       onSave({ ...form, id: product?.id ?? Date.now() });
       setEditingProduct_close(); // onClose called by parent via onSave
     }, 600);

@@ -37,10 +37,13 @@ const nextConfig = {
   reactStrictMode: true,
 
   // Cross-origin configuration for CodeSandbox iframe compatibility
-  // Note: allowedDevOrigins is not a real Next.js option
 
   // Image optimization
   images: {
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96],
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60,
     remotePatterns: [
       {
         protocol: "https",
@@ -67,10 +70,9 @@ const nextConfig = {
         hostname: "cdn.sitniks.com",
       },
     ],
-    formats: ["image/avif", "image/webp"],
     // Use sharp for better performance
     loader: "default",
-    dangerouslyAllowSVG: true,
+    dangerouslyAllowSVG: false,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 
@@ -94,8 +96,10 @@ const nextConfig = {
 
   // Compiler optimizations
   compiler: {
-    // Remove console logs in production only
-    removeConsole: process.env.NODE_ENV === "production",
+    // Remove console logs in production but keep errors and warnings
+    removeConsole: process.env.NODE_ENV === "production"
+      ? { exclude: ['error', 'warn'] }
+      : false,
     // Remove dev-only attributes in production
     reactRemoveProperties:
       process.env.NODE_ENV === "production"
@@ -117,11 +121,13 @@ const nextConfig = {
       "@context": path.resolve("./context"),
     };
 
+    // ✅ Normalize paths in production to prevent file system structure leak
     if (!dev) {
       config.output.devtoolModuleFilenameTemplate = (info) => {
         const rel = info.resourcePath
-          .replace(/\\/g, "/")
-          .replace(/^.*node_modules\//, "node_modules/");
+          .replace(/\\/g, "/") // Convert Windows backslashes to forward slashes
+          .replace(/^.*?(app|components|lib|pages|types|hooks|context|constants)/, "$1") // Strip absolute path, keep only project structure
+          .replace(/^.*node_modules\//, "node_modules/"); // Keep node_modules relative
         return `webpack:///./${rel}`;
       };
     }
@@ -170,61 +176,39 @@ const nextConfig = {
     return config;
   },
 
-  // Headers for CodeSandbox iframe compatibility
-  // Note: NO CORS headers needed - health checks use server-side SDK
+  // Headers for security and performance
   async headers() {
+    const isDev = process.env.NODE_ENV === "development";
+    
     return [
-      // Caching + iframe headers for all routes
       {
         source: "/:path*",
         headers: [
-          // Restrict iframe embedding to same origin for security
-          {
-            key: "X-Frame-Options",
-            value: "SAMEORIGIN",
-          },
-          // Additional security headers
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
-          },
-          // No cache for development (see AI changes immediately)
-          {
-            key: "Cache-Control",
-            value:
-              process.env.NODE_ENV === "production"
-                ? "public, max-age=31536000, immutable"
-                : "no-store, no-cache, must-revalidate, proxy-revalidate",
-          },
-          {
-            key: "Pragma",
-            value: "no-cache",
-          },
-          {
-            key: "Expires",
-            value: "0",
-          },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
-      // Cache headers for static assets (JS, CSS, images)
-      // In CodeSandbox dev: NO cache to see AI changes immediately
-      // On Vercel production: Next.js handles caching with content hashes
       {
         source: "/_next/static/:path*",
         headers: [
           {
             key: "Cache-Control",
-            // no-cache = browser must revalidate before using cached version
-            // This ensures fresh CSS/JS after AI edits while still allowing conditional caching
-            value: "no-cache, no-store, must-revalidate",
+            value: isDev 
+              ? "no-cache, must-revalidate"
+              : "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/images/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: isDev
+              ? "no-cache"
+              : "public, max-age=31536000, immutable",
           },
         ],
       },

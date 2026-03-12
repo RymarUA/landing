@@ -10,6 +10,7 @@
 
 export type Product = {
   id: number;
+  variationId: number;
   name: string;
   category: string;
   price: number;
@@ -32,6 +33,7 @@ export type Product = {
 const STATIC_PRODUCTS: Product[] = [
   {
     id: 1001,
+    variationId: 1001,
     name: "Матча-еліксир для ранкового балансу",
     category: "Чаї та настої",
     price: 420,
@@ -49,6 +51,7 @@ const STATIC_PRODUCTS: Product[] = [
   },
   {
     id: 1002,
+    variationId: 1002,
     name: "Суміш Warm Tonic із гвоздикою",
     category: "Чаї та настої",
     price: 360,
@@ -66,6 +69,7 @@ const STATIC_PRODUCTS: Product[] = [
   },
   {
     id: 1003,
+    variationId: 1003,
     name: "Пластир «Нефритова спина»",
     category: "Зігріваючі пластирі",
     price: 310,
@@ -83,6 +87,7 @@ const STATIC_PRODUCTS: Product[] = [
   },
   {
     id: 1004,
+    variationId: 1004,
     name: "Пластир для колін «Шовкова трава»",
     category: "Зігріваючі пластирі",
     price: 280,
@@ -99,6 +104,7 @@ const STATIC_PRODUCTS: Product[] = [
   },
   {
     id: 1005,
+    variationId: 1005,
     name: "Диффузор «Янтарний сад»",
     category: "Ароматерапія",
     price: 980,
@@ -115,6 +121,7 @@ const STATIC_PRODUCTS: Product[] = [
   },
   {
     id: 1006,
+    variationId: 1006,
     name: "Ортез «Лотос» для підтримки постави",
     category: "Ортези та підтримка",
     price: 890,
@@ -131,6 +138,7 @@ const STATIC_PRODUCTS: Product[] = [
   },
   {
     id: 1007,
+    variationId: 1007,
     name: "Масажний рол для стоп «Сяюча точка»",
     category: "Ортези та підтримка",
     price: 540,
@@ -147,6 +155,7 @@ const STATIC_PRODUCTS: Product[] = [
   },
   {
     id: 1008,
+    variationId: 1008,
     name: "Олія «Тепло Сходу»",
     category: "Масла і бальзами",
     price: 390,
@@ -163,6 +172,7 @@ const STATIC_PRODUCTS: Product[] = [
   },
   {
     id: 1009,
+    variationId: 1009,
     name: "Дитячий сет «Спокійний сон»",
     category: "Дитячі протоколи",
     price: 760,
@@ -179,6 +189,7 @@ const STATIC_PRODUCTS: Product[] = [
   },
   {
     id: 1010,
+    variationId: 1010,
     name: "Подарунковий набір «Ранковий обряд»",
     category: "Подарункові сети",
     price: 1480,

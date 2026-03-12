@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth-jwt";
-import { getSitniksOrdersByPhone } from "@/lib/sitniks";
+import { getSitniksOrdersByPhone } from "@/lib/sitniks-consolidated";
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("fhm_auth")?.value;

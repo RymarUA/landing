@@ -93,20 +93,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const addItem = useCallback((item: Omit<CartItem, "quantity">): AddItemResult => {
-    let result: AddItemResult = { wasExisting: false, quantity: 1 };
+    let wasExisting = false;
+    let finalQuantity = 1;
+
     setItems((prev) => {
       const existing = prev.find((i) => matchItem(i, item.id, item.size));
+
       if (existing) {
-        const newQty = existing.quantity + 1;
-        result = { wasExisting: true, quantity: newQty };
-        setLastQuantityToast({ name: item.name, quantity: newQty });
+        wasExisting = true;
+        finalQuantity = existing.quantity + 1;
+        setLastQuantityToast({ name: item.name, quantity: finalQuantity });
         return prev.map((i) =>
-          matchItem(i, item.id, item.size) ? { ...i, quantity: newQty } : i
+          matchItem(i, item.id, item.size) ? { ...i, quantity: finalQuantity } : i
         );
       }
+
+      finalQuantity = 1;
       return [...prev, { ...item, quantity: 1 }];
     });
-    return result;
+
+    return { wasExisting, quantity: finalQuantity };
   }, [matchItem]);
 
   useEffect(() => {

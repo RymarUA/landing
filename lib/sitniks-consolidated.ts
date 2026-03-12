@@ -24,6 +24,16 @@ export interface SitniksAttachment {
   url: string;
 }
 
+export interface SitniksAuxiliaryInfo {
+  badge?: string;
+  badgeColor?: string;
+  isHit?: boolean;
+  isNew?: boolean;
+  oldPrice?: number;
+  rating?: number;
+  reviews?: number;
+}
+
 export interface SitniksProperty {
   id: number;
   name: string;   // e.g. "Розмір", "Колір"
@@ -48,9 +58,11 @@ export interface SitniksVariation {
   price: number;
   costPrice: number;
   weight?: number;
-  images: SitniksAttachment[];
+  attachments: SitniksAttachment[];
+  images?: SitniksAttachment[];
   properties: SitniksProperty[];
   warehouseQuantities: SitniksWarehouseQuantity[];
+  availableQuantity: number;
   product: {
     id: number;
     name: string;
@@ -62,7 +74,8 @@ export interface SitniksVariation {
 
 export interface SitniksProduct {
   id: number;
-  name: string;
+  title: string;
+  name?: string;
   sku?: string;
   description?: string;
   price: number;
@@ -71,10 +84,12 @@ export interface SitniksProduct {
   barcode?: string;
   isActive: boolean;
   category?: { id: number; name: string };
-  images: SitniksAttachment[];
+  attachments: SitniksAttachment[];
+  images?: SitniksAttachment[];
   properties: SitniksProperty[];
   variations: SitniksVariation[];
   warehouseQuantities: SitniksWarehouseQuantity[];
+  auxiliaryInfo?: SitniksAuxiliaryInfo | Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -349,22 +364,69 @@ export async function updateSitniksOrderStatus(
   await sitniks("PATCH", `/orders/${orderId}`, payload);
 }
 
+/**
+ * Update order status by orderReference (e.g. FHM-123 or order number).
+ * Used from WayForPay webhook and notify-shipping.
+ */
+export async function updateSitniksOrder(
+  orderReference: string,
+  status: "paid" | "shipped" | "delivered" | "cancelled"
+): Promise<boolean> {
+  const STATUS_MAP: Record<string, string> = {
+    paid: "Оплачено",
+    shipped: "Відправлено",
+    delivered: "Доставлено",
+    cancelled: "Скасовано",
+  };
+  
+  const crmStatus = STATUS_MAP[status] ?? "Оплачено";
+  
+  // Try to find order by orderNumber or externalId
+  const search = await sitniksSafe<{ data?: SitniksOrder[] }>("GET", `/open-api/orders?search=${encodeURIComponent(orderReference)}`);
+  
+  const list = search?.data ?? [];
+  const targetId = Array.isArray(list) && list.length > 0 ? list[0].id : null;
+  if (!targetId) {
+    console.error(`[sitniks] Order not found: ${orderReference}`);
+    return false;
+  }
+  
+  const res = await sitniksSafe<unknown>("PATCH", `/open-api/orders/${targetId}`, { status: crmStatus });
+  return res !== null;
+}
+
 // ─── Helpers (from sitniks.ts) ─────────────────────────────────────────────────────
 
 /**
- * Normalizes a Ukrainian phone number to +380XXXXXXXXX format.
+ * Get orders for a customer by phone (for profile/cabinet).
+ * Uses Next.js fetch cache (revalidate 5m) instead of in-memory Map, so it works in serverless.
  */
-export function normalizeSitniksPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 10 && digits.startsWith("0")) {
-    return `+38${digits}`;
-  }
-  if (digits.length === 12 && digits.startsWith("380")) {
-    return `+${digits}`;
-  }
-  if (digits.length === 11 && digits.startsWith("80")) {
-    return `+3${digits}`;
-  }
-  return phone; // Return as-is if format is unexpected
+export async function getSitniksOrdersByPhone(phone: string): Promise<any[]> {
+  const config = getSitniksConfig();
+  if (!config) return [];
+
+  const res = await fetch(
+    `${config.apiUrl}/orders?contact_phone=${encodeURIComponent(phone)}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+        Accept: "application/json",
+      },
+      next: { revalidate: 300 },
+    }
+  );
+
+  if (!res.ok) return [];
+  const json = await res.json();
+  const list = (json as { data?: any[] }).data ?? (json as { orders?: any[] }).orders ?? [];
+  return Array.isArray(list) ? list : [];
 }
+
+/**
+ * Normalizes a Ukrainian phone number to +380XXXXXXXXX format.
+ * @deprecated Use normalizePhone from @/lib/phone-utils instead
+ */
+export { normalizePhone as normalizeSitniksPhone } from "./phone-utils";
 

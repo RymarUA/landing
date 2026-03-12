@@ -4,29 +4,17 @@ import { useReportWebVitals } from "next/web-vitals";
 import type { Metric } from "web-vitals";
 import { isDevelopmentEnv, isProductionEnv } from "@/lib/runtime-env";
 
-type WindowWithGtag = Window & {
-  gtag?: (
-    command: string,
-    targetId: string,
-    config?: Record<string, unknown>,
-  ) => void;
-};
-
 export function WebVitals() {
   useReportWebVitals((metric: Metric) => {
     // Отправка в Google Analytics
-    if (typeof window !== "undefined") {
-      const { gtag } = window as WindowWithGtag;
-
-      if (gtag) {
-        gtag("event", metric.name, {
-          value: Math.round(
-            metric.name === "CLS" ? metric.value * 1000 : metric.value,
-          ),
-          event_label: metric.id,
-          non_interaction: true,
-        });
-      }
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", metric.name, {
+        value: Math.round(
+          metric.name === "CLS" ? metric.value * 1000 : metric.value,
+        ),
+        event_label: metric.id,
+        non_interaction: true,
+      });
     }
     
     // Логирование в development

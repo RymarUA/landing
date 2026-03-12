@@ -295,14 +295,6 @@ export async function getSitniksOrder(
 /**
  * Normalizes a Ukrainian phone number to +380XXXXXXXXX format
  * expected by Sitniks.
- *
- * Input examples: "0671234567", "+380671234567", "380671234567"
+ * @deprecated Use normalizePhone from @/lib/phone-utils instead
  */
-export function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("380") && digits.length === 12) return `+${digits}`;
-  if (digits.startsWith("0") && digits.length === 10) return `+38${digits}`;
-  if (raw.startsWith("+") && /^\+\d{12}$/.test(raw.replace(/\D/g, ""))) return raw;
-  throw new Error("Invalid phone format. Expected Ukrainian number");
-}
-
+export { normalizePhone } from "./phone-utils";

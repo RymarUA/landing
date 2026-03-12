@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   ShoppingCart,
   Star,
@@ -19,10 +20,15 @@ import {
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
-import { ProductModal } from "@/components/product-modal";
 import { TemuCategorySlider } from "./temu-category-slider";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
 import { blurProps } from "@/lib/utils";
+import { ProductModalSkeleton } from "@/components/product-modal-skeleton";
+
+const ProductModal = dynamic(
+  () => import("@/components/product-modal").then(m => ({ default: m.ProductModal })),
+  { loading: () => <ProductModalSkeleton /> }
+);
 
 export type { Product };
 

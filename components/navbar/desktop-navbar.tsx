@@ -6,15 +6,22 @@ import { ShoppingCart, Search, Headphones, User, ChevronDown } from "lucide-reac
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { siteConfig } from "@/lib/site-config";
 
 export const DesktopNavbar = () => {
   const { totalCount, hydrated } = useCart();
   const [showCategories, setShowCategories] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const categories = siteConfig.catalogCategories.slice(1);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    };
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +43,10 @@ export const DesktopNavbar = () => {
           <div className="relative">
             <button
               onClick={() => setShowCategories(!showCategories)}
-              onBlur={() => setTimeout(() => setShowCategories(false), 200)}
+              onBlur={() => {
+                if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+                blurTimerRef.current = setTimeout(() => setShowCategories(false), 200);
+              }}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-500 transition-colors"
             >
               Категорії

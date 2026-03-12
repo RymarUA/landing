@@ -97,12 +97,8 @@ export function recordOtpSentByIp(ip: string): void {
   entry.count += 1;
 }
 
-/** Normalize Ukrainian phone to +380XXXXXXXXX. */
-export function normalizePhoneForAuth(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("380") && digits.length === 12) return `+${digits}`;
-  if (digits.startsWith("0") && digits.length === 10) return `+38${digits}`;
-  if (digits.length === 9) return `+380${digits}`;
-  return raw.startsWith("+") ? raw : `+${digits}`;
-}
-
+/** 
+ * Normalize Ukrainian phone to +380XXXXXXXXX.
+ * @deprecated Use normalizePhone from @/lib/phone-utils instead
+ */
+export { normalizePhone as normalizePhoneForAuth } from "./phone-utils";

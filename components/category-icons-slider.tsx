@@ -96,7 +96,7 @@ export function CategoryIconsSlider({
 
   if (isLoading) {
     return (
-      <div className="sticky top-[68px] bg-white border-b border-gray-100 py-4 z-[60] shadow-sm">
+      <div className="sticky top-[112px] bg-white border-b border-gray-100 py-4 z-40 shadow-sm">
         <div className="flex items-center justify-center h-[88px]">
           <div className="animate-pulse text-gray-400 text-sm">Завантаження категорій...</div>
         </div>
@@ -105,7 +105,7 @@ export function CategoryIconsSlider({
   }
 
   return (
-    <div className="sticky top-[68px] bg-white border-b border-gray-100 py-3 z-[60] shadow-sm">
+    <div className="sticky top-[112px] bg-white border-b border-gray-100 py-3 z-40 shadow-sm">
       <div className="w-full">
         <div
           ref={scrollRef}

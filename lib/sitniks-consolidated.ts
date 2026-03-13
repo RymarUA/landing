@@ -102,6 +102,14 @@ export interface SitniksCategory {
   updatedAt: string;
 }
 
+export interface SiteSettings {
+  announcementText: string;
+  telegramUsername: string;
+  viberPhone: string;
+  instagramUsername: string;
+  phone: string;
+}
+
 export interface CreateOrderDto {
   client: {
     fullname: string;
@@ -319,6 +327,90 @@ export async function getSitniksProductById(productId: number): Promise<SitniksP
 export async function getSitniksCategories(): Promise<SitniksCategory[]> {
   const res = await sitniks<{ data: SitniksCategory[] }>("GET", "/open-api/products/categories");
   return res.data;
+}
+
+// ─── Site Settings API ─────────────────────────────────────────────────────────────
+
+/**
+ * Get site settings from Sitniks.
+ * 
+ * В Sitniks CRM створіть спеціальний товар з SKU = "SITE_SETTINGS"
+ * і додайте характеристики (Properties):
+ * - announcementText: "✨ Текст анонсу"
+ * - telegramUsername: "your_bot"
+ * - viberPhone: "+380..."
+ * - instagramUsername: "your_account"
+ * - phone: "+380..."
+ * 
+ * Категорія товару обов'язкова (будь-яка), назва може бути "Налаштування сайту".
+ */
+export async function getSiteSettings(): Promise<SiteSettings | null> {
+  // Шукаємо товар з SKU = "SITE_SETTINGS"
+  const SETTINGS_SKU = "SITE_SETTINGS";
+  
+  try {
+    // Отримуємо всі товари і шукаємо потрібний SKU
+    const response = await sitniksSafe<{ data: SitniksProduct[]; total: number }>(
+      "GET",
+      `/open-api/products`
+    );
+    
+    if (!response?.data) {
+      console.warn("[sitniks] Failed to fetch products for settings");
+      return null;
+    }
+    
+    console.log(`[sitniks] Loaded ${response.data.length} products, searching for SKU="${SETTINGS_SKU}"`);
+    
+    // Детальний лог для дебагу
+    response.data.forEach((p, idx) => {
+      console.log(`[sitniks] Product ${idx}:`, {
+        id: p.id,
+        sku: p.sku,
+        title: p.title,
+        name: p.name,
+        hasProperties: p.properties?.length > 0
+      });
+    });
+    
+    // Шукаємо товар з потрібним SKU або назвою "Налаштування сайту"
+    const product = response.data.find(p => 
+      p.sku === SETTINGS_SKU || 
+      p.title === "Налаштування сайту" || 
+      p.name === "Налаштування сайту"
+    );
+    
+    if (!product) {
+      console.warn(`[sitniks] Site settings product with SKU="${SETTINGS_SKU}" or name="Налаштування сайту" not found`);
+      console.warn(`[sitniks] Hint: Create a product in Sitniks with SKU="${SETTINGS_SKU}" (or name "Налаштування сайту") and add Properties`);
+      return null;
+    }
+    
+    if (!product.properties || product.properties.length === 0) {
+      console.warn(`[sitniks] Site settings product found but has no properties`);
+      return null;
+    }
+    
+    console.log(`[sitniks] ✓ Found settings product:`, product.title || product.name);
+    console.log(`[sitniks] Properties:`, product.properties.map(p => p.name));
+    
+    // Читаємо налаштування з характеристик товару
+    const getProp = (name: string): string => {
+      const prop = product.properties.find(p => p.name?.toLowerCase() === name.toLowerCase());
+      return prop?.value ?? "";
+    };
+    
+    return {
+      announcementText: getProp("announcementText") || getProp("announcement"),
+      telegramUsername: getProp("telegramUsername") || getProp("telegram"),
+      viberPhone: getProp("viberPhone") || getProp("viber"),
+      instagramUsername: getProp("instagramUsername") || getProp("instagram"),
+      phone: getProp("phone"),
+    };
+  } catch (error) {
+    console.error("[sitniks] Error fetching site settings:", error);
+    return null;
+  }
 }
 
 // ─── Orders API (consolidated) ─────────────────────────────────────────────────────

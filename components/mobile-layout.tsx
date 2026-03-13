@@ -22,8 +22,8 @@ export function MobileLayout({ children, products = [] }: MobileLayoutProps) {
       {/* Sticky Categories Bar */}
       <StickyCategories />
 
-      {/* Main content with top padding for fixed search bar + categories */}
-      <div className="pt-[144px] pb-[92px]">
+      {/* Main content with top padding for announcement bar + search bar + categories */}
+      <div className="pt-[188px] pb-[92px]">
         {children}
       </div>
 

@@ -70,7 +70,7 @@ export function TemuSearchBar({ products = [] }: TemuSearchBarProps) {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[70] border-b border-emerald-900/10 bg-emerald-900/95 text-white backdrop-blur">
+    <div className="fixed top-[44px] left-0 right-0 z-[70] border-b border-emerald-900/10 bg-emerald-900/95 text-white backdrop-blur">
       <div className="max-w-6xl mx-auto px-3 py-3 flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2 flex-shrink-0" aria-label="Повернутися на головну">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#D4AF37]/50 bg-emerald-700 text-white text-sm font-semibold">

@@ -5,7 +5,6 @@ import "./globals.css";
 import { Noto_Sans, Noto_Serif } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { DevToolsGuard } from "./devtools-guard";
-import { TailwindCDNClient } from "@/components/tailwind-cdn-client";
 import { siteConfig } from "@/lib/site-config";
 import { CartProvider } from "@/components/cart-context";
 import { MobileLayout } from "@/components/mobile-layout";
@@ -14,11 +13,11 @@ import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
 import { AbandonedCartNotification } from "@/components/abandoned-cart-notification";
 import { AnnouncementBar } from "@/components/announcement-bar";
-import { SupportButton } from "@/components/support-button";
 import { JsonLd, organizationSchema, websiteSchema } from "@/components/seo/JsonLd";
 import { validateEnv } from "@/lib/env-validation";
 import { WebVitals } from "./web-vitals";
 import { getCatalogProducts } from "@/lib/instagram-catalog";
+import { getSiteSettings } from "@/lib/sitniks-consolidated";
 
 // Validate environment variables on server startup (single evaluation)
 validateEnv();
@@ -115,6 +114,16 @@ export default async function RootLayout({
   children: ReactNode;
 }>) {
   const products = await getCatalogProducts();
+  
+  // Load site settings from Sitniks (with fallback to site-config)
+  const sitniksSettings = await getSiteSettings();
+  const settings = sitniksSettings ?? {
+    announcementText: siteConfig.announcementText,
+    telegramUsername: siteConfig.telegramUsername,
+    viberPhone: siteConfig.viberPhone,
+    instagramUsername: siteConfig.instagramUsername,
+    phone: siteConfig.phone,
+  };
 
   return (
     <html lang="uk">
@@ -132,9 +141,8 @@ export default async function RootLayout({
       >
         <Analytics />
         <WebVitals />
-        <TailwindCDNClient />
         <DevToolsGuard />
-        <AnnouncementBar />
+        <AnnouncementBar announcementText={settings.announcementText} />
         <CartProvider>
           <WishlistProvider>
             <MobileLayout products={products}>
@@ -142,7 +150,6 @@ export default async function RootLayout({
               <DiscountPopup />
               <AbandonedCartNotification />
             </MobileLayout>
-            <SupportButton />
           </WishlistProvider>
         </CartProvider>
       </body>

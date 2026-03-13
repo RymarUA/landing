@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* CSS Custom Properties for design system */
 :root {
   /* Aceternity custom properties */

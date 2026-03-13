@@ -229,7 +229,13 @@ function mapFallbackProductToCatalogProduct(p: Awaited<ReturnType<typeof getAllP
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   try {
     const sitniksProducts = await getAllSitniksProducts();
-    return sitniksProducts.map(mapSitniksProduct);
+    // Виключаємо товар з налаштуваннями сайту (SKU = "SITE_SETTINGS" або назва "Налаштування сайту")
+    const catalogProducts = sitniksProducts.filter(p => 
+      p.sku !== "SITE_SETTINGS" && 
+      p.title !== "Налаштування сайту" && 
+      p.name !== "Налаштування сайту"
+    );
+    return catalogProducts.map(mapSitniksProduct);
   } catch (err) {
     console.error("[instagram-catalog] Failed to fetch from Sitniks:", err);
     // Fallback: статичний каталог щоб вітрина працювала навіть без Sitniks API

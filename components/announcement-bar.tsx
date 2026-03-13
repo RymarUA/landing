@@ -1,12 +1,16 @@
 // @ts-nocheck
 "use client";
+
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { siteConfig } from "@/lib/site-config";
 
-const STORAGE_KEY = "announcement-bar-closed";
+const STORAGE_KEY = "fhm_announcement_closed";
 
-export function AnnouncementBar() {
+interface AnnouncementBarProps {
+  announcementText?: string;
+}
+
+export function AnnouncementBar({ announcementText }: AnnouncementBarProps) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -28,12 +32,12 @@ export function AnnouncementBar() {
   };
 
   // Hide bar entirely if no text is configured
-  if (!visible || !siteConfig.announcementText) return null;
+  if (!visible || !announcementText) return null;
 
   return (
-    <div className="relative bg-orange-500 text-white font-bold text-sm py-2.5 px-4 text-center">
+    <div className="sticky top-0 z-[80] bg-emerald-900/95 text-white font-bold text-sm py-2.5 px-4 text-center">
       <div className="flex items-center justify-center gap-2 flex-wrap px-8">
-        <span>{siteConfig.announcementText}</span>
+        <span>{announcementText}</span>
       </div>
       <button
         type="button"

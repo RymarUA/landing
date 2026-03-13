@@ -53,7 +53,7 @@ export const siteConfig = {
   // Set announcementText to "" to hide the bar entirely.
   // Plain text only (HTML not supported for security).
   announcementText:
-    "✨ Подарунок від «Здоровʼя Сходу»: використайте промокод EAST12 для ритуалів турботи та отримайте -12% вже зараз",
+    "✨ Подарунок від «Здоровʼя Сходу»: використайте промокод EAST12 та отримайте -12% вже зараз",
 
   // -- Catalog Categories -----------------------------------------------
   // Sync these with your Sitniks CRM status labels.
@@ -68,6 +68,7 @@ export const siteConfig = {
     "Масажери",
     "Мазі та гелі",
     "Компресійна білизна",
+    "Інше",
   ] as const,
 
   // -- Contact / Support links ------------------------------------------
@@ -75,6 +76,7 @@ export const siteConfig = {
   telegramUsername: "zdorovia_skhodu",
   viberPhone: "+380507877430",             // viber://chat?number=...
   instagramUsername: "zdorovia.skhodu",
+  tiktokUsername: "zdorovia.skhodu",
   phone: "+380507877430",
   twitterHandle: "zdorovia_skhodu",
 };

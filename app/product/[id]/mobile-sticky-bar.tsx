@@ -25,7 +25,7 @@ export function MobileStickyBar({ product }: { product: CatalogProduct }) {
 
       const ob = new IntersectionObserver(
         ([entry]) => setShow(!entry?.isIntersecting),
-        { threshold: 0, rootMargin: "0px 0px -80px 0px" }
+        { threshold: 0.1, rootMargin: "0px 0px -100px 0px" }
       );
       ob.observe(el);
       cleanup = () => ob.disconnect();

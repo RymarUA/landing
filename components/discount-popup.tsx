@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { X, Tag, Sparkles } from "lucide-react";
+import { useLocalStorage } from "@/hooks/use-isomorphic";
 
 const STORAGE_KEY = "fhm_popup_seen";
 const PROMO_CODE = "EAST12";
@@ -19,22 +20,20 @@ type State = "idle" | "visible";
 export function DiscountPopup() {
   const pathname = usePathname();
   const [state, setState] = useState<State>("idle");
+  const [popupSeen, setPopupSeen] = useLocalStorage<string>(STORAGE_KEY, "");
 
   const isCheckout = pathname.startsWith("/checkout");
 
   useEffect(() => {
-    if (isCheckout) return;
-    if (typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY)) return;
+    if (isCheckout || popupSeen) return;
 
     const timer = setTimeout(() => setState("visible"), DELAY_MS);
     return () => clearTimeout(timer);
-  }, [isCheckout]);
+  }, [isCheckout, popupSeen]);
 
   const dismiss = () => {
     setState("idle");
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, "1");
-    }
+    setPopupSeen("1");
   };
 
   if (state === "idle") return null;

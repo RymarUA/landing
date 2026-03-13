@@ -2,35 +2,40 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Cookie, X, Check, Settings } from "lucide-react";
+import { useLocalStorage } from "@/hooks/use-isomorphic";
 
 const STORAGE_KEY = "fhm_cookie_consent";
+
+interface CookieConsent {
+  necessary: boolean;
+  analytics: boolean;
+  marketing: boolean;
+  ts: number;
+}
 
 export function CookieBanner() {
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [marketing, setMarketing] = useState(false);
+  const [consent, setConsent] = useLocalStorage<CookieConsent | null>(STORAGE_KEY, null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) {
-        // Small delay so it doesn't pop up immediately
-        const t = setTimeout(() => setVisible(true), 1500);
-        return () => clearTimeout(t);
-      }
-    } catch {
-      // localStorage unavailable
+    if (!consent) {
+      // Small delay so it doesn't pop up immediately
+      const t = setTimeout(() => setVisible(true), 1500);
+      return () => clearTimeout(t);
     }
-  }, []);
+  }, [consent]);
 
   const accept = (all: boolean) => {
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ necessary: true, analytics: all || analytics, marketing: all || marketing, ts: Date.now() })
-      );
-    } catch { /* noop */ }
+    const newConsent: CookieConsent = {
+      necessary: true,
+      analytics: all || analytics,
+      marketing: all || marketing,
+      ts: Date.now()
+    };
+    setConsent(newConsent);
     setVisible(false);
   };
 

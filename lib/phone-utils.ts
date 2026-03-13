@@ -68,18 +68,3 @@ export function isValidUkrainianPhone(phone: string): boolean {
   return false;
 }
 
-/**
- * Formats a normalized phone number for display.
- * 
- * @param phone - Normalized phone (+380XXXXXXXXX)
- * @returns Formatted phone (e.g., "+380 67 123 45 67")
- */
-export function formatPhoneForDisplay(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  
-  if (digits.length === 12 && digits.startsWith("380")) {
-    return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8, 10)} ${digits.slice(10)}`;
-  }
-  
-  return phone;
-}

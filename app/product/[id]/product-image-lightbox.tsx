@@ -39,7 +39,7 @@ export function ProductImageLightbox({ src, alt, children }: Props) {
           alt={alt}
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
-          className="object-cover"
+          className="object-contain"
           priority
         />
         {children}

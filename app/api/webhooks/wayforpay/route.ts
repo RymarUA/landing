@@ -25,7 +25,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWfpWebhookSignature, buildWfpResponseSignature } from "@/lib/wayforpay";
-import { updateSitniksOrder, updateSitniksOrderStatus } from "@/lib/sitniks-consolidated";
+import { updateSitniksOrder } from "@/lib/sitniks-consolidated";
 import { sendTelegramNotification } from "@/lib/telegram";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -80,19 +80,16 @@ export async function POST(req: NextRequest) {
   }
 
   /* ── 3. Process payment result ── */
-  const isFhmRef = orderReference.startsWith("FHM-");
   if (transactionStatus === "Approved") {
     try {
-      if (isFhmRef) {
-        await updateSitniksOrder(orderReference, "paid");
+      // Always use the better updateSitniksOrder function
+      const success = await updateSitniksOrder(orderReference, "paid");
+      
+      if (!success) {
+        console.error(`[wfp-webhook] Failed to update Sitniks order #${orderReference}`);
       } else {
-        await updateSitniksOrderStatus(
-          orderReference,
-          "Оплачено",
-          `WayForPay Approved | authCode: ${authCode} | card: ${cardPan} | amount: ${amount} ${currency}`
-        );
+        console.info(`[wfp-webhook] Sitniks order #${orderReference} marked as Оплачено`);
       }
-      console.info(`[wfp-webhook] Sitniks order #${orderReference} marked as Оплачено`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[wfp-webhook] Sitniks update failed for order #${orderReference}:`, msg);
@@ -108,14 +105,13 @@ export async function POST(req: NextRequest) {
     sendTelegramNotification(msg).catch((err) => console.error("[wfp-webhook] Telegram failed:", err));
   } else if (transactionStatus === "Declined" || transactionStatus === "Expired") {
     try {
-      if (isFhmRef) {
-        await updateSitniksOrder(orderReference, "cancelled");
+      // Always use the better updateSitniksOrder function
+      const success = await updateSitniksOrder(orderReference, "cancelled");
+      
+      if (!success) {
+        console.error(`[wfp-webhook] Failed to cancel Sitniks order #${orderReference}`);
       } else {
-        await updateSitniksOrderStatus(
-          orderReference,
-          "Скасовано",
-          `WayForPay ${transactionStatus} | reason: ${reasonCode} | amount: ${amount} ${currency}`
-        );
+        console.info(`[wfp-webhook] Sitniks order #${orderReference} marked as Скасовано`);
       }
     } catch (err: unknown) {
       console.error(`[wfp-webhook] Sitniks status update failed (${transactionStatus}):`, err);

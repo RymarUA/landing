@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { Share2 } from "lucide-react";
+import { useWindow } from "@/hooks/use-isomorphic";
 
 interface Props {
   title: string;
@@ -11,9 +12,10 @@ interface Props {
 
 export function ShareButton({ title, path }: Props) {
   const [copied, setCopied] = useState(false);
+  const { isClient, window } = useWindow();
 
   const handleShare = async () => {
-    if (typeof window === "undefined") return;
+    if (!isClient || !window) return;
     const url = `${window.location.origin}${path}`;
     try {
       if (navigator.share) {

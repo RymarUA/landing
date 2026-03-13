@@ -53,8 +53,17 @@ export function CartWidget() {
         aria-label="Відкрити кошик"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
-        animate={animate ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : { scale: 1, rotate: 0 }}
-        transition={{ duration: 0.4, ease: "easeInOut" }}
+        animate={animate ? { 
+          scale: [1, 1.2, 1.1, 1.2, 1], 
+          boxShadow: [
+            "0 0 0 0 rgba(16, 185, 129, 0.4)",
+            "0 0 0 8px rgba(16, 185, 129, 0.2)",
+            "0 0 0 16px rgba(16, 185, 129, 0.1)",
+            "0 0 0 8px rgba(16, 185, 129, 0.2)",
+            "0 0 0 0 rgba(16, 185, 129, 0)"
+          ]
+        } : { scale: 1, boxShadow: "0 0 0 0 rgba(16, 185, 129, 0)" }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
       >
         <ShoppingCart size={26} />
         <AnimatePresence>
@@ -63,7 +72,7 @@ export function CartWidget() {
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
-              className="absolute -top-1 -right-1 bg-[#D4AF37] text-white text-xs font-black rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 shadow"
+              className="absolute -top-1 -right-1 bg-[#FF4444] text-white text-xs font-black rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 shadow"
             >
               {totalCount}
             </motion.span>
@@ -80,9 +89,10 @@ export function CartWidget() {
 
         {/* Panel */}
         <div
-          className={`absolute bottom-0 right-0 w-full sm:w-[400px] bg-white rounded-t-3xl sm:rounded-tl-3xl sm:rounded-tr-none shadow-2xl transition-transform duration-300 flex flex-col max-h-[90vh]
+          className={`absolute bottom-0 left-0 right-0 w-full bg-white rounded-t-3xl shadow-2xl transition-transform duration-300 flex flex-col h-[70vh] overflow-hidden
             ${isCartOpen ? "translate-y-0" : "translate-y-full"}`}
         >
+          {/* Header - фиксированный */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
             <div className="flex items-center gap-2">
               <ShoppingCart size={20} className="text-emerald-600" />
@@ -102,12 +112,19 @@ export function CartWidget() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {/* Scrollable Content - занимает все доступное пространство */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 flex items-center">
             {items.length === 0 ? (
-              <div className="text-center py-12">
-                <ShoppingCart size={48} className="text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-400 text-sm font-medium">Кошик порожній</p>
-                <p className="text-gray-300 text-xs mt-1">Додайте товари з каталогу</p>
+              <div className="text-center py-8 w-full">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ShoppingCart size={64} className="text-gray-200 mx-auto mb-4" />
+                  <p className="text-gray-400 text-lg font-medium mb-2">Кошик порожній</p>
+                  <p className="text-gray-300 text-sm">Додайте товари з каталогу</p>
+                </motion.div>
               </div>
             ) : (
               items.map((item) => (
@@ -166,8 +183,9 @@ export function CartWidget() {
             )}
           </div>
 
+          {/* Sticky Footer - всегда виден внизу */}
           {items.length > 0 && (
-            <div className="flex-shrink-0 px-6 pb-6 pt-4 border-t border-gray-100">
+            <div className="mt-auto sticky bottom-0 bg-white px-6 pb-6 pt-4 border-t border-gray-100">
               {totalSavings > 0 && (
                 <p className="text-green-600 text-sm font-semibold mb-2">
                   Ви заощадили: {totalSavings.toLocaleString("uk-UA")} грн
@@ -182,7 +200,7 @@ export function CartWidget() {
 
               {/* Cross-sell section */}
               <div className="mb-4 pt-4 border-t border-gray-100">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">З цим товаром також купують:</h3>
+                <h3 className="text-sm font-bold text-gray-900 mb-3">З цим товаром також куплять:</h3>
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {items.slice(0, 3).map((item) => (
                     <div key={item.id} className="flex-shrink-0 w-32 bg-gray-50 rounded-xl p-2">
@@ -226,12 +244,69 @@ export function CartWidget() {
 
       {/* Toast: quantity increased */}
       {lastQuantityToast && (
-        <div
-          className="fixed bottom-24 md:bottom-6 left-4 right-4 sm:left-auto sm:right-24 z-[60] max-w-sm bg-gray-900 text-white text-sm font-medium py-3 px-4 rounded-2xl shadow-xl animate-in slide-in-from-bottom-4 duration-300"
-          role="status"
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.5, rotateX: -15 }}
+          animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }}
+          exit={{ opacity: 0, y: -30, scale: 0.8, rotateX: 15 }}
+          transition={{ 
+            duration: 0.4, 
+            ease: [0.34, 1.56, 0.64, 1],
+            scale: { type: "spring", stiffness: 300, damping: 15 }
+          }}
+          className="fixed bottom-32 md:bottom-28 left-4 right-4 sm:left-auto sm:right-28 z-[60] max-w-sm"
         >
-          Кількість товару «{lastQuantityToast.name}» збільшено до {lastQuantityToast.quantity}
-        </div>
+          <motion.div 
+            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-3 border border-emerald-400/20"
+            animate={{ 
+              boxShadow: [
+                "0 0 0 0 rgba(16, 185, 129, 0.4)",
+                "0 0 0 12px rgba(16, 185, 129, 0.1)",
+                "0 0 0 0 rgba(16, 185, 129, 0)"
+              ]
+            }}
+            transition={{ duration: 1.5, repeat: 1 }}
+          >
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 400, damping: 10 }}
+              className="w-12 h-12 bg-white/25 rounded-full flex items-center justify-center flex-shrink-0 backdrop-blur-sm"
+            >
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ delay: 0.3, duration: 0.5, repeat: 2 }}
+              >
+                <ShoppingCart size={20} />
+              </motion.div>
+            </motion.div>
+            <div className="flex-1 min-w-0">
+              <motion.p 
+                className="text-sm font-bold leading-tight"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                {lastQuantityToast.quantity === 1 ? "Товар додано в кошик!" : "Кількість збільшено!"}
+              </motion.p>
+              <motion.p 
+                className="text-xs text-white/90 mt-0.5 truncate"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                {lastQuantityToast.name} × {lastQuantityToast.quantity}
+              </motion.p>
+            </div>
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.4, type: "spring", stiffness: 350 }}
+              className="text-sm bg-white/25 px-3 py-1.5 rounded-full font-bold backdrop-blur-sm border border-white/20"
+            >
+              +1
+            </motion.div>
+          </motion.div>
+        </motion.div>
       )}
     </>
   );

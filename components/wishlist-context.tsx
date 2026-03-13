@@ -4,7 +4,8 @@
  * WishlistContext — persists a list of product IDs to localStorage.
  * Key: "fhm_wishlist_v1"
  */
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useLocalStorage } from "@/hooks/use-isomorphic";
 
 const STORAGE_KEY = "fhm_wishlist_v1";
 
@@ -25,50 +26,24 @@ const WishlistContext = createContext<WishlistContextValue>({
 });
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
-  const [ids, setIds] = useState<Set<number>>(new Set());
+  const [idsArray, setIdsArray] = useLocalStorage<number[]>(STORAGE_KEY, []);
   const [hydrated, setHydrated] = useState(false);
+  const ids = new Set(idsArray);
 
-  /* ── Load from localStorage on mount ── */
+  /* ── Mark as hydrated after localStorage load ── */
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed: number[] = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setIds(new Set(parsed.filter((x) => typeof x === "number")));
-        }
-      }
-    } catch {
-      // ignore corrupt data
-    } finally {
-      setHydrated(true);
-    }
+    setHydrated(true);
   }, []);
 
-  /* ── Persist to localStorage on change ── */
-  useEffect(() => {
-    if (!hydrated || typeof window === 'undefined') return;
-    
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
-    } catch {
-      // ignore quota exceeded
-    }
-  }, [ids, hydrated]);
-
-  const toggle = (id: number) => {
-    setIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+  const toggle = useCallback((id: number) => {
+    setIdsArray((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((x) => x !== id);
       } else {
-        next.add(id);
+        return [...prev, id];
       }
-      return next;
     });
-  };
+  }, []);
 
   return (
     <WishlistContext.Provider

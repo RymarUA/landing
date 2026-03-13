@@ -66,6 +66,13 @@
   border-color: hsl(240 5.9% 90%);
 }
 
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
 body {
   background-color: #F9FAFB;
   color: var(--brand-graphite);
@@ -329,4 +336,21 @@ button, a {
 .card-hover:hover {
   transform: translateY(-4px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Temu-style optimizations */
+.btn-massive {
+  padding-top: 0.875rem;
+  padding-bottom: 0.875rem;
+}
+
+/* Optimized font sizes for density */
+.text-micro {
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1rem;
+}
+
+.text-tiny {
+  font-size: 0.625rem; /* 10px */
+  line-height: 0.875rem;
 }

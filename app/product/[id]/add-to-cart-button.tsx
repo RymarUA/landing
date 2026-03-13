@@ -6,6 +6,7 @@ import { ShoppingCart, CheckCircle, CreditCard, Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart-context";
 import { useWishlist } from "@/components/wishlist-context";
+import { motion } from "framer-motion";
 import {
   trackAddToCart,
   trackViewContent,
@@ -62,6 +63,7 @@ export function AddToCartButton({
   };
 
   const [added, setAdded] = useState(false);
+  const [heartPulse, setHeartPulse] = useState(false);
   const isWished = hydrated ? has(product.id) : false;
 
   const isOutOfStock = product.stock <= 0;
@@ -110,6 +112,10 @@ export function AddToCartButton({
     // Capture current state BEFORE toggling so analytics fires correctly
     const wasWished = has(product.id);
     toggle(product.id);
+
+    // Trigger heart pulse animation
+    setHeartPulse(true);
+    setTimeout(() => setHeartPulse(false), 300);
 
     if (!wasWished) {
       trackAddToWishlist({
@@ -196,6 +202,23 @@ export function AddToCartButton({
               +
             </button>
           </div>
+          {/* Price summary for selected quantity */}
+          <div className="mt-3 p-3 bg-gray-50 rounded-xl">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Сума за {quantity} шт.:</span>
+              <span className="text-lg font-black text-orange-500">
+                {(product.price * quantity).toLocaleString("uk-UA")} грн
+              </span>
+            </div>
+            {product.oldPrice && (
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-sm text-gray-600">Економія:</span>
+                <span className="text-sm font-bold text-green-600">
+                  {((product.oldPrice - product.price) * quantity).toLocaleString("uk-UA")} грн
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -215,12 +238,12 @@ export function AddToCartButton({
           >
             {added ? (
               <>
-                <CheckCircle size={20} />
+                <CheckCircle size={22} />
                 Додано!
               </>
             ) : (
               <>
-                <ShoppingCart size={20} />
+                <ShoppingCart size={22} />
                 До кошика
               </>
             )}
@@ -237,18 +260,18 @@ export function AddToCartButton({
           {stickyCtaOnly ? (
             added ? (
               <>
-                <CheckCircle size={20} />
+                <CheckCircle size={22} />
                 Додано!
               </>
             ) : (
               <>
-                <ShoppingCart size={20} />
+                <ShoppingCart size={22} />
                 Купити
               </>
             )
           ) : (
             <>
-              <CreditCard size={18} />
+              <CreditCard size={22} />
               Купити
             </>
           )}
@@ -257,7 +280,7 @@ export function AddToCartButton({
 
       {/* Wishlist — not shown in sticky bar to keep it compact */}
       {!hideSizeSelector && (
-        <button
+        <motion.button
           onClick={handleWishlist}
           className={`flex items-center justify-center gap-2 w-full py-3 rounded-2xl border-2 font-semibold text-sm transition-all duration-200 ${
             isWished
@@ -265,13 +288,22 @@ export function AddToCartButton({
               : "border-gray-200 text-gray-500 hover:border-orange-300 hover:text-orange-400"
           }`}
           aria-label={isWished ? "Видалити зі списку бажань" : "Додати до бажань"}
+          animate={heartPulse ? { scale: [1, 1.1, 1] } : { scale: 1 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
-          <Heart
-            size={16}
-            className={isWished ? "fill-orange-500 text-orange-500" : ""}
-          />
+          <motion.div
+            animate={heartPulse ? { rotate: [0, 10, -10, 0] } : { rotate: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <Heart
+              size={16}
+              className={isWished ? "fill-orange-500 text-orange-500" : ""}
+            />
+          </motion.div>
           {isWished ? "У списку бажань" : "Додати до бажань"}
-        </button>
+        </motion.button>
       )}
     </div>
   );

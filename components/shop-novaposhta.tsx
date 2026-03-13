@@ -166,7 +166,7 @@ export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
   ];
 
   return (
-    <section className="bg-white py-16 px-4">
+    <section className="bg-white py-4 px-4">
       <div className="max-w-5xl mx-auto">
         <div className="grid md:grid-cols-2 gap-10 items-start">
 

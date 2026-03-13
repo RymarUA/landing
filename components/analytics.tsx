@@ -21,6 +21,8 @@
  */
 
 import Script from "next/script";
+import { useEffect } from "react";
+import { useWindow } from "@/hooks/use-isomorphic";
 
 /* ─── Extend Window for fbq / gtag ──────────────────────── */
 declare global {
@@ -40,6 +42,15 @@ const GA4_ID   = process.env.NEXT_PUBLIC_GA4_ID;
 
 /* ─── Analytics script component ────────────────────────── */
 export function Analytics() {
+  const { isClient } = useWindow();
+  
+  // Setup global error handling when component mounts
+  useEffect(() => {
+    if (isClient) {
+      setupGlobalErrorHandling();
+    }
+  }, [isClient]);
+
   return (
     <>
       {/* ── Meta Pixel ── */}
@@ -123,7 +134,7 @@ interface ViewContentParams {
 /** Fire a custom Meta Pixel event + GA4 custom event */
 export function trackEvent(eventName: string, params?: Record<string, unknown>) {
   try {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       if (window.fbq) window.fbq("trackCustom", eventName, params ?? {});
       if (window.gtag) window.gtag("event", eventName, params ?? {});
     }
@@ -136,7 +147,7 @@ export function trackEvent(eventName: string, params?: Record<string, unknown>) 
 export function trackPurchase(params: PurchaseParams) {
   const { value, currency = "UAH", orderId, contents } = params;
   try {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       /* Meta Pixel */
       if (window.fbq) {
         window.fbq("track", "Purchase", {
@@ -170,7 +181,7 @@ export function trackPurchase(params: PurchaseParams) {
 export function trackAddToCart(params: AddToCartParams) {
   const { contentId, contentName, value, currency = "UAH" } = params;
   try {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       if (window.fbq) {
         window.fbq("track", "AddToCart", {
           content_ids: [String(contentId)],
@@ -197,7 +208,7 @@ export function trackAddToCart(params: AddToCartParams) {
 export function trackViewContent(params: ViewContentParams) {
   const { contentId, contentName, contentCategory, value, currency = "UAH" } = params;
   try {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       if (window.fbq) {
         window.fbq("track", "ViewContent", {
           content_ids: [String(contentId)],
@@ -224,7 +235,7 @@ export function trackViewContent(params: ViewContentParams) {
 /** 🔍 Search */
 export function trackSearch(query: string) {
   try {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       if (window.fbq) window.fbq("track", "Search", { search_string: query });
       if (window.gtag) window.gtag("event", "search", { search_term: query });
     }
@@ -236,7 +247,7 @@ export function trackSearch(query: string) {
 /** ❤️ AddToWishlist */
 export function trackAddToWishlist(params: { contentId: string | number; contentName: string; value: number }) {
   try {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       if (window.fbq) {
         window.fbq("track", "AddToWishlist", {
           content_ids: [String(params.contentId)],
@@ -261,7 +272,7 @@ export function trackAddToWishlist(params: { contentId: string | number; content
 /** 📋 InitiateCheckout */
 export function trackInitiateCheckout(params: { value: number; numItems: number }) {
   try {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       if (window.fbq) {
         window.fbq("track", "InitiateCheckout", {
           value: params.value,
@@ -278,6 +289,94 @@ export function trackInitiateCheckout(params: { value: number; numItems: number 
     }
   } catch (e) {
     console.warn("[analytics] trackInitiateCheckout error:", e);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   CLIENT ERROR LOGGING
+   Logs JavaScript errors to console and optionally to Telegram
+   ────────────────────────────────────────────────────────────────────── */
+
+interface ClientErrorData {
+  label: string;
+  message: string;
+  url: string;
+  timestamp: string;
+  stack?: string;
+}
+
+/** Log client-side JavaScript errors */
+export async function logClientError(errorData: ClientErrorData): Promise<void> {
+  try {
+    // Log to console
+    console.error('[Client Error]', {
+      label: errorData.label,
+      message: errorData.message,
+      url: errorData.url,
+      timestamp: errorData.timestamp,
+    });
+    
+    // Send to Telegram if configured
+    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+      const message = `
+🚨 <b>Client Error</b>
+
+📍 <b>Location:</b> ${errorData.label || 'Unknown'}
+⚠️ <b>Message:</b> ${errorData.message}
+🔗 <b>URL:</b> ${errorData.url}
+⏰ <b>Time:</b> ${errorData.timestamp}
+
+<pre>${errorData.stack?.slice(0, 500) || 'No stack trace'}</pre>
+      `.trim();
+      
+      try {
+        await fetch(
+          `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: process.env.TELEGRAM_CHAT_ID,
+              text: message,
+              parse_mode: 'HTML',
+            }),
+          }
+        );
+      } catch (telegramError) {
+        console.error('Failed to send error to Telegram:', telegramError);
+      }
+    }
+  } catch (error) {
+    console.error('Error logging error:', error);
+  }
+}
+
+/** Setup global error handlers */
+export function setupGlobalErrorHandling(): void {
+  // Handle uncaught JavaScript errors
+  if (typeof window !== 'undefined') {
+    window.addEventListener('error', (event) => {
+      logClientError({
+        label: 'Global Error Handler',
+        message: event.message,
+        url: event.filename || window.location.href,
+        timestamp: new Date().toISOString(),
+        stack: event.error?.stack,
+      });
+    });
+  }
+  
+  // Handle unhandled promise rejections
+  if (typeof window !== 'undefined') {
+    window.addEventListener('unhandledrejection', (event) => {
+      logClientError({
+        label: 'Unhandled Promise Rejection',
+        message: event.reason?.message || String(event.reason),
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
+        stack: event.reason?.stack,
+      });
+    });
   }
 }
 

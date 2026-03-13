@@ -10,7 +10,6 @@ import {
   getCatalogProductById,
 } from "@/lib/instagram-catalog";
 import { AddToCartButton } from "./add-to-cart-button";
-import { MobileStickyBar } from "./mobile-sticky-bar";
 import { ProductImageLightbox } from "./product-image-lightbox";
 import { ShareButton } from "./share-button";
 import { RecentlyViewedBlock } from "./recently-viewed-block";
@@ -141,24 +140,22 @@ export default async function ProductPage({
 
         {/* ── Main Product Grid ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
-          {/* Left Column: Image Gallery (lg:col-span-7) */}
-          <div className="lg:col-span-7">
-            <div className="bg-white rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-sm overflow-hidden">
+          {/* Left Column: Image Gallery (lg:col-span-6) */}
+          <div className="lg:col-span-6">
+            <div className="bg-stone-50 rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-sm overflow-hidden max-h-[550px]">
               <ProductImageLightbox src={product.image} alt={product.name}>
-                <div className="absolute top-2 left-2 sm:top-3 sm:left-3 lg:top-4 lg:left-4 flex flex-col gap-1.5 sm:gap-2 z-10">
-                  {product.badge && (
-                    <span className={`${product.badgeColor} text-white text-[10px] sm:text-xs lg:text-sm font-black px-2 sm:px-2.5 lg:px-3 py-0.5 sm:py-1 lg:py-1.5 rounded-full flex items-center gap-1 sm:gap-1.5`}>
-                      {product.isHit && <Flame size={10} className="sm:w-3 sm:h-3" />}
-                      {product.isNew && <Sparkles size={10} className="sm:w-3 sm:h-3" />}
-                      {product.badge}
-                    </span>
-                  )}
-                  {discount && (
-                    <span className="bg-amber-400 text-gray-900 text-[10px] sm:text-xs lg:text-sm font-black px-2 sm:px-2.5 lg:px-3 py-0.5 sm:py-1 lg:py-1.5 rounded-full">
-                      -{discount}%
-                    </span>
-                  )}
-                </div>
+                {product.badge && (
+                  <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-orange-500 text-white text-xs sm:text-sm font-black px-3 py-1.5 rounded-full flex items-center gap-1 sm:gap-1.5 shadow-lg ring-2 ring-white/50 z-10">
+                    {product.isHit && <Flame size={12} className="sm:w-4 sm:h-4 flex-shrink-0" />}
+                    {product.isNew && <Sparkles size={12} className="sm:w-4 sm:h-4 flex-shrink-0" />}
+                    <span className="flex-shrink-0">{product.badge}</span>
+                  </span>
+                )}
+                {discount && (
+                  <span className="absolute top-12 left-1.5 sm:top-14 sm:left-2 bg-[#FF4444] text-white text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded shadow-lg z-10">
+                    -{discount}%
+                  </span>
+                )}
                 {product.stock <= 5 && product.stock > 0 && (
                   <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 lg:bottom-4 lg:left-4 lg:right-4 z-10">
                     <div className="bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl px-2 py-1.5 sm:px-3 sm:py-2 text-amber-700 text-[10px] sm:text-xs lg:text-sm font-semibold flex items-center gap-1.5 sm:gap-2">
@@ -171,8 +168,8 @@ export default async function ProductPage({
             </div>
           </div>
 
-          {/* Right Column: Product Info (lg:col-span-5) */}
-          <div className="lg:col-span-5">
+          {/* Right Column: Product Info (lg:col-span-6) */}
+          <div className="lg:col-span-6">
             <div className="lg:sticky lg:top-24">
               <div className="bg-white rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-sm p-4 sm:p-5 lg:p-6">
                 {/* Category & Title */}
@@ -204,7 +201,7 @@ export default async function ProductPage({
                     })}
                   </div>
                   <span className="text-xs sm:text-sm font-bold text-gray-900">{product.rating}</span>
-                  <span className="text-xs sm:text-sm text-gray-400">({product.reviews} відгуків)</span>
+                  <span className="text-xs sm:text-sm text-gray-400">({product.reviews} відгук{product.reviews === 1 ? '' : product.reviews >= 2 && product.reviews <= 4 ? 'и' : 'ів'})</span>
                 </div>
 
                 {/* Price Block */}
@@ -235,21 +232,21 @@ export default async function ProductPage({
 
                 {/* Trust Badges */}
                 <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-4 sm:mb-5">
-                  <div className="flex items-center gap-1.5 sm:gap-2 bg-emerald-50 border border-emerald-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-emerald-50 border border-emerald-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
                     <Shield size={14} className="sm:w-4 sm:h-4 text-emerald-600 flex-shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-semibold text-emerald-700">Гарантія якості</span>
+                    <span className="text-[10px] sm:text-xs font-semibold text-emerald-700 text-center">Гарантія якості</span>
                   </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 bg-blue-50 border border-blue-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-blue-50 border border-blue-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
                     <CreditCard size={14} className="sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-semibold text-blue-700">Безпечна оплата</span>
+                    <span className="text-[10px] sm:text-xs font-semibold text-blue-700 text-center">Безпечна оплата</span>
                   </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 bg-purple-50 border border-purple-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-purple-50 border border-purple-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
                     <Truck size={14} className="sm:w-4 sm:h-4 text-purple-600 flex-shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-semibold text-purple-700">Швидка доставка</span>
+                    <span className="text-[10px] sm:text-xs font-semibold text-purple-700 text-center">Швидка доставка</span>
                   </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 bg-amber-50 border border-amber-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-amber-50 border border-amber-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
                     <Package size={14} className="sm:w-4 sm:h-4 text-amber-600 flex-shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-semibold text-amber-700">Відео розпакування</span>
+                    <span className="text-[10px] sm:text-xs font-semibold text-amber-700 text-center">Відео розпакування</span>
                   </div>
                 </div>
 
@@ -274,13 +271,15 @@ export default async function ProductPage({
           </div>
         </div>
 
-        <ErrorBoundary label="Нещодавно переглянуті">
-          <RecentlyViewedBlock products={allProducts} currentId={product.id} />
-        </ErrorBoundary>
+        <div className="mt-8">
+          <ErrorBoundary label="Нещодавно переглянуті">
+            <RecentlyViewedBlock products={allProducts} currentId={product.id} />
+          </ErrorBoundary>
+        </div>
 
         {/* Related Products */}
         {related.length > 0 && (
-          <div className="mt-6 sm:mt-10 lg:mt-14">
+          <div className="mt-6 sm:mt-8 lg:mt-10">
             <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-stone-900 mb-3 sm:mb-4 lg:mb-6">Схожі товари</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {related.map((rp) => (
@@ -321,7 +320,7 @@ export default async function ProductPage({
                           </div>
                         );
                       })}
-                      <span className="text-[10px] sm:text-xs text-stone-500 ml-0.5">({rp.reviews})</span>
+                      <span className="text-[10px] sm:text-xs text-stone-500 ml-0.5">({rp.reviews} відгук{rp.reviews === 1 ? '' : rp.reviews >= 2 && rp.reviews <= 4 ? 'и' : 'ів'})</span>
                     </div>
                     <div className="flex items-baseline gap-1 sm:gap-1.5 flex-wrap">
                       <span className="text-xs sm:text-sm text-orange-500 font-semibold">{rp.price.toLocaleString("uk-UA")} грн</span>
@@ -348,8 +347,6 @@ export default async function ProductPage({
         </ErrorBoundary>
       </div>
 
-      {/* ── Mobile Sticky Bar — client component with shared state ── */}
-      <MobileStickyBar product={product} />
-    </div>
+          </div>
   );
 }

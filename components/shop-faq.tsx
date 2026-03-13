@@ -31,18 +31,18 @@ export function ShopFaq() {
   const toggle = (i: number) => setOpen(open === i ? null : i);
 
   return (
-    <section id="faq" className="bg-white py-16 px-4">
+    <section id="faq" className="bg-white py-4 px-4">
       <FaqJsonLd />
       <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-10">
+        <div className="text-center mb-4">
           <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 text-xs font-bold px-4 py-2 rounded-full mb-4 uppercase tracking-widest">
             <HelpCircle size={14} />
             Питання та відповіді
           </div>
-          <h2 className="text-3xl md:text-4xl font-heading text-[#0F2D2A] mb-2">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading text-[#0F2D2A] mb-2">
             Часті запитання
           </h2>
-          <p className="text-[#7A8A84]">
+          <p className="text-base sm:text-lg text-[#7A8A84]">
             Не знайшли відповідь? Напишіть нам у месенджер або зателефонуйте.
           </p>
         </div>
@@ -61,7 +61,7 @@ export function ShopFaq() {
                 onClick={() => toggle(i)}
                 className="w-full flex items-center justify-between gap-4 px-6 py-4 text-left"
               >
-                <span className={`font-semibold text-sm md:text-base transition-colors ${open === i ? "text-emerald-700" : "text-gray-900"}`}>
+                <span className={`font-semibold text-base md:text-lg transition-colors ${open === i ? "text-emerald-700" : "text-gray-900"}`}>
                   {faq.q}
                 </span>
                 <ChevronDown
@@ -75,25 +75,12 @@ export function ShopFaq() {
                   open === i ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <p className="px-6 pb-5 text-[#7A8A84] text-sm leading-relaxed">
+                <p className="px-6 pb-5 text-[#7A8A84] text-base leading-relaxed">
                   {faq.a}
                 </p>
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="mt-10 text-center bg-emerald-50 rounded-3xl p-8 border border-emerald-100">
-          <p className="text-gray-900 font-semibold mb-4">
-            Потрібна допомога з вибором? Ми завжди на звʼязку.
-          </p>
-          <a
-            href="#guide"
-            className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-8 py-3.5 rounded-2xl transition-colors"
-            aria-label="Дізнатися більше про гід"
-          >
-            Підібрати засіб
-          </a>
         </div>
       </div>
     </section>

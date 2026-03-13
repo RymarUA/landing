@@ -229,8 +229,4 @@ export async function getCategories(): Promise<string[]> {
   return ["Всі", ...Array.from(cats)];
 }
 
-/** Legacy compatibility exports */
-export const CATALOG_PRODUCTS = STATIC_PRODUCTS;
-export const getCatalogProducts = getAllProducts;
-export const getCatalogProductById = getProductById;
 

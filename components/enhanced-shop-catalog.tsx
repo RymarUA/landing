@@ -7,10 +7,11 @@ import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { useCart } from "@/components/cart-context";
 import { PromoBannerSlider } from "@/components/promo-banner-slider";
 import { ModernProductCard } from "@/components/modern-product-card";
-import { ProductModal } from "@/components/product-modal";
 import { ALL_CATEGORIES, SORT_OPTIONS, type SortKey } from "@/lib/catalog-config";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
 import { trackAddToCart } from "@/components/analytics";
+import { Container } from "@/components/container";
+import { Heading } from "@/components/heading";
 
 export type { Product };
 
@@ -19,60 +20,77 @@ interface EnhancedShopCatalogProps {
 }
 
 const INITIAL_VISIBLE = 12;
-const LOAD_MORE_STEP = 12;
+const LOAD_MORE_STEP = 24;
 
 export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
   const [active, setActive] = useState("Всі");
-  const [modalProduct, setModalProduct] = useState<Product | null>(null);
-  const [toasts, setToasts] = useState<{ id: number; name: string }[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<string[]>(["Всі"]);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [onlyInStock, setOnlyInStock] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
-  const toastTimers = useRef<Map<number, number>>(new Map());
   const { addItem } = useCart();
 
-  const addToast = useCallback((name: string) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, name }]);
-    const timer = window.setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-      toastTimers.current.delete(id);
-    }, 2000);
-    toastTimers.current.set(id, timer);
-  }, []);
-
   useEffect(() => {
-    const toastTimersMap = toastTimers.current;
-    return () => {
-      toastTimersMap.forEach((t) => clearTimeout(t));
-      toastTimersMap.clear();
-    };
-  }, []);
-
-  useEffect(() => {
-    const syncFromHash = () => {
-      const hash = window.location.hash;
-      const searchMatch = hash.match(/search=([^&]*)/);
-      if (searchMatch) {
-        setSearchQuery(decodeURIComponent(searchMatch[1].replace(/^#/, "")));
+    const syncFromURL = () => {
+      const url = new URL(window.location.href);
+      
+      // Handle search query parameter (new format: ?q=query)
+      const searchParam = url.searchParams.get('q');
+      if (searchParam) {
+        setSearchQuery(decodeURIComponent(searchParam));
       }
+      
+      // Handle hash for category (keeping existing behavior)
+      const hash = window.location.hash;
       const catMatch = hash.match(/category=([^&#]*)/);
       if (catMatch) {
         const cat = decodeURIComponent(catMatch[1].trim());
-        if (ALL_CATEGORIES.includes(cat as (typeof ALL_CATEGORIES)[number])) {
+        if (availableCategories.includes(cat as (typeof availableCategories)[number])) {
           setActive(cat);
           setVisibleCount(INITIAL_VISIBLE);
         }
       }
     };
-    syncFromHash();
-    window.addEventListener("hashchange", syncFromHash);
-    return () => window.removeEventListener("hashchange", syncFromHash);
+    
+    // Handle custom search event
+    const handleSearchUpdate = (event: CustomEvent) => {
+      if (event.detail?.query) {
+        setSearchQuery(event.detail.query);
+      }
+    };
+    
+    syncFromURL();
+    window.addEventListener("popstate", syncFromURL);
+    window.addEventListener("hashchange", syncFromURL);
+    window.addEventListener("searchupdate", handleSearchUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener("popstate", syncFromURL);
+      window.removeEventListener("hashchange", syncFromURL);
+      window.removeEventListener("searchupdate", handleSearchUpdate as EventListener);
+    };
+  }, [availableCategories]);
+
+  // Завантаження доступних категорій
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const response = await fetch("/api/categories");
+        const data = await response.json();
+        if (data.success && data.categories) {
+          setAvailableCategories(data.categories);
+        }
+      } catch (error) {
+        console.error("Failed to load categories:", error);
+      }
+    };
+    
+    loadCategories();
   }, []);
 
   const filtered = products.filter((p) => {
@@ -118,7 +136,6 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
         size: product.sizes[0] ?? null,
         oldPrice: product.oldPrice ?? null,
       });
-      addToast(product.name);
       
       // Track add to cart event
       trackAddToCart({
@@ -128,7 +145,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
         currency: "UAH",
       });
     },
-    [addItem, addToast]
+    [addItem]
   );
 
   const handleCategoryChange = useCallback((category: string) => {
@@ -141,19 +158,19 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
   const handleSwipe = useCallback((_: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
     const { offset, velocity } = info;
     if (Math.abs(offset.x) > 50 && Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(velocity.x) > 300) {
-      const idx = ALL_CATEGORIES.indexOf(active as (typeof ALL_CATEGORIES)[number]);
+      const idx = availableCategories.indexOf(active);
       let nextIdx;
       if (offset.x < 0) {
-        nextIdx = (idx + 1) % ALL_CATEGORIES.length;
+        nextIdx = (idx + 1) % availableCategories.length;
       } else {
-        nextIdx = (idx - 1 + ALL_CATEGORIES.length) % ALL_CATEGORIES.length;
+        nextIdx = (idx - 1 + availableCategories.length) % availableCategories.length;
       }
       if (nextIdx !== idx) {
-        const nextCat = ALL_CATEGORIES[nextIdx];
+        const nextCat = availableCategories[nextIdx];
         handleCategoryChange(nextCat);
       }
     }
-  }, [active, handleCategoryChange]);
+  }, [active, handleCategoryChange, availableCategories]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -161,7 +178,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
     setMaxPrice("");
     setOnlyInStock(false);
     setSortKey("default");
-    setActive("Всі");
+    handleCategoryChange("Всі");
   };
 
   const hasActiveFilters = searchQuery || minPrice || maxPrice || onlyInStock || sortKey !== "default" || active !== "Всі";
@@ -171,58 +188,41 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
 
   return (
     <>
-      {modalProduct && (
-        <ProductModal
-          product={modalProduct}
-          onClose={() => setModalProduct(null)}
-          onAddToCart={handleAddToCart}
-          searchQuery={searchQuery}
-        />
-      )}
-
-      {/* Toast notifications with animation */}
-      <div className="fixed bottom-24 left-4 right-4 sm:left-auto sm:right-24 z-[55] flex flex-col gap-2 max-w-sm pointer-events-none">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className="bg-gray-900 text-white text-sm font-medium py-3 px-4 rounded-2xl shadow-xl animate-in slide-in-from-bottom-4 duration-300 pointer-events-auto"
-            role="status"
-          >
-            «{t.name}» додано до кошика
-          </div>
-        ))}
-      </div>
-
       {/* Motion section with swipe */}
       <motion.section 
         id="catalog" 
-        className="bg-white py-4 sm:py-6 px-2 sm:px-3"
+        className="bg-white py-2 sm:py-3"
         onPanEnd={handleSwipe}
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.15}
         dragSnapToOrigin={true}
       >
-        <div className="max-w-[1400px] mx-auto">
+        <Container>
+          {/* Category Icons Slider */}
+          {/* CategoryIconsSlider moved to TemuSearchBar to avoid duplication */}
+          <div className="mb-3 sm:mb-4">
+          </div>
+
           {/* Promo Banner */}
           {active === "Всі" && !searchQuery && (
-            <div className="mb-3 sm:mb-4">
+            <div className="mb-1.5 sm:mb-2">
               <PromoBannerSlider />
             </div>
           )}
 
           {/* Заголовок */}
-          <div className="mb-3 sm:mb-4">
+          <div className="mb-1.5 sm:mb-2">
             <h2 className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 mb-0.5 sm:mb-1">
               {active === "Всі" ? "Всі товари" : active}
             </h2>
-            <p className="text-gray-500 text-xs sm:text-sm">
+            <p className="text-gray-500 text-[11px] sm:text-sm">
               {sorted.length} {sorted.length === 1 ? "товар" : sorted.length < 5 ? "товари" : "товарів"}
             </p>
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-1.5 sm:gap-2 bg-gray-50 p-2 sm:p-3 rounded-lg sm:rounded-xl">
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2 flex-wrap gap-1.5 sm:gap-2 bg-gray-50 p-1.5 sm:p-2 rounded-lg">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <div className="relative">
                 <button
@@ -279,7 +279,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-3 sm:mb-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 sm:p-3 mb-1.5 sm:mb-2">
               <div className="flex flex-wrap gap-2 sm:gap-3 items-end">
                 <div className="flex flex-col gap-1 sm:gap-1.5">
                   <label className="text-[9px] sm:text-[10px] font-bold text-gray-600 uppercase">Від (грн)</label>
@@ -318,7 +318,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
 
           {/* Grid */}
           {sorted.length === 0 ? (
-            <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-xl sm:rounded-2xl">
+            <div className="text-center py-8 bg-gray-50 rounded-xl sm:rounded-2xl">
               <Search size={40} className="sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 text-gray-300" />
               <p className="font-bold text-base sm:text-lg text-gray-500 mb-1 sm:mb-2">Нічого не знайдено</p>
               <p className="text-xs sm:text-sm text-gray-400 mb-3 sm:mb-4">Спробуйте змінити фільтри</p>
@@ -331,7 +331,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5 sm:gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
                 <AnimatePresence mode="popLayout">
                   {visibleSorted.map((product, index) => (
                     <motion.div
@@ -345,9 +345,8 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
                       <ModernProductCard
                         product={product}
                         onAddToCart={handleAddToCart}
-                        onClick={setModalProduct}
                         searchQuery={searchQuery}
-                        priority={index < 6} // First 6 images get priority in grid
+                        priority={index < 2} // First 2 images get priority in grid
                       />
                     </motion.div>
                   ))}
@@ -355,7 +354,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
               </div>
               
               {hasMore && (
-                <div className="mt-4 sm:mt-6 flex justify-center">
+                <div className="mt-3 sm:mt-4 flex justify-center">
                   <button
                     onClick={() => setVisibleCount((c) => c + LOAD_MORE_STEP)}
                     className="px-4 sm:px-6 py-2 sm:py-3 rounded-lg bg-white border border-gray-300 text-gray-700 font-bold text-xs sm:text-sm hover:bg-gray-50 transition-colors"
@@ -366,7 +365,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
               )}
             </>
           )}
-        </div>
+        </Container>
       </motion.section>
     </>
   );

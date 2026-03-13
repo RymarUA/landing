@@ -1,13 +1,14 @@
   // @ts-nocheck
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Flame, Sparkles, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { ModernProductCard } from "@/components/modern-product-card";
-import { ProductModal } from "@/components/product-modal";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { useCart } from "@/components/cart-context";
+import { Container } from "@/components/container";
+import { Heading } from "@/components/heading";
 
 interface FeaturedProductsProps {
   products: CatalogProduct[];
@@ -15,9 +16,6 @@ interface FeaturedProductsProps {
 }
 
 export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
-  const [modalProduct, setModalProduct] = useState<CatalogProduct | null>(null);
-  const [isPaused, setIsPaused] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const { addItem } = useCart();
 
   // Filter products based on type
@@ -48,49 +46,33 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
     });
   };
 
-  // Auto-scroll effect
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container || isPaused) return;
-
-    const scrollSpeed = 0.5; // pixels per frame - slow and smooth
-    let animationFrameId: number;
-
-    const autoScroll = () => {
-      if (container.scrollLeft >= container.scrollWidth - container.clientWidth) {
-        container.scrollLeft = 0;
-      } else {
-        container.scrollLeft += scrollSpeed;
-      }
-      animationFrameId = requestAnimationFrame(autoScroll);
-    };
-
-    animationFrameId = requestAnimationFrame(autoScroll);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isPaused]);
-
   const handleViewAll = () => {
     window.location.href = "/?category=#catalog";
   };
 
   return (
-    <>
-      {modalProduct && (
-        <ProductModal
-          product={modalProduct}
-          onClose={() => setModalProduct(null)}
-          onAddToCart={handleAddToCart}
-        />
-      )}
-      
-      <section className={`bg-gradient-to-br ${bgGradient} py-3 sm:py-4 overflow-x-hidden`}>
-      <div className="max-w-7xl mx-auto px-3 sm:px-4">
+    <section className={`bg-gradient-to-br ${bgGradient} py-2 sm:py-3 overflow-x-hidden`}>
+      <Container>
         {/* Header - Temu Style */}
-        <div className="flex items-center justify-between mb-2 sm:mb-3">
-          <h2 className={`text-base sm:text-lg md:text-xl font-bold ${accentColor} flex items-center gap-1.5`}>
-            {title} 🔥
-          </h2>
+        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+          <div className="flex items-center gap-1.5">
+            <Heading size="sm" as="h2" className={`${accentColor} !text-left !mx-0`}>
+              {title}
+            </Heading>
+            <motion.div
+              animate={{
+                scale: [1, 1.2, 1],
+                rotate: [0, 10, -10, 0],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            >
+              <Flame className={`w-5 h-5 ${accentColor}`} />
+            </motion.div>
+          </div>
           <button
             onClick={handleViewAll}
             className="text-xs sm:text-sm text-gray-600 hover:text-gray-900 flex items-center gap-0.5 font-medium transition-colors"
@@ -100,37 +82,25 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
           </button>
         </div>
 
-        {/* Auto-scrolling Products Carousel */}
-        <div
-          ref={scrollRef}
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-          className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
+        {/* Products Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
           {filteredProducts.map((product, index) => (
-            <div 
-              key={product.id} 
-              className="flex-shrink-0 w-[calc(33.333%-5.33px)] sm:w-[calc(25%-6px)] md:w-[calc(16.666%-6.67px)]"
+            <motion.div
+              key={product.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="h-full"
             >
               <ModernProductCard
                 product={product}
                 onAddToCart={handleAddToCart}
-                onClick={setModalProduct}
-                priority={index < 6}
-                compact
+                priority={index < 2}
               />
-            </div>
+            </motion.div>
           ))}
         </div>
-      </div>
-
-      <style jsx>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
+      </Container>
     </section>
-    </>
   );
 }

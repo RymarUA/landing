@@ -3,11 +3,13 @@
 import { useReportWebVitals } from "next/web-vitals";
 import type { Metric } from "web-vitals";
 import { isDevelopmentEnv, isProductionEnv } from "@/lib/runtime-env";
+import { useWindow } from "@/hooks/use-isomorphic";
 
 export function WebVitals() {
+  const { isClient } = useWindow();
   useReportWebVitals((metric: Metric) => {
     // Отправка в Google Analytics
-    if (typeof window !== "undefined" && window.gtag) {
+    if (isClient && window.gtag) {
       window.gtag("event", metric.name, {
         value: Math.round(
           metric.name === "CLS" ? metric.value * 1000 : metric.value,
@@ -39,7 +41,7 @@ export function WebVitals() {
         }).catch(console.error);
       };
 
-      if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+      if (navigator.sendBeacon) {
         const success = navigator.sendBeacon(
           "/api/vitals",
           new Blob([data], { type: "application/json" }),

@@ -10,6 +10,8 @@
  *   SITNIKS_API_KEY  — Bearer token
  */
 
+import { siteConfig } from "@/lib/site-config";
+
 // ─── Config ────────────────────────────────────────────────────────────────────
 
 // ─── Types (from sitniks-api.ts) ───────────────────────────────────────────────
@@ -63,7 +65,7 @@ export interface SitniksVariation {
     name: string;
     sku?: string;
     description?: string;
-    category?: { id: number; name: string };
+    category?: { id: number; title: string };
   };
 }
 
@@ -78,7 +80,7 @@ export interface SitniksProduct {
   weight?: number;
   barcode?: string;
   isActive: boolean;
-  category?: { id: number; name: string };
+  category?: { id: number; title: string };
   attachments: SitniksAttachment[];
   images?: SitniksAttachment[];
   properties: SitniksProperty[];
@@ -91,8 +93,8 @@ export interface SitniksProduct {
 
 export interface SitniksCategory {
   id: number;
-  name: string;
-  parentId?: number;
+  title: string;
+  parentCategoryId?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -320,8 +322,8 @@ export async function getSitniksProductById(productId: number): Promise<SitniksP
 }
 
 export async function getSitniksCategories(): Promise<SitniksCategory[]> {
-  const res = await sitniks<{ data: SitniksCategory[] }>("GET", "/open-api/products/categories");
-  return res.data;
+  const res = await sitniks<SitniksCategory[]>("GET", "/open-api/products/categories");
+  return res;
 }
 
 // ─── Site Settings API ─────────────────────────────────────────────────────────────
@@ -410,6 +412,39 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
   }
 }
 
+/**
+ * Get site settings with fallback to site-config
+ * Returns settings from Sitniks or fallback to local config
+ */
+export async function getSiteSettingsWithFallback(): Promise<{ settings: SiteSettings; source: 'sitniks' | 'fallback' }> {
+  try {
+    const settings = await getSiteSettings();
+    
+    if (!settings) {
+      return createFallbackSettings();
+    }
+    
+    return { settings, source: "sitniks" };
+  } catch (error) {
+    console.error("[sitniks] Failed to fetch settings from Sitniks:", error);
+    return createFallbackSettings();
+  }
+}
+
+/** Helper function to create fallback settings - avoids duplication */
+function createFallbackSettings(): { settings: SiteSettings; source: 'fallback' } {
+  return {
+    settings: {
+      announcementText: siteConfig.announcementText,
+      telegramUsername: siteConfig.telegramUsername,
+      viberPhone: siteConfig.viberPhone,
+      instagramUsername: siteConfig.instagramUsername,
+      phone: siteConfig.phone,
+    },
+    source: "fallback",
+  };
+}
+
 // ─── Orders API (consolidated) ─────────────────────────────────────────────────────
 
 /**
@@ -443,20 +478,9 @@ export async function getSitniksOrderStatuses(): Promise<Array<{ id: number; nam
 }
 
 /**
- * Update order status (legacy).
- */
-export async function updateSitniksOrderStatus(
-  orderId: string | number,
-  status: string,
-  comment?: string
-): Promise<void> {
-  const payload = comment ? { status, comment } : { status };
-  await sitniks("PATCH", `/orders/${orderId}`, payload);
-}
-
-/**
  * Update order status by orderReference (e.g. FHM-123 or order number).
  * Used from WayForPay webhook and notify-shipping.
+ * This is the recommended function for status updates.
  */
 export async function updateSitniksOrder(
   orderReference: string,
@@ -485,6 +509,19 @@ export async function updateSitniksOrder(
   return res !== null;
 }
 
+/**
+ * Update order status (legacy version).
+ * @deprecated Use updateSitniksOrder instead - it has better error handling and status mapping
+ */
+export async function updateSitniksOrderStatus(
+  orderId: string | number,
+  status: string,
+  comment?: string
+): Promise<void> {
+  const payload = comment ? { status, comment } : { status };
+  await sitniks("PATCH", `/orders/${orderId}`, payload);
+}
+
 // ─── Helpers (from sitniks.ts) ─────────────────────────────────────────────────────
 
 /**
@@ -492,26 +529,18 @@ export async function updateSitniksOrder(
  * Uses Next.js fetch cache (revalidate 5m) instead of in-memory Map, so it works in serverless.
  */
 export async function getSitniksOrdersByPhone(phone: string): Promise<any[]> {
-  const config = getSitniksConfig();
-  if (!config) return [];
-
-  const res = await fetch(
-    `${config.apiUrl}/orders?contact_phone=${encodeURIComponent(phone)}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
-        Accept: "application/json",
-      },
-      next: { revalidate: 300 },
-    }
-  );
-
-  if (!res.ok) return [];
-  const json = await res.json();
-  const list = (json as { data?: any[] }).data ?? (json as { orders?: any[] }).orders ?? [];
-  return Array.isArray(list) ? list : [];
+  try {
+    const response = await sitniksSafe<{ data?: any[]; orders?: any[] }>(
+      "GET",
+      `/orders?contact_phone=${encodeURIComponent(phone)}`
+    );
+    
+    const list = response?.data ?? response?.orders ?? [];
+    return Array.isArray(list) ? list : [];
+  } catch (error) {
+    console.error("[sitniks] Failed to fetch orders by phone:", error);
+    return [];
+  }
 }
 
 /**

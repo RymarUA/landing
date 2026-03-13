@@ -76,13 +76,13 @@ const DEFAULT_BADGE_COLOR: Record<string, string> = {
   "Акція":   "bg-purple-500 text-white",
 };
 
-/** Шукає значення характеристики по імені (без урахування регістру) */
+/** Шукає значення характеристики по імені (без урахування регістру та пробілів) */
 function getProp(p: SitniksProduct, key: string, variation?: SitniksVariation): string | undefined {
-  const target = key.toLowerCase();
+  const target = key.toLowerCase().trim();
 
   const matchValue = (props?: SitniksProperty[]) => {
     if (!props) return undefined;
-    const prop = props.find((prop) => prop.name?.toLowerCase() === target);
+    const prop = props.find((prop) => prop.name?.toLowerCase().trim() === target);
     return prop?.value;
   };
 
@@ -210,7 +210,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     name: p.title,
     price,
     oldPrice,
-    category: p.category?.name ?? "Інше",
+    category: p.category?.title ?? "Інше",
     badge,
     badgeColor,
     isHit,

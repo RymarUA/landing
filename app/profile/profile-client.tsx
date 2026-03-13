@@ -26,6 +26,13 @@ import { useCart } from "@/components/cart-context";
 import Image from "next/image";
 import { blurProps } from "@/lib/utils";
 import { siteConfig } from "@/lib/site-config";
+import { useLocalStorage } from "@/hooks/use-isomorphic";
+import dynamic from "next/dynamic";
+
+const ShopNovaPoshta = dynamic(
+  () => import("@/components/shop-novaposhta").then(mod => ({ default: mod.ShopNovaPoshta })),
+  { ssr: false }
+);
 
 /* ─── Types ──────────────────────────────────────────── */
 type Step = "loading" | "phone" | "otp" | "profile";
@@ -89,7 +96,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [phone, setPhone]   = useState("");
   const [otp, setOtp]       = useState(["", "", "", "", "", ""]);
   const [loggedPhone, setLoggedPhone] = useState("");
-  const [profileName, setProfileName] = useState("");
+  const [profileName, setProfileName] = useLocalStorage<string>(PROFILE_NAME_KEY, "");
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [error, setError]   = useState("");
@@ -98,6 +105,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [resendIn, setResendIn] = useState(0);
   const [copiedPromo, setCopiedPromo] = useState(false);
   const [showPromoBlock, setShowPromoBlock] = useState(false);
+  const [popupSeen] = useLocalStorage<string>("fhm_popup_seen", "");
   const [copiedTTN, setCopiedTTN] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -109,21 +117,49 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const PLACEHOLDER_IMG = "https://lrggyvioreorxttbasgi.supabase.co/storage/v1/object/public/app-assets/9586/images/1772177782851-sneakers-hero";
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setProfileName(localStorage.getItem(PROFILE_NAME_KEY) || "");
+    // Profile name is handled by useLocalStorage hook
   }, [step]);
   useEffect(() => {
-    if (step !== "profile" || typeof window === "undefined") return;
-    setShowPromoBlock(!!localStorage.getItem("fhm_popup_seen"));
-  }, [step]);
+    if (step !== "profile") return;
+    setShowPromoBlock(!!popupSeen);
+  }, [step, popupSeen]);
 
   /* ── Load orders from API (AbortController prevents setState on unmount) ── */
   const loadOrders = useCallback(async (_phone: string, abortController?: AbortController) => {
     setOrdersLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 600));
-      if (!abortController?.signal.aborted) setOrders([]);
-    } catch {
+      const res = await fetch("/api/profile/orders", { 
+        signal: abortController?.signal 
+      });
+      
+      if (!res.ok) {
+        if (!abortController?.signal.aborted) setOrders([]);
+        return;
+      }
+      
+      const data = await res.json();
+      
+      if (!abortController?.signal.aborted) {
+        // Transform Sitniks orders to our Order interface
+        const transformedOrders: Order[] = (data.orders || []).map((order: any) => ({
+          id: order.orderNumber || order.id,
+          createdAt: order.createdAt,
+          status: order.status?.name || order.status || 'В обробці',
+          total: order.totalAmount || order.total || 0,
+          trackingNumber: order.trackingNumber,
+          items: (order.products || []).map((item: any) => ({
+            id: item.productVariationId || item.id,
+            name: item.title || item.name,
+            quantity: item.quantity,
+            price: item.price,
+            image: item.image || PLACEHOLDER_IMG,
+          })),
+        }));
+        
+        setOrders(transformedOrders);
+      }
+    } catch (error) {
+      console.error("[profile] Failed to load orders:", error);
       if (!abortController?.signal.aborted) setOrders([]);
     } finally {
       if (!abortController?.signal.aborted) setOrdersLoading(false);
@@ -540,7 +576,6 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 onChange={(e) => {
                   const v = e.target.value;
                   setProfileName(v);
-                  if (typeof window !== "undefined") localStorage.setItem(PROFILE_NAME_KEY, v);
                 }}
                 placeholder="Додати ім'я"
                 className="mt-2 w-full max-w-[200px] px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
@@ -731,21 +766,21 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
         {/* Support link */}
                 <p className="text-center text-xs text-gray-400 mt-6">
-          ������� ���� ����������?{" "}
+          Потрібна допомога?{" "}
           <a
             href={`tel:${siteConfig.phone}`}
             className="text-emerald-600 font-semibold hover:underline"
           >
-            �������������
+            Зателефонуйте
           </a>
         </p>
       </div>
+
+      {/* Nova Poshta Tracking */}
+      <ShopNovaPoshta />
     </div>
   );
 }
-
-
-
 
 
 

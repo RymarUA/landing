@@ -1,6 +1,7 @@
 // @ts-nocheck
 "use client";
 import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from "react";
+import { useLocalStorage } from "@/hooks/use-isomorphic";
 
 export interface CartItem {
   id: number;
@@ -43,7 +44,7 @@ const STORAGE_KEY = "fhm_cart_v1";
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems, hydrateCart] = useLocalStorage<CartItem[]>(STORAGE_KEY, []);
   const [hydrated, setHydrated] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [lastQuantityToast, setLastQuantityToast] = useState<{ name: string; quantity: number } | null>(null);
@@ -58,41 +59,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setSessionStartTime(Date.now());
   }, []);
 
-  // ── Rehydrate from localStorage on mount (client-only) ─────────────
+  // ── Mark as hydrated after localStorage load ─────────────
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as CartItem[];
-        // Basic validation: must be array of objects with id & quantity
-        if (Array.isArray(parsed) && parsed.every((i) => typeof i.id === "number")) {
-          setItems(parsed);
-        }
-      }
-    } catch {
-      // Corrupt data — silently ignore
-      localStorage.removeItem(STORAGE_KEY);
-    } finally {
-      setHydrated(true);
-    }
+    setHydrated(true);
+  }, []);
 
-    // Cleanup toast timer on unmount
+  // ── Cleanup toast timer on unmount ─────────────
+  useEffect(() => {
     return () => {
       if (toastTimerRef.current) {
         clearTimeout(toastTimerRef.current);
       }
     };
   }, []);
-
-  // ── Persist to localStorage whenever cart changes (after hydration) ─
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    } catch {
-      // Storage quota exceeded or blocked — ignore
-    }
-  }, [items, hydrated]);
 
   const matchItem = useCallback(
     (i: CartItem, id: number, size?: string | null) =>
@@ -117,6 +96,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
 
       finalQuantity = 1;
+      setLastQuantityToast({ name: item.name, quantity: finalQuantity });
       return [...prev, { ...item, quantity: 1 }];
     });
 

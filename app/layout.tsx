@@ -16,7 +16,7 @@ import { AbandonedCartNotification } from "@/components/abandoned-cart-notificat
 import { JsonLd, organizationSchema, websiteSchema } from "@/components/seo/JsonLd";
 import { validateEnv } from "@/lib/env-validation";
 import { WebVitals } from "./web-vitals";
-import { getSiteSettings } from "@/lib/sitniks-consolidated";
+import { getSiteSettingsWithFallback } from "@/lib/sitniks-consolidated";
 import { getCatalogProducts } from "@/lib/instagram-catalog";
 
 // Validate environment variables on server startup (single evaluation)
@@ -114,22 +114,16 @@ export default async function RootLayout({
   children: ReactNode;
 }>) {
   // Load site settings from Sitniks (with fallback to site-config)
-  const sitniksSettings = await getSiteSettings();
-  const settings = {
-    announcementText: sitniksSettings?.announcementText || siteConfig.announcementText,
-    telegramUsername: sitniksSettings?.telegramUsername || siteConfig.telegramUsername,
-    viberPhone: sitniksSettings?.viberPhone || siteConfig.viberPhone,
-    instagramUsername: sitniksSettings?.instagramUsername || siteConfig.instagramUsername,
-    phone: sitniksSettings?.phone || siteConfig.phone,
-  };
+  const { settings } = await getSiteSettingsWithFallback();
 
   // Load products for search bar
   const products = await getCatalogProducts();
 
   return (
-    <html lang="uk">
+    <html lang="uk" data-scroll-behavior="smooth" className="h-full">
       <head>
         <meta name="color-scheme" content="light" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <JsonLd data={organizationSchema} id="organization" />
         <JsonLd data={websiteSchema} id="website" />
       </head>
@@ -137,22 +131,24 @@ export default async function RootLayout({
         className={cn(
           notoSans.variable,
           notoSerif.variable,
-          "bg-white antialiased h-full w-full",
+          "bg-white antialiased min-h-screen flex flex-col",
         )}
       >
         <Analytics />
         <WebVitals />
         <DevToolsGuard />
-        <HeaderWrapper products={products} announcementText={settings.announcementText} />
-        <CartProvider>
-          <WishlistProvider>
-            <MobileLayout>
-              {children}
-              <DiscountPopup />
-              <AbandonedCartNotification />
-            </MobileLayout>
-          </WishlistProvider>
-        </CartProvider>
+        <div className="flex-1 flex flex-col">
+          <CartProvider>
+            <WishlistProvider>
+              <HeaderWrapper products={products} announcementText={settings.announcementText} />
+              <MobileLayout>
+                {children}
+                <DiscountPopup />
+                <AbandonedCartNotification />
+              </MobileLayout>
+            </WishlistProvider>
+          </CartProvider>
+        </div>
       </body>
     </html>
   );

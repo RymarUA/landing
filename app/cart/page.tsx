@@ -54,7 +54,7 @@ export default function CartPage() {
         </div>
 
         {items.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl shadow-sm">
+          <div className="text-center py-10 bg-white rounded-3xl shadow-sm">
             <ShoppingCart size={64} className="text-gray-200 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-gray-500 mb-2">Кошик порожній</h2>
             <p className="text-gray-400 mb-6">Додайте товари з каталогу</p>

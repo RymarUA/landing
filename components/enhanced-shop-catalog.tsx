@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { X, Search, ArrowUpDown, ChevronDown, SlidersHorizontal } from "lucide-react";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/components/cart-context";
 import { PromoBannerSlider } from "@/components/promo-banner-slider";
 import { ModernProductCard } from "@/components/modern-product-card";
@@ -20,7 +20,7 @@ interface EnhancedShopCatalogProps {
 }
 
 const INITIAL_VISIBLE = 12;
-const LOAD_MORE_STEP = 8;
+const LOAD_MORE_STEP = 12;
 
 export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
   const [active, setActive] = useState("Всі");
@@ -78,7 +78,6 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
   }, []);
 
   const filtered = products.filter((p) => {
-    // Special category: "Безкоштовна доставка" filters by freeShipping flag
     if (active === "Безкоштовна доставка") {
       if (!p.freeShipping) return false;
     } else if (active !== "Всі" && p.category !== active) {
@@ -122,7 +121,6 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
       });
       addToast(product.name);
       
-      // Track add to cart event
       trackAddToCart({
         contentId: product.id,
         contentName: product.name,
@@ -138,23 +136,6 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
     window.location.hash = `category=${encodeURIComponent(category)}`;
     setVisibleCount(INITIAL_VISIBLE);
   }, []);
-
-  const handleSwipe = useCallback((_: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
-    const { offset, velocity } = info;
-    if (Math.abs(offset.x) > 50 && Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(velocity.x) > 300) {
-      const idx = ALL_CATEGORIES.indexOf(active as (typeof ALL_CATEGORIES)[number]);
-      let nextIdx;
-      if (offset.x < 0) {
-        nextIdx = (idx + 1) % ALL_CATEGORIES.length;
-      } else {
-        nextIdx = (idx - 1 + ALL_CATEGORIES.length) % ALL_CATEGORIES.length;
-      }
-      if (nextIdx !== idx) {
-        const nextCat = ALL_CATEGORIES[nextIdx];
-        handleCategoryChange(nextCat);
-      }
-    }
-  }, [active, handleCategoryChange]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -188,51 +169,64 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
         />
       )}
 
+      {/* Toast notifications */}
       <div className="fixed bottom-24 left-4 right-4 sm:left-auto sm:right-24 z-[55] flex flex-col gap-2 max-w-sm pointer-events-none">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className="bg-gray-900 text-white text-sm font-medium py-3 px-4 rounded-2xl shadow-xl animate-in slide-in-from-bottom-4 duration-300"
-            role="status"
-          >
-            «{t.name}» додано до кошика
-          </div>
-        ))}
+        <AnimatePresence>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-gray-900 text-white text-sm font-medium py-3 px-4 rounded-2xl shadow-xl pointer-events-auto"
+              role="status"
+            >
+              «{t.name}» додано до кошика
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
-      <motion.section 
-        id="catalog" 
-        className="bg-gray-50 py-8 px-4"
-        onPanEnd={handleSwipe}
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.15}
-        dragSnapToOrigin={true}
-      >
-        <div className="max-w-6xl mx-auto">
+      <section id="catalog" className="bg-white py-6 px-3 min-h-screen">
+        <div className="max-w-[1400px] mx-auto">
           {/* Promo Banner */}
-          {active === "Всі" && !searchQuery && <PromoBannerSlider />}
+          {active === "Всі" && !searchQuery && (
+            <div className="mb-4">
+              <PromoBannerSlider />
+            </div>
+          )}
+
+          {/* Заголовок каталогу */}
+          <div className="mb-4">
+            <h2 className="text-xl md:text-2xl font-black text-gray-900 mb-1">
+              {active === "Всі" ? "Всі товари" : active}
+            </h2>
+            <p className="text-gray-500 text-sm">
+              {sorted.length} {sorted.length === 1 ? "товар" : sorted.length < 5 ? "товари" : "товарів"}
+            </p>
+          </div>
 
           {/* Toolbar */}
-          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2 bg-gray-50 p-3 rounded-xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Сортування */}
               <div className="relative">
                 <button
                   onClick={() => setSortOpen((v) => !v)}
-                  className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:border-emerald-300 transition-colors shadow-sm"
+                  className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 hover:border-gray-300 transition-colors"
                 >
                   <ArrowUpDown size={14} className="text-gray-400" />
-                  {activeSortLabel}
+                  <span className="hidden sm:inline">{activeSortLabel}</span>
                   <ChevronDown size={14} className={`text-gray-400 transition-transform ${sortOpen ? "rotate-180" : ""}`} />
                 </button>
                 {sortOpen && (
-                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-2xl shadow-lg z-30 min-w-[200px] overflow-hidden">
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-30 min-w-[200px] overflow-hidden">
                     {SORT_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
                         onClick={() => { setSortKey(opt.value); setSortOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-emerald-50 hover:text-emerald-600 ${
-                          sortKey === opt.value ? "font-bold text-emerald-500 bg-emerald-50" : "text-gray-700"
+                        className={`w-full text-left px-4 py-2.5 text-xs transition-colors hover:bg-gray-50 ${
+                          sortKey === opt.value ? "font-bold text-emerald-600 bg-emerald-50" : "text-gray-700"
                         }`}
                       >
                         {opt.label}
@@ -242,96 +236,107 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
                 )}
               </div>
 
+              {/* Фільтри */}
               <button
                 onClick={() => setShowFilters((v) => !v)}
-                className={`flex items-center gap-2 border rounded-xl px-3 py-2 text-sm font-semibold transition-colors shadow-sm ${
+                className={`flex items-center gap-2 border rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
                   showFilters
                     ? "bg-emerald-500 border-emerald-500 text-white"
-                    : "bg-white border-gray-200 text-gray-700 hover:border-emerald-300"
+                    : "bg-white border-gray-200 text-gray-700 hover:border-gray-300"
                 }`}
               >
                 <SlidersHorizontal size={14} />
-                Фільтри
+                <span className="hidden sm:inline">Фільтри</span>
                 {(minPrice || maxPrice || onlyInStock) && (
-                  <span className="bg-[#D4AF37] text-white text-xs font-black rounded-full w-4 h-4 flex items-center justify-center">!</span>
+                  <span className="bg-[#FF8C00] text-white text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center">
+                    !
+                  </span>
                 )}
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-400">
-                {sorted.length} товар{sorted.length === 1 ? "" : sorted.length >= 5 ? "ів" : "и"}
-              </span>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center gap-1 text-xs text-emerald-500 hover:text-emerald-700 font-semibold transition-colors"
-                >
-                  <X size={12} />
-                  Скинути
-                </button>
-              )}
-            </div>
+            {/* Скинути фільтри */}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-semibold transition-colors"
+              >
+                <X size={14} />
+                Скинути
+              </button>
+            )}
           </div>
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-6 shadow-sm flex flex-wrap gap-4 items-end">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Від (грн)</label>
-                <input
-                  type="number"
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  placeholder="100"
-                  min={0}
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                />
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-600 uppercase">
+                    Від (грн)
+                  </label>
+                  <input
+                    type="number"
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                    placeholder="100"
+                    min={0}
+                    className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-gray-600 uppercase">
+                    До (грн)
+                  </label>
+                  <input
+                    type="number"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                    placeholder="5000"
+                    min={0}
+                    className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-700 select-none">
+                  <input
+                    type="checkbox"
+                    checked={onlyInStock}
+                    onChange={(e) => setOnlyInStock(e.target.checked)}
+                    className="accent-emerald-500 w-4 h-4 rounded"
+                  />
+                  Тільки в наявності
+                </label>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">До (грн)</label>
-                <input
-                  type="number"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  placeholder="5000"
-                  min={0}
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-700 select-none">
-                <input
-                  type="checkbox"
-                  checked={onlyInStock}
-                  onChange={(e) => setOnlyInStock(e.target.checked)}
-                  className="accent-emerald-500 w-4 h-4 rounded"
-                />
-                Тільки в наявності
-              </label>
             </div>
           )}
 
-          {/* Grid */}
+          {/* Grid - ЯК НА TEMU */}
           {sorted.length === 0 ? (
-            <div className="text-center py-20 text-gray-400">
-              <Search size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="font-bold text-lg text-gray-500">Нічого не знайдено</p>
-              <p className="text-sm mt-1">Спробуйте змінити фільтри або пошуковий запит</p>
-              <button onClick={clearFilters} className="mt-4 text-emerald-500 font-semibold text-sm hover:underline">
+            <div className="text-center py-16 bg-gray-50 rounded-2xl">
+              <Search size={48} className="mx-auto mb-3 text-gray-300" />
+              <p className="font-bold text-lg text-gray-500 mb-2">Нічого не знайдено</p>
+              <p className="text-sm text-gray-400 mb-4">
+                Спробуйте змінити фільтри
+              </p>
+              <button 
+                onClick={clearFilters} 
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-lg transition-colors"
+              >
                 Скинути фільтри
               </button>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-3">
+              {/* СІТКА ЯК НА TEMU - щільна, без великих gap */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                 <AnimatePresence mode="popLayout">
                   {visibleSorted.map((product) => (
                     <motion.div
                       key={product.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
                       className="h-full"
                     >
                       <ModernProductCard
@@ -345,20 +350,21 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
                   ))}
                 </AnimatePresence>
               </div>
+              
               {hasMore && (
                 <div className="mt-6 flex justify-center">
                   <button
                     onClick={() => setVisibleCount((c) => c + LOAD_MORE_STEP)}
-                    className="px-6 py-3 rounded-2xl border-2 border-emerald-500 text-emerald-500 font-bold text-sm hover:bg-emerald-50 transition-colors"
+                    className="px-6 py-3 rounded-lg bg-white border border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors"
                   >
-                    Завантажити ще
+                    Завантажити ще ({sorted.length - visibleCount})
                   </button>
                 </div>
               )}
             </>
           )}
         </div>
-      </motion.section>
+      </section>
     </>
   );
 }

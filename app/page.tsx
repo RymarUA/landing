@@ -7,11 +7,11 @@ import { ShopFaq } from "@/components/shop-faq";
 import { FeaturedProducts } from "@/components/featured-products";
 
 const CatalogFallback = () => (
-  <section className="bg-white py-8" aria-busy="true" aria-live="polite">
-    <div className="mx-auto max-w-7xl px-4">
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+  <section className="bg-white py-4 sm:py-6 md:py-8" aria-busy="true" aria-live="polite">
+    <div className="mx-auto max-w-7xl px-2 sm:px-3 md:px-4">
+      <div className="grid gap-1.5 sm:gap-2 md:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {Array.from({ length: 24 }).map((_, idx) => (
-          <div key={idx} className="h-64 rounded-lg border border-gray-100 bg-gray-50 animate-pulse" />
+          <div key={idx} className="h-56 sm:h-60 md:h-64 rounded-lg border border-gray-100 bg-gray-50 animate-pulse" />
         ))}
       </div>
     </div>
@@ -19,7 +19,7 @@ const CatalogFallback = () => (
 );
 
 const EnhancedShopCatalog = dynamic(
-  () => import("@/components/enhanced-shop-catalog").then(m => ({ default: m.EnhancedShopCatalog })),
+  () => import("@/components/enhanced-shop-catalog"),
   { loading: CatalogFallback }
 );
 

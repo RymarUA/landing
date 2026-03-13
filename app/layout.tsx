@@ -8,16 +8,16 @@ import { DevToolsGuard } from "./devtools-guard";
 import { siteConfig } from "@/lib/site-config";
 import { CartProvider } from "@/components/cart-context";
 import { MobileLayout } from "@/components/mobile-layout";
+import { HeaderWrapper } from "@/components/header-wrapper";
 import { WishlistProvider } from "@/components/wishlist-context";
 import { Analytics } from "@/components/analytics";
 import { DiscountPopup } from "@/components/discount-popup";
 import { AbandonedCartNotification } from "@/components/abandoned-cart-notification";
-import { AnnouncementBar } from "@/components/announcement-bar";
 import { JsonLd, organizationSchema, websiteSchema } from "@/components/seo/JsonLd";
 import { validateEnv } from "@/lib/env-validation";
 import { WebVitals } from "./web-vitals";
-import { getCatalogProducts } from "@/lib/instagram-catalog";
 import { getSiteSettings } from "@/lib/sitniks-consolidated";
+import { getCatalogProducts } from "@/lib/instagram-catalog";
 
 // Validate environment variables on server startup (single evaluation)
 validateEnv();
@@ -113,17 +113,18 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const products = await getCatalogProducts();
-  
   // Load site settings from Sitniks (with fallback to site-config)
   const sitniksSettings = await getSiteSettings();
-  const settings = sitniksSettings ?? {
-    announcementText: siteConfig.announcementText,
-    telegramUsername: siteConfig.telegramUsername,
-    viberPhone: siteConfig.viberPhone,
-    instagramUsername: siteConfig.instagramUsername,
-    phone: siteConfig.phone,
+  const settings = {
+    announcementText: sitniksSettings?.announcementText || siteConfig.announcementText,
+    telegramUsername: sitniksSettings?.telegramUsername || siteConfig.telegramUsername,
+    viberPhone: sitniksSettings?.viberPhone || siteConfig.viberPhone,
+    instagramUsername: sitniksSettings?.instagramUsername || siteConfig.instagramUsername,
+    phone: sitniksSettings?.phone || siteConfig.phone,
   };
+
+  // Load products for search bar
+  const products = await getCatalogProducts();
 
   return (
     <html lang="uk">
@@ -142,10 +143,10 @@ export default async function RootLayout({
         <Analytics />
         <WebVitals />
         <DevToolsGuard />
-        <AnnouncementBar announcementText={settings.announcementText} />
+        <HeaderWrapper products={products} announcementText={settings.announcementText} />
         <CartProvider>
           <WishlistProvider>
-            <MobileLayout products={products}>
+            <MobileLayout>
               {children}
               <DiscountPopup />
               <AbandonedCartNotification />

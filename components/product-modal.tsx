@@ -4,12 +4,15 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { X, ShoppingCart, Flame, Heart } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { X, ShoppingCart, Flame, Heart, Truck } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
+import { useCart } from "@/components/cart-context";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
 import { blurProps } from "@/lib/utils";
 import { Highlight } from "@/components/shared/highlight";
 import { StarRating } from "@/components/shared/star-rating";
+import { siteConfig } from "@/lib/site-config";
 
 export interface ProductModalProps {
   product: Product;
@@ -21,6 +24,8 @@ export interface ProductModalProps {
 export function ProductModal({ product, onClose, onAddToCart, searchQuery }: ProductModalProps) {
   const [selectedSize, setSelectedSize] = useState<string | null>(product.sizes[0] ?? null);
   const { has, toggle, hydrated } = useWishlist();
+  const { addItem } = useCart();
+  const router = useRouter();
   const isWished = hydrated && has(product.id);
   const scrollYRef = useRef(0);
 
@@ -58,6 +63,37 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
   const handleAddToCart = () => {
     onAddToCart(product, selectedSize ?? undefined);
     onClose();
+  };
+
+  const handleQuickCheckout = () => {
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      size: selectedSize,
+      oldPrice: product.oldPrice ?? null,
+    });
+    onClose();
+    router.push("/checkout");
+  };
+
+  const getCategoryColor = (category: string) => {
+    const categoryIndex = siteConfig.catalogCategories.indexOf(category);
+    const colors = [
+      "text-gray-500",
+      "text-emerald-600",
+      "text-blue-600",
+      "text-orange-500",
+      "text-purple-600",
+      "text-pink-600",
+      "text-indigo-600",
+      "text-teal-600",
+      "text-rose-600",
+    ];
+    return categoryIndex >= 0 && categoryIndex < colors.length
+      ? colors[categoryIndex]
+      : "text-orange-500";
   };
 
   return (
@@ -100,12 +136,12 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
               {...blurProps()}
             />
             {product.badge && (
-              <span className={`absolute top-3 left-3 ${product.badgeColor} text-white text-xs font-black px-2.5 py-1 rounded-full`}>
+              <span className={`absolute top-3 left-3 z-10 ${product.badgeColor} text-white text-xs font-black px-2.5 py-1 rounded-full`}>
                 {product.badge}
               </span>
             )}
             {discount && (
-              <span className="absolute top-3 right-3 bg-rose-100 text-rose-600 text-xs font-black px-2.5 py-1 rounded-full">
+              <span className="absolute top-3 right-3 z-10 bg-rose-100 text-rose-600 text-xs font-black px-2.5 py-1 rounded-full">
                 -{discount}%
               </span>
             )}
@@ -114,7 +150,7 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
           {/* Інфо */}
           <div className="flex-1 p-6 flex flex-col gap-4">
             <div>
-              <p className="text-xs font-semibold text-orange-500 uppercase tracking-widest mb-1">{product.category}</p>
+              <p className={`text-xs font-semibold ${getCategoryColor(product.category)} uppercase tracking-widest mb-1`}>{product.category}</p>
               <h2 className="text-xl font-black text-gray-900 leading-snug">
                 <Highlight text={product.name} query={searchQuery ?? ""} />
               </h2>
@@ -123,7 +159,7 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
             <StarRating rating={product.rating} count={product.reviews} />
 
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-normal text-gray-900">{product.price.toLocaleString("uk-UA")} грн</span>
+              <span className="text-3xl font-black text-[#FF4444]">{product.price.toLocaleString("uk-UA")} грн</span>
               {product.oldPrice && (
                 <span className="text-lg text-gray-400 line-through">{product.oldPrice} грн</span>
               )}
@@ -131,9 +167,7 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
 
             {product.freeShipping && (
               <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold bg-emerald-50 px-3 py-2 rounded-xl">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                </svg>
+                <Truck size={16} className="shrink-0" aria-hidden />
                 Безкоштовна доставка
               </div>
             )}
@@ -176,13 +210,12 @@ export function ProductModal({ product, onClose, onAddToCart, searchQuery }: Pro
                 <ShoppingCart size={16} />
                 До кошика
               </button>
-              <Link
-                href="/checkout"
-                onClick={onClose}
+              <button
+                onClick={handleQuickCheckout}
                 className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 rounded-2xl transition-colors text-sm"
               >
                 Оформити
-              </Link>
+              </button>
             </div>
 
             <button

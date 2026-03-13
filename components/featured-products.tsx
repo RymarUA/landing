@@ -1,9 +1,11 @@
-// @ts-nocheck
+  // @ts-nocheck
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Flame, Sparkles } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Flame, Sparkles, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
 import { ModernProductCard } from "@/components/modern-product-card";
+import { ProductModal } from "@/components/product-modal";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { useCart } from "@/components/cart-context";
 
@@ -13,9 +15,10 @@ interface FeaturedProductsProps {
 }
 
 export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
-  const [scrollPosition, setScrollPosition] = useState(0);
+  const [modalProduct, setModalProduct] = useState<CatalogProduct | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { addItem } = useCart();
-  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
 
   // Filter products based on type
   const filteredProducts = products.filter((p) =>
@@ -24,7 +27,7 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
 
   if (filteredProducts.length === 0) return null;
 
-  const title = type === "hits" ? "🔥 Хіти продажів" : "✨ Новинки";
+  const title = type === "hits" ? "Хіти продажів" : "Новинки";
   const subtitle = type === "hits" 
     ? "Найпопулярніші товари серед наших клієнтів"
     : "Щойно додані до каталогу";
@@ -45,64 +48,77 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
     });
   };
 
-  const scroll = (direction: "left" | "right") => {
-    const container = document.getElementById(`featured-${type}`);
-    if (!container) return;
-    
-    const scrollAmount = 300;
-    const newPosition = direction === "left" 
-      ? Math.max(0, scrollPosition - scrollAmount)
-      : Math.min(container.scrollWidth - container.clientWidth, scrollPosition + scrollAmount);
-    
-    container.scrollTo({ left: newPosition, behavior: "smooth" });
-    setScrollPosition(newPosition);
+  // Auto-scroll effect
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || isPaused) return;
+
+    const scrollSpeed = 0.5; // pixels per frame - slow and smooth
+    let animationFrameId: number;
+
+    const autoScroll = () => {
+      if (container.scrollLeft >= container.scrollWidth - container.clientWidth) {
+        container.scrollLeft = 0;
+      } else {
+        container.scrollLeft += scrollSpeed;
+      }
+      animationFrameId = requestAnimationFrame(autoScroll);
+    };
+
+    animationFrameId = requestAnimationFrame(autoScroll);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isPaused]);
+
+  const handleViewAll = () => {
+    window.location.href = "/?category=#catalog";
   };
 
   return (
-    <section className={`bg-gradient-to-br ${bgGradient} py-8 md:py-12`}>
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className={`text-2xl md:text-3xl font-bold ${accentColor} flex items-center gap-2`}>
-              <Icon size={28} className="animate-pulse" />
-              {title}
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
-          </div>
-
-          {/* Navigation Arrows */}
-          <div className="hidden md:flex gap-2">
-            <button
-              onClick={() => scroll("left")}
-              disabled={scrollPosition === 0}
-              className="w-10 h-10 rounded-full bg-white shadow-md hover:shadow-lg disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all"
-              aria-label="Прокрутити вліво"
-            >
-              <ChevronLeft size={20} className="text-gray-700" />
-            </button>
-            <button
-              onClick={() => scroll("right")}
-              className="w-10 h-10 rounded-full bg-white shadow-md hover:shadow-lg flex items-center justify-center transition-all"
-              aria-label="Прокрутити вправо"
-            >
-              <ChevronRight size={20} className="text-gray-700" />
-            </button>
-          </div>
+    <>
+      {modalProduct && (
+        <ProductModal
+          product={modalProduct}
+          onClose={() => setModalProduct(null)}
+          onAddToCart={handleAddToCart}
+        />
+      )}
+      
+      <section className={`bg-gradient-to-br ${bgGradient} py-3 sm:py-4 overflow-x-hidden`}>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4">
+        {/* Header - Temu Style */}
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
+          <h2 className={`text-base sm:text-lg md:text-xl font-bold ${accentColor} flex items-center gap-1.5`}>
+            {title} 🔥
+          </h2>
+          <button
+            onClick={handleViewAll}
+            className="text-xs sm:text-sm text-gray-600 hover:text-gray-900 flex items-center gap-0.5 font-medium transition-colors"
+          >
+            Дивитись всі
+            <ChevronRight size={14} className="sm:w-4 sm:h-4" />
+          </button>
         </div>
 
-        {/* Products Horizontal Scroll */}
+        {/* Auto-scrolling Products Carousel */}
         <div
-          id={`featured-${type}`}
-          className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
+          ref={scrollRef}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+          className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
-          {filteredProducts.map((product) => (
-            <div key={product.id} className="flex-shrink-0 w-[180px] md:w-[220px]">
+          {filteredProducts.map((product, index) => (
+            <div 
+              key={product.id} 
+              className="flex-shrink-0 w-[calc(33.333%-5.33px)] sm:w-[calc(25%-6px)] md:w-[calc(16.666%-6.67px)]"
+            >
               <ModernProductCard
                 product={product}
                 onAddToCart={handleAddToCart}
-                onClick={setSelectedProduct}
+                onClick={setModalProduct}
+                priority={index < 6}
+                compact
               />
             </div>
           ))}
@@ -115,5 +131,6 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
         }
       `}</style>
     </section>
+    </>
   );
 }

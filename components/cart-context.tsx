@@ -1,6 +1,6 @@
 // @ts-nocheck
 "use client";
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from "react";
 
 export interface CartItem {
   id: number;
@@ -48,6 +48,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [lastQuantityToast, setLastQuantityToast] = useState<{ name: string; quantity: number } | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<number>(Date.now());
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
@@ -74,6 +75,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } finally {
       setHydrated(true);
     }
+
+    // Cleanup toast timer on unmount
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
   }, []);
 
   // ── Persist to localStorage whenever cart changes (after hydration) ─
@@ -112,14 +120,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return [...prev, { ...item, quantity: 1 }];
     });
 
+    // Clear previous timer and set new one
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    
+    toastTimerRef.current = setTimeout(() => {
+      setLastQuantityToast(null);
+      toastTimerRef.current = null;
+    }, 2000);
+
     return { wasExisting, quantity: finalQuantity };
   }, [matchItem]);
-
-  useEffect(() => {
-    if (!lastQuantityToast) return;
-    const t = setTimeout(() => setLastQuantityToast(null), 2000);
-    return () => clearTimeout(t);
-  }, [lastQuantityToast]);
 
   const removeItem = useCallback(
     (id: number, size?: string | null) => {

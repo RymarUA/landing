@@ -11,11 +11,6 @@
  */
 
 // ─── Config ────────────────────────────────────────────────────────────────────
-const API_KEY  = process.env.SITNIKS_API_KEY ?? "";
-
-if (!API_KEY && process.env.NODE_ENV !== "test") {
-  console.warn("[Sitniks] ⚠️  SITNIKS_API_KEY is not set — API calls will fail with 401");
-}
 
 // ─── Types (from sitniks-api.ts) ───────────────────────────────────────────────
 
@@ -360,18 +355,20 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
       return null;
     }
     
-    console.log(`[sitniks] Loaded ${response.data.length} products, searching for SKU="${SETTINGS_SKU}"`);
-    
-    // Детальний лог для дебагу
-    response.data.forEach((p, idx) => {
-      console.log(`[sitniks] Product ${idx}:`, {
-        id: p.id,
-        sku: p.sku,
-        title: p.title,
-        name: p.name,
-        hasProperties: p.properties?.length > 0
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[sitniks] Loaded ${response.data.length} products, searching for SKU="${SETTINGS_SKU}"`);
+      
+      // Детальний лог для дебагу
+      response.data.forEach((p, idx) => {
+        console.log(`[sitniks] Product ${idx}:`, {
+          id: p.id,
+          sku: p.sku,
+          title: p.title,
+          name: p.name,
+          hasProperties: p.properties?.length > 0
+        });
       });
-    });
+    }
     
     // Шукаємо товар з потрібним SKU або назвою "Налаштування сайту"
     const product = response.data.find(p => 
@@ -424,9 +421,10 @@ export async function createSitniksOrder(dto: CreateOrderDto): Promise<SitniksOr
 
 /**
  * Create a new order (legacy version - throws on error).
+ * @deprecated Use createSitniksOrder instead
  */
-export async function createSitniksOrderLegacy(payload: any): Promise<any> {
-  return sitniks("POST", "/orders", payload);
+export async function createSitniksOrderLegacy(payload: CreateOrderDto): Promise<SitniksOrder> {
+  return sitniks<SitniksOrder>("POST", "/orders", payload);
 }
 
 /**

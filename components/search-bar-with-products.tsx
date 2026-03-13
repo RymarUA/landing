@@ -6,8 +6,14 @@ import type { CatalogProduct } from "@/lib/instagram-catalog";
 
 interface SearchBarWithProductsProps {
   products: CatalogProduct[];
+  announcementText?: string;
 }
 
-export function SearchBarWithProducts({ products }: SearchBarWithProductsProps) {
-  return <TemuSearchBar products={products} />;
+export function SearchBarWithProducts({
+  products,
+  announcementText,
+}: SearchBarWithProductsProps) {
+  return (
+    <TemuSearchBar products={products} announcementText={announcementText} />
+  );
 }

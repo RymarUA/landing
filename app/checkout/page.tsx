@@ -15,7 +15,7 @@ import { useCart } from "@/components/cart-context";
 import { checkoutSchema, applyPromoCode } from "@/lib/checkout-schema";
 import { useSavedAddresses } from "@/lib/use-saved-addresses";
 import { trackInitiateCheckout } from "@/components/analytics";
-import { fetchNPCities, fetchNPWarehouses } from "@/lib/novaposhta-api";
+import { fetchNPCities, fetchNPWarehouses, type NPCity, type NPWarehouse } from "@/lib/novaposhta-api";
 import { Field } from "@/components/ui/field";
 
 /* ─── Screens (Empty/Redirect) ─── */
@@ -67,13 +67,17 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cod" | "card">("online");
 
   // Состояние Новой Почты
-  const [cities, setCities] = useState<any[]>([]);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [cities, setCities] = useState<NPCity[]>([]);
+  const [warehouses, setWarehouses] = useState<NPWarehouse[]>([]);
   const [selectedCityRef, setSelectedCityRef] = useState<string>("");
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [showCityResults, setShowCityResults] = useState(false);
+  const [citySearchError, setCitySearchError] = useState<string>("");
+  const [warehouseError, setWarehouseError] = useState<string>("");
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const abortController = useRef<AbortController | null>(null);
+  const currentSearchId = useRef<number>(0);
 
   const sessionId = useRef<string>("");
   const abandonedRegistered = useRef(false);
@@ -107,41 +111,93 @@ export default function CheckoutPage() {
       if (searchTimeout.current) {
         clearTimeout(searchTimeout.current);
       }
+      if (abortController.current) {
+        abortController.current.abort();
+      }
     };
   }, []);
 
   // Поиск города
-  const onCitySearch = (val: string) => {
+  const onCitySearch = useCallback((val: string) => {
     if (val.length < 2) {
       setCities([]);
       setShowCityResults(false);
+      setCitySearchError("");
       return;
     }
 
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    // Cancel previous search
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+    if (abortController.current) {
+      abortController.current.abort();
+    }
 
+    const searchId = ++currentSearchId.current;
+    
     const timeoutId = setTimeout(async () => {
       setLoadingCities(true);
-      const data = await fetchNPCities(val);
-      setCities(data);
-      setShowCityResults(true);
-      setLoadingCities(false);
+      setCitySearchError("");
+      
+      // Create new abort controller for this request
+      const controller = new AbortController();
+      abortController.current = controller;
+      
+      try {
+        const data = await fetchNPCities(val);
+        
+        // Check if this is still the current search
+        if (searchId === currentSearchId.current && !controller.signal.aborted) {
+          setCities(data);
+          setShowCityResults(true);
+          if (data.length === 0) {
+            setCitySearchError("Міста не знайдено");
+          }
+        }
+      } catch (error) {
+        // Check if this is still the current search and not aborted
+        if (searchId === currentSearchId.current && !controller.signal.aborted) {
+          console.error("[checkout] City search error:", error);
+          setCitySearchError("Помилка пошуку міста");
+          setCities([]);
+          setShowCityResults(false);
+        }
+      } finally {
+        // Only update loading state if this is still the current search
+        if (searchId === currentSearchId.current) {
+          setLoadingCities(false);
+        }
+      }
     }, 400);
 
     searchTimeout.current = timeoutId;
-  };
+  }, []);
 
   // Выбор города
-  const onCitySelect = async (city: any) => {
+  const onCitySelect = useCallback(async (city: NPCity) => {
     setSelectedCityRef(city.Ref);
     setValue("city", city.Description, { shouldValidate: true });
     setShowCityResults(false);
+    setCitySearchError("");
     
     setLoadingWarehouses(true);
-    const data = await fetchNPWarehouses(city.Ref, "");
-    setWarehouses(data);
-    setLoadingWarehouses(false);
-  };
+    setWarehouseError("");
+    
+    try {
+      const data = await fetchNPWarehouses(city.Ref, "");
+      setWarehouses(data);
+      if (data.length === 0) {
+        setWarehouseError("Відділень не знайдено");
+      }
+    } catch (error) {
+      console.error("[checkout] Warehouse fetch error:", error);
+      setWarehouseError("Помилка завантаження відділень");
+      setWarehouses([]);
+    } finally {
+      setLoadingWarehouses(false);
+    }
+  }, [setValue]);
 
   const registerAbandonedCart = useCallback(
     async (name: string, phone: string) => {
@@ -295,7 +351,7 @@ export default function CheckoutPage() {
                 )}
 
                 {/* City Search */}
-                <Field label="Місто *" error={errors.city?.message}>
+                <Field label="Місто *" error={errors.city?.message || citySearchError}>
                   <div className="relative">
                     <input
                       value={cityValue}
@@ -312,7 +368,7 @@ export default function CheckoutPage() {
                     
                     {showCityResults && cities.length > 0 && (
                       <div className="absolute z-[100] w-full mt-1 bg-white border border-[#E7EFEA] rounded-xl shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden">
-                        {cities.map((city) => (
+                        {cities.map((city: NPCity) => (
                           <div 
                             key={city.Ref} 
                             onClick={() => onCitySelect(city)} 
@@ -337,18 +393,52 @@ export default function CheckoutPage() {
                       onClick={async () => {
                         setValue("city", cityName, { shouldValidate: true });
                         setShowCityResults(false);
+                        setCitySearchError("");
                         setLoadingCities(true);
-                        const data = await fetchNPCities(cityName);
-                        setCities(data);
-                        const exact = data.find((c: any) => c.Description === cityName || c.Description?.startsWith(cityName));
-                        if (exact) {
-                          setSelectedCityRef(exact.Ref);
-                          setLoadingWarehouses(true);
-                          const list = await fetchNPWarehouses(exact.Ref, "");
-                          setWarehouses(list);
-                          setLoadingWarehouses(false);
+                        const searchId = ++currentSearchId.current;
+                        try {
+                          const data = await fetchNPCities(cityName);
+                          if (searchId === currentSearchId.current) {
+                            setCities(data);
+                            const exact = data.find((c: NPCity) => c.Description === cityName || c.Description?.startsWith(cityName));
+                            if (exact) {
+                              setSelectedCityRef(exact.Ref);
+                              setLoadingWarehouses(true);
+                              setWarehouseError("");
+                              try {
+                                const list = await fetchNPWarehouses(exact.Ref, "");
+                                if (searchId === currentSearchId.current) {
+                                  setWarehouses(list);
+                                  if (list.length === 0) {
+                                    setWarehouseError("Відділень не знайдено");
+                                  }
+                                }
+                              } catch (error) {
+                                if (searchId === currentSearchId.current) {
+                                  console.error("[checkout] Quick city warehouse error:", error);
+                                  setWarehouseError("Помилка завантаження відділень");
+                                  setWarehouses([]);
+                                }
+                              } finally {
+                                if (searchId === currentSearchId.current) {
+                                  setLoadingWarehouses(false);
+                                }
+                              }
+                            } else {
+                              setCitySearchError("Місто не знайдено");
+                            }
+                          }
+                        } catch (error) {
+                          if (searchId === currentSearchId.current) {
+                            console.error("[checkout] Quick city search error:", error);
+                            setCitySearchError("Помилка пошуку міста");
+                            setCities([]);
+                          }
+                        } finally {
+                          if (searchId === currentSearchId.current) {
+                            setLoadingCities(false);
+                          }
                         }
-                        setLoadingCities(false);
                       }}
                       className="px-3 py-1.5 rounded-lg border border-[#E7EFEA] text-sm font-medium text-[#24312E] hover:border-[#C9B27C]/50 hover:text-[#1F6B5E] transition-colors"
                     >
@@ -358,7 +448,7 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Warehouse Select */}
-                <Field label="Відділення або поштомат *" error={errors.warehouse?.message}>
+                <Field label="Відділення або поштомат *" error={errors.warehouse?.message || warehouseError}>
                   <div className="relative">
                     <select
                       {...register("warehouse")}

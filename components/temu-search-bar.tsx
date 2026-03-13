@@ -1,26 +1,33 @@
-// @ts-nocheck
 "use client";
 
-import { Search, Heart, Flower, MessageCircle } from "lucide-react";
+import { Search, Heart, Flower, MessageCircle, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { siteConfig } from "@/lib/site-config";
 import { useWishlist } from "@/components/wishlist-context";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { TelegramIcon } from "@/components/icons/telegram-icon";
 import { ViberIcon } from "@/components/icons/viber-icon";
+import { CategoryIconsSlider } from "@/components/category-icons-slider";
 
 interface TemuSearchBarProps {
   products?: CatalogProduct[];
+  hasAnnouncement?: boolean;
 }
 
-export function TemuSearchBar({ products = [] }: TemuSearchBarProps) {
+export function TemuSearchBar({
+  products = [],
+  hasAnnouncement = false,
+}: TemuSearchBarProps) {
+  const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<CatalogProduct[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
+  const [activeCategory, setActiveCategory] = useState("Всі");
+  const searchRef = useRef<HTMLFormElement>(null);
   const supportRef = useRef<HTMLDivElement>(null);
   const { count } = useWishlist();
 
@@ -36,6 +43,32 @@ export function TemuSearchBar({ products = [] }: TemuSearchBarProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Sync category with URL hash
+  useEffect(() => {
+    const syncFromHash = () => {
+      const hash = window.location.hash;
+      const catMatch = hash.match(/category=([^&#]*)/);
+      if (catMatch) {
+        const cat = decodeURIComponent(catMatch[1].trim());
+        setActiveCategory(cat);
+      }
+    };
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
+
+  const handleCategoryChange = (category: string) => {
+    setActiveCategory(category);
+    window.location.hash = `category=${encodeURIComponent(category)}`;
+    
+    // Scroll to catalog section smoothly
+    const catalogSection = document.getElementById('catalog');
+    if (catalogSection) {
+      catalogSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   useEffect(() => {
     if (searchQuery.trim().length >= 2) {
@@ -70,26 +103,31 @@ export function TemuSearchBar({ products = [] }: TemuSearchBarProps) {
   };
 
   return (
-    <div className="sticky top-0 left-0 right-0 z-[70] border-b border-emerald-900/10 bg-emerald-900/95 text-white backdrop-blur-md shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 flex-shrink-0" aria-label="Повернутися на головну">
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#D4AF37]/50 bg-emerald-700 text-white text-sm font-bold shadow-md">
-            ЗС
-          </span>
-          <div className="hidden sm:block leading-tight">
-            <div className="font-heading text-base text-white font-bold">
-              Здоров'я Сходу
+    <div className={`sticky left-0 right-0 z-[70] text-white ${hasAnnouncement ? 'top-10' : 'top-0'}`}>
+      <div className="border-b border-emerald-900/10 bg-emerald-900/95 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+          {/* Logo */}
+          <Link
+            href="/"
+            className="flex items-center gap-2 flex-shrink-0"
+            aria-label="Повернутися на головну"
+          >
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#D4AF37]/50 bg-emerald-700 text-white text-sm font-bold shadow-md">
+              ЗС
+            </span>
+            <div className="hidden sm:block leading-tight">
+              <div className="font-heading text-base text-white font-bold">
+                Здоров'я Сходу
+              </div>
+              <div className="text-[11px] text-white/70 font-medium">
+                Ритуали турботи щодня
+              </div>
             </div>
-            <div className="text-[11px] text-white/70 font-medium">
-              Ритуали турботи щодня
-            </div>
-          </div>
-        </Link>
+          </Link>
 
-        {/* Search */}
-        <form onSubmit={handleSearch} className="flex-1 max-w-2xl" ref={searchRef}>
-          <div className="relative">
+          {/* Search */}
+          <form onSubmit={handleSearch} className="flex-1 max-w-2xl" ref={searchRef}>
+            <div className="relative">
             <input
               type="search"
               value={searchQuery}
@@ -143,81 +181,90 @@ export function TemuSearchBar({ products = [] }: TemuSearchBarProps) {
           </div>
         </form>
 
-        {/* Підібрати засіб - тільки на великих екранах */}
-        <Link
-          href="/#catalog"
-          className="hidden lg:inline-flex items-center gap-2 rounded-full bg-[#D4AF37] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#C19B2E] shadow-md"
-        >
-          <Flower className="w-4 h-4" />
-          Підібрати засіб
-        </Link>
-
-        {/* Support Button with Dropdown */}
-        <div className="relative" ref={supportRef}>
-          <button
-            onClick={() => setShowSupport(!showSupport)}
-            className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
-            aria-label="Зв'язатися з нами"
+          {/* Підібрати засіб - тільки на великих екранах */}
+          <Link
+            href="/#catalog"
+            className="hidden lg:inline-flex items-center gap-2 rounded-full bg-[#D4AF37] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#C19B2E] shadow-md"
           >
-            <MessageCircle className="w-4 h-4" />
-            <span className="hidden md:inline">Підтримка</span>
-          </button>
+            <Flower className="w-4 h-4" />
+            Підібрати засіб
+          </Link>
 
-          {showSupport && (
-            <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 min-w-[200px]">
-              {siteConfig.telegramUsername && (
-                <a
-                  href={`https://t.me/${siteConfig.telegramUsername}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900"
-                  onClick={() => setShowSupport(false)}
-                >
-                  <TelegramIcon size={20} className="text-[#29a9eb]" />
-                  <span className="text-sm font-semibold">Telegram</span>
-                </a>
-              )}
-              {siteConfig.viberPhone && (
-                <a
-                  href={`viber://chat?number=${encodeURIComponent(siteConfig.viberPhone)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
-                  onClick={() => setShowSupport(false)}
-                >
-                  <ViberIcon size={20} className="text-[#7360f2]" />
-                  <span className="text-sm font-semibold">Viber</span>
-                </a>
-              )}
-              {siteConfig.phone && (
-                <a
-                  href={`tel:${siteConfig.phone}`}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
-                  onClick={() => setShowSupport(false)}
-                >
-                  <MessageCircle size={20} className="text-emerald-600" />
-                  <span className="text-sm font-semibold">{siteConfig.phone}</span>
-                </a>
-              )}
-            </div>
-          )}
+          {/* Support Button with Dropdown */}
+          <div className="relative" ref={supportRef}>
+            <button
+              onClick={() => setShowSupport(!showSupport)}
+              className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+              aria-label="Зв'язатися з нами"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span className="hidden md:inline">Підтримка</span>
+            </button>
+
+            {showSupport && (
+              <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 min-w-[200px]">
+                {siteConfig.telegramUsername && (
+                  <a
+                    href={`https://t.me/${siteConfig.telegramUsername}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900"
+                    onClick={() => setShowSupport(false)}
+                  >
+                    <TelegramIcon size={20} />
+                    <span className="text-sm font-semibold">Telegram</span>
+                  </a>
+                )}
+                {siteConfig.viberPhone && (
+                  <a
+                    href={`viber://chat?number=${encodeURIComponent(siteConfig.viberPhone)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+                    onClick={() => setShowSupport(false)}
+                  >
+                    <ViberIcon size={20} />
+                    <span className="text-sm font-semibold">Viber</span>
+                  </a>
+                )}
+                {siteConfig.phone && (
+                  <a
+                    href={`tel:${siteConfig.phone}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+                    onClick={() => setShowSupport(false)}
+                  >
+                    <MessageCircle size={20} className="text-emerald-600" />
+                    <span className="text-sm font-semibold">{siteConfig.phone}</span>
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Wishlist */}
+          <Link
+            href="/wishlist"
+            className="relative flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+            aria-label="Переглянути список бажань"
+          >
+            <Heart className="w-4 h-4" />
+            <span className="hidden md:inline">Бажання</span>
+            {count > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md">
+                {count}
+              </span>
+            )}
+          </Link>
         </div>
-
-        {/* Wishlist */}
-        <Link
-          href="/wishlist"
-          className="relative flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
-          aria-label="Переглянути список бажань"
-        >
-          <Heart className="w-4 h-4" />
-          <span className="hidden md:inline">Бажання</span>
-          {count > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md">
-              {count}
-            </span>
-          )}
-        </Link>
       </div>
+
+      {/* Categories - only on home page */}
+      {pathname === "/" && (
+        <CategoryIconsSlider
+          onCategoryChange={handleCategoryChange}
+          initialCategory={activeCategory}
+        />
+      )}
     </div>
   );
 }

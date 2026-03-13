@@ -11,10 +11,14 @@
  * </Badge>
  */
 import React from "react";
+import { Truck } from "lucide-react";
 
 export const Badge: React.FC<
   { children: React.ReactNode } & React.ComponentPropsWithoutRef<"button">
 > = ({ children, ...props }) => {
+  const isFreeShipping =
+    typeof children === "string" && children.includes("Безкоштовна доставка");
+
   return (
     <button
       {...props}
@@ -24,7 +28,10 @@ export const Badge: React.FC<
         <span className="absolute inset-0 rounded-full  opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
       </span>
       <div className="relative flex space-x-2 items-center z-10 rounded-full bg-neutral-100 py-1.5 px-4 ring-1 ring-white/10 ">
-        <span>{children}</span>
+        <span className="flex items-center gap-1">
+          {isFreeShipping && <Truck className="h-3.5 w-3.5" aria-hidden />}
+          {children}
+        </span>
         <svg
           fill="none"
           height="16"

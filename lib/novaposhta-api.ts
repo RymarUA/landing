@@ -57,15 +57,27 @@ export async function fetchNPCities(
     });
 
     if (!res.ok) {
-      console.error("[NP API] Cities fetch failed:", res.status);
-      return [];
+      const errorText = await res.text().catch(() => "Unknown error");
+      throw new Error(`Nova Poshta API error: ${res.status} - ${errorText}`);
     }
 
     const json: NPResponse<NPCity> = await res.json();
-    return json.success ? json.data : [];
+    
+    if (!json.success) {
+      const errorMessage = json.errors?.join(', ') || 'Unknown API error';
+      throw new Error(`Nova Poshta API failure: ${errorMessage}`);
+    }
+    
+    return json.data || [];
   } catch (error) {
-    console.error("[NP API] Cities fetch error:", error);
-    return [];
+    if (error instanceof Error) {
+      // Re-throw our custom errors
+      if (error.message.includes('Nova Poshta API')) {
+        throw error;
+      }
+    }
+    // Network or other errors
+    throw new Error(`Failed to fetch cities: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -102,15 +114,27 @@ export async function fetchNPWarehouses(
     });
 
     if (!res.ok) {
-      console.error("[NP API] Warehouses fetch failed:", res.status);
-      return [];
+      const errorText = await res.text().catch(() => "Unknown error");
+      throw new Error(`Nova Poshta API error: ${res.status} - ${errorText}`);
     }
 
     const json: NPResponse<NPWarehouse> = await res.json();
-    return json.success ? json.data : [];
+    
+    if (!json.success) {
+      const errorMessage = json.errors?.join(', ') || 'Unknown API error';
+      throw new Error(`Nova Poshta API failure: ${errorMessage}`);
+    }
+    
+    return json.data || [];
   } catch (error) {
-    console.error("[NP API] Warehouses fetch error:", error);
-    return [];
+    if (error instanceof Error) {
+      // Re-throw our custom errors
+      if (error.message.includes('Nova Poshta API')) {
+        throw error;
+      }
+    }
+    // Network or other errors
+    throw new Error(`Failed to fetch warehouses: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -122,12 +146,17 @@ export async function fetchNPWarehouses(
  * @returns City object if found, null otherwise
  */
 export async function findCityByName(cityName: string): Promise<NPCity | null> {
-  const cities = await fetchNPCities(cityName, 5);
-  
-  // Find exact match or closest match
-  const exact = cities.find(
-    (c) => c.Description === cityName || c.Description?.startsWith(cityName)
-  );
-  
-  return exact || cities[0] || null;
+  try {
+    const cities = await fetchNPCities(cityName, 5);
+    
+    // Find exact match or closest match
+    const exact = cities.find(
+      (c) => c.Description === cityName || c.Description?.startsWith(cityName)
+    );
+    
+    return exact || cities[0] || null;
+  } catch (error) {
+    console.error("[NP API] Find city by name error:", error);
+    return null;
+  }
 }

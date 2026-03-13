@@ -8,34 +8,26 @@ const STORAGE_KEY = "fhm_announcement_closed";
 
 interface AnnouncementBarProps {
   announcementText?: string;
+  onVisibilityChange?: (visible: boolean) => void;
 }
 
-export function AnnouncementBar({ announcementText }: AnnouncementBarProps) {
+export function AnnouncementBar({ announcementText, onVisibilityChange }: AnnouncementBarProps) {
   const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    try {
-      const closed = sessionStorage.getItem(STORAGE_KEY);
-      if (closed === "1") setVisible(false);
-    } catch {
-      // ignore
-    }
-  }, []);
 
   const handleClose = () => {
     setVisible(false);
-    try {
-      sessionStorage.setItem(STORAGE_KEY, "1");
-    } catch {
-      // ignore
-    }
+    onVisibilityChange?.(false);
   };
+
+  useEffect(() => {
+    onVisibilityChange?.(visible);
+  }, [visible, onVisibilityChange]);
 
   // Hide bar entirely if no text is configured
   if (!visible || !announcementText) return null;
 
   return (
-    <div className="sticky top-0 z-[80] bg-emerald-900/95 text-white font-bold text-sm py-2.5 px-4 text-center">
+    <div className="sticky top-0 z-[90] bg-emerald-900/95 text-white font-bold text-sm py-2.5 px-4 text-center">
       <div className="flex items-center justify-center gap-2 flex-wrap px-8">
         <span>{announcementText}</span>
       </div>

@@ -1,5 +1,5 @@
 .gridLineHorizontal {
-  --background: #ffffff;
+  --background: #1c1917;
   --color: rgba(0, 0, 0, 0.2);
   --height: 1px;
   --width: 5px;
@@ -73,7 +73,7 @@
 }
 
 .gridLineVertical {
-  --background: #ffffff;
+  --background: #1c1917;
   --color: rgba(0, 0, 0, 0.2);
   --height: 5px;
   --width: 1px;

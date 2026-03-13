@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { Home, Grid3x3, User, ShoppingBag } from "lucide-react";

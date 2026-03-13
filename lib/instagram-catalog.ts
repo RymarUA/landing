@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * lib/instagram-catalog.ts
  *
@@ -17,7 +16,7 @@
  *  - isNew: "Так" | "True" | "1"
  *  - freeShipping: "Так" | "True" | "1"
  *  - oldPrice: "1800" (число)
- *  - rati  ng: "4.8" (число 0-5)
+ *  - rating: "4.8" (число 0-5)
  *  - reviews: "48" (число)
  */
 
@@ -26,6 +25,8 @@ import {
   getSitniksProductById as getSitniksProductByIdRaw,
   type SitniksProduct,
   type SitniksVariation,
+  type SitniksProperty,
+  type SitniksAuxiliaryInfo,
 } from "./sitniks-consolidated";
 import { getAllProducts, getProductById as getFallbackProductById } from "./products";
 
@@ -45,6 +46,8 @@ export interface CatalogProduct {
   freeShipping: boolean;  // безкоштовна доставка
   rating: number;
   reviews: number;
+  reviewCount?: number;   // аліас для reviews (для сумісності з картками)
+  sold?: number;          // кількість проданих товарів
   stock: number;          // availableQuantity першої активної варіації
   sizes: string[];        // properties з name="Розмір" по всіх активних варіаціях
   description: string;
@@ -75,18 +78,52 @@ const DEFAULT_BADGE_COLOR: Record<string, string> = {
 
 /** Шукає значення характеристики по імені (без урахування регістру) */
 function getProp(p: SitniksProduct, key: string, variation?: SitniksVariation): string | undefined {
-  // Спочатку шукаємо в характеристиках варіації
-  if (variation?.properties) {
-    const varProp = variation.properties.find(prop => prop.name?.toLowerCase() === key.toLowerCase());
-    if (varProp?.value) return varProp.value;
-  }
-  
+  const target = key.toLowerCase();
+
+  const matchValue = (props?: SitniksProperty[]) => {
+    if (!props) return undefined;
+    const prop = props.find((prop) => prop.name?.toLowerCase() === target);
+    return prop?.value;
+  };
+
+  // Спочатку шукаємо в переданій варіації
+  const variationValue = matchValue(variation?.properties);
+  if (variationValue) return variationValue;
+
   // Потім шукаємо в характеристиках продукту
-  if (p.properties) {
-    const prodProp = p.properties.find(prop => prop.name?.toLowerCase() === key.toLowerCase());
-    if (prodProp?.value) return prodProp.value;
+  const productValue = matchValue(p.properties);
+  if (productValue) return productValue;
+
+  // І нарешті переглядаємо інші активні варіації — іноді менеджери Sitniks ставлять характеристику не на першу
+  for (const v of p.variations ?? []) {
+    if (variation && v.id === variation.id) continue;
+    if (!v.isActive) continue;
+    const value = matchValue(v.properties);
+    if (value) return value;
   }
-  
+
+  return undefined;
+}
+
+function getPropFromVariants(
+  product: SitniksProduct,
+  keys: string[],
+  variation?: SitniksVariation
+): string | undefined {
+  for (const key of keys) {
+    const value = getProp(product, key, variation);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+function getAuxiliaryValue(info: SitniksAuxiliaryInfo | Record<string, unknown> | undefined, keys: string[]) {
+  if (!info) return undefined;
+  for (const key of keys) {
+    if (key in info && info[key as keyof SitniksAuxiliaryInfo] != null) {
+      return String(info[key as keyof SitniksAuxiliaryInfo]);
+    }
+  }
   return undefined;
 }
 
@@ -131,8 +168,15 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
   const badgeText = getProp(p, "badge", firstVariation);
   const badgeColorCustom = getProp(p, "badgeColor", firstVariation);
   const oldPriceRaw = getProp(p, "oldPrice", firstVariation);
-  const ratingRaw = getProp(p, "rating", firstVariation);
-  const reviewsRaw = getProp(p, "reviews", firstVariation);
+  const ratingRaw =
+    getPropFromVariants(p, ["rating", "ratingValue", "avgRating"], firstVariation) ??
+    getAuxiliaryValue(p.auxiliaryInfo as SitniksAuxiliaryInfo | undefined, ["rating", "ratingValue"]);
+  const reviewsRaw =
+    getPropFromVariants(p, ["reviews", "reviewCount", "reviewsCount"], firstVariation) ??
+    getAuxiliaryValue(p.auxiliaryInfo as SitniksAuxiliaryInfo | undefined, ["reviews", "reviewCount"]);
+  const soldRaw =
+    getPropFromVariants(p, ["sold", "soldCount", "totalSold"], firstVariation) ??
+    getAuxiliaryValue(p.auxiliaryInfo as SitniksAuxiliaryInfo | undefined, ["sold", "soldCount"]);
 
   // Price: з першої варіації
   const price = firstVariation?.price ?? 0;
@@ -149,9 +193,10 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
   const isNew = isTrue(getProp(p, "isNew", firstVariation));
   const freeShipping = isTrue(getProp(p, "freeShipping", firstVariation));
 
-  // Rating / reviews
+  // Rating / reviews / sold
   const rating = ratingRaw ? parseFloat(ratingRaw) : 5.0;
   const reviews = reviewsRaw ? parseInt(reviewsRaw, 10) : 0;
+  const sold = soldRaw ? parseInt(soldRaw, 10) : undefined;
 
   return {
     id: p.id,
@@ -165,7 +210,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     name: p.title,
     price,
     oldPrice,
-    category: p.category?.title ?? p.category?.name ?? "Інше",
+    category: p.category?.name ?? "Інше",
     badge,
     badgeColor,
     isHit,
@@ -173,6 +218,8 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     freeShipping,
     rating,
     reviews,
+    reviewCount: reviews,
+    sold,
     stock: getTotalStock(p),
     sizes: getSizes(p),
     description: p.description ?? "",
@@ -209,7 +256,7 @@ function mapFallbackProductToCatalogProduct(p: Awaited<ReturnType<typeof getAllP
     badgeColor: p.badgeColor ?? "",
     isHit: Boolean(p.isHit),
     isNew: Boolean(p.isNew),
-    freeShipping: Boolean(p.freeShipping),
+    freeShipping: 'freeShipping' in p ? Boolean(p.freeShipping) : false,
     rating: p.rating,
     reviews: p.reviews,
     stock: p.stock,
@@ -230,16 +277,27 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   try {
     const sitniksProducts = await getAllSitniksProducts();
     // Виключаємо товар з налаштуваннями сайту (SKU = "SITE_SETTINGS" або назва "Налаштування сайту")
-    const catalogProducts = sitniksProducts.filter(p => 
-      p.sku !== "SITE_SETTINGS" && 
-      p.title !== "Налаштування сайту" && 
-      p.name !== "Налаштування сайту"
-    );
+    const catalogProducts = sitniksProducts.filter(p => {
+      const sku = p.sku?.toUpperCase();
+      const title = p.title?.toLowerCase();
+      const name = p.name?.toLowerCase();
+      
+      return (
+        sku !== "SITE_SETTINGS" && 
+        title !== "налаштування сайту" &&
+        name !== "налаштування сайту"
+      );
+    });
     return catalogProducts.map(mapSitniksProduct);
   } catch (err) {
     console.error("[instagram-catalog] Failed to fetch from Sitniks:", err);
     // Fallback: статичний каталог щоб вітрина працювала навіть без Sitniks API
     const fallbackProducts = await getAllProducts();
+    
+    if (fallbackProducts.length === 0) {
+      console.warn("[instagram-catalog] Both Sitniks and fallback are empty!");
+    }
+    
     return fallbackProducts.map(mapFallbackProductToCatalogProduct);
   }
 }

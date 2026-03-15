@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, Heart, MessageCircle, X, HelpCircle } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
@@ -47,14 +47,20 @@ export function TemuSearchBar({
 }: TemuSearchBarProps) {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<CatalogProduct[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [activeCategory, setActiveCategory] = useState("Всі");
   const [suggestionsPosition, setSuggestionsPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [supportPosition, setSupportPosition] = useState({ top: 0, left: 0 });
   const searchRef = useRef<HTMLFormElement>(null);
   const supportRef = useRef<HTMLDivElement>(null);
+  const scrollPositionRef = useRef(0);
   const { count } = useWishlist();
+
+  // Initialize scroll position after mount
+  useEffect(() => {
+    scrollPositionRef.current = window.scrollY;
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -69,15 +75,93 @@ export function TemuSearchBar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ✅ Prevent automatic scroll jumps while allowing manual scrolling
+  useEffect(() => {
+    let isInputFocused = false;
+    let lastUserScroll = Date.now();
+    let isTyping = false;
+    let typingTimeout: NodeJS.Timeout;
+
+    const handleFocus = (e: FocusEvent) => {
+      if (searchRef.current?.contains(e.target as Node)) {
+        isInputFocused = true;
+        scrollPositionRef.current = window.scrollY;
+      }
+    };
+
+    const handleBlur = (e: FocusEvent) => {
+      if (searchRef.current?.contains(e.target as Node)) {
+        isInputFocused = false;
+        isTyping = false;
+        clearTimeout(typingTimeout);
+      }
+    };
+
+    const handleKeyDown = () => {
+      if (isInputFocused) {
+        isTyping = true;
+        scrollPositionRef.current = window.scrollY;
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+          isTyping = false;
+        }, 150);
+      }
+    };
+
+    const handleWheel = () => {
+      lastUserScroll = Date.now();
+    };
+
+    const handleTouchMove = () => {
+      lastUserScroll = Date.now();
+    };
+
+    const handleScroll = () => {
+      if (isInputFocused && isTyping) {
+        const timeSinceUserScroll = Date.now() - lastUserScroll;
+        // Only prevent scroll if it's automatic (not user-initiated)
+        if (timeSinceUserScroll > 100) {
+          window.scrollTo(0, scrollPositionRef.current);
+        } else {
+          // User is scrolling, update the reference position
+          scrollPositionRef.current = window.scrollY;
+        }
+      }
+    };
+
+    document.addEventListener('focusin', handleFocus);
+    document.addEventListener('focusout', handleBlur);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      document.removeEventListener('focusin', handleFocus);
+      document.removeEventListener('focusout', handleBlur);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(typingTimeout);
+    };
+  }, []);
+
   // Sync category with URL hash
   useEffect(() => {
     const syncFromHash = () => {
+      // Store current scroll position
+      const scrollY = window.scrollY;
+      
       const hash = window.location.hash;
       const catMatch = hash.match(/category=([^&#]*)/);
       if (catMatch) {
         const cat = decodeURIComponent(catMatch[1].trim());
         setActiveCategory(cat);
       }
+      
+      // Restore scroll position immediately to prevent jump
+      window.scrollTo(0, scrollY);
     };
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
@@ -88,28 +172,48 @@ export function TemuSearchBar({
     setActiveCategory(category);
     window.location.hash = `category=${encodeURIComponent(category)}`;
     
-    // Scroll to catalog section smoothly
-    const catalogSection = document.getElementById('catalog');
-    if (catalogSection) {
-      catalogSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    // Don't automatically scroll - let user control scrolling
+    // This prevents unwanted jumps when typing in search
   };
 
-  useEffect(() => {
+  // Use useMemo to prevent re-renders
+  const suggestions = useMemo(() => {
     if (searchQuery.trim().length >= 2) {
       const query = searchQuery.toLowerCase();
-      const filtered = products
+      return products
         .filter((p) => 
           p.name.toLowerCase().includes(query) ||
           p.category.toLowerCase().includes(query) ||
           p.description.toLowerCase().includes(query)
         )
         .slice(0, 5);
-      setSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
+    }
+    return [];
+  }, [searchQuery, products]);
+
+  // Update support dropdown position
+  useLayoutEffect(() => {
+    if (showSupport && supportRef.current) {
+      const rect = supportRef.current.getBoundingClientRect();
+      setSupportPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.right + window.scrollX - 200 // Align to right edge
+      });
+    }
+  }, [showSupport]);
+
+  // Update suggestions visibility and position without causing scroll
+  useLayoutEffect(() => {
+    const shouldShow = suggestions.length > 0 && searchQuery.trim().length >= 2;
+    
+    if (shouldShow) {
+      // Store scroll before any DOM changes
+      const scrollY = window.scrollY;
+      
+      setShowSuggestions(true);
       
       // Update position for portal
-      if (filtered.length > 0 && searchRef.current) {
+      if (searchRef.current) {
         const rect = searchRef.current.getBoundingClientRect();
         setSuggestionsPosition({
           top: rect.bottom + window.scrollY + 8,
@@ -117,11 +221,15 @@ export function TemuSearchBar({
           width: rect.width
         });
       }
+      
+      // Restore scroll immediately after DOM update
+      if (window.scrollY !== scrollY) {
+        window.scrollTo(0, scrollY);
+      }
     } else {
-      setSuggestions([]);
       setShowSuggestions(false);
     }
-  }, [searchQuery, products]);
+  }, [suggestions, searchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,7 +274,10 @@ export function TemuSearchBar({
   };
 
   return (
-    <div className={`sticky left-0 right-0 z-[100] text-white ${hasAnnouncement ? 'top-10' : 'top-0'}`}>
+    <div 
+      className={`sticky left-0 right-0 z-[100] text-white ${hasAnnouncement ? 'top-10' : 'top-0'}`}
+      style={{ scrollMargin: 0 }}
+    >
       <div className="border-b border-emerald-900/10 bg-emerald-900/95 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-1.5 flex items-center gap-2 sm:gap-3">
           {/* Logo */}
@@ -195,27 +306,27 @@ export function TemuSearchBar({
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={(e) => {
-                // Prevent scroll on focus
-                e.preventDefault();
-                const scrollY = window.scrollY;
-                
-                // Use multiple methods to prevent scroll
-                document.body.style.overflow = 'hidden';
-                setTimeout(() => {
-                  window.scrollTo(0, scrollY);
-                  document.body.style.overflow = '';
-                }, 100);
-                
-                // Show suggestions if applicable
+              onFocus={() => {
+                // Show suggestions
                 if (searchQuery.trim().length >= 2 && suggestions.length > 0) {
                   setShowSuggestions(true);
                 }
               }}
+              onKeyDown={(e) => {
+                // Prevent default scroll behavior for certain keys
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                }
+              }}
               placeholder="Пошук: чаї, пластирі, масла..."
-              aria-placeholder="Пошук товарів&amp;hellip;"
+              aria-placeholder="Пошук товарів&hellip;"
               className="w-full h-9 md:h-10 pl-9 sm:pl-11 pr-3 sm:pr-4 rounded-full bg-white text-xs sm:text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D4AF37] shadow-sm"
-              style={{ scrollMarginTop: '0px' }}
+              inputMode="search"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              enterKeyHint="search"
+              spellCheck="false"
             />
             <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
           </div>
@@ -232,63 +343,6 @@ export function TemuSearchBar({
               <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden md:inline">Підтримка</span>
             </button>
-
-            {showSupport && (
-              <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 min-w-[200px]">
-                {siteConfig.telegramUsername && (
-                  <a
-                    href={`https://t.me/${siteConfig.telegramUsername}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900"
-                    onClick={() => setShowSupport(false)}
-                  >
-                    <div className="text-gray-700">
-                      <TelegramIcon size={20} />
-                    </div>
-                    <span className="text-sm font-semibold">Telegram</span>
-                  </a>
-                )}
-                {siteConfig.viberPhone && (
-                  <a
-                    href={`viber://chat?number=${encodeURIComponent(siteConfig.viberPhone)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
-                    onClick={() => setShowSupport(false)}
-                  >
-                    <div className="text-gray-700">
-                      <ViberIcon size={20} />
-                    </div>
-                    <span className="text-sm font-semibold">Viber</span>
-                  </a>
-                )}
-                {siteConfig.tiktokUsername && (
-                  <a
-                    href={`https://www.tiktok.com/@${siteConfig.tiktokUsername}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
-                    onClick={() => setShowSupport(false)}
-                  >
-                    <div className="text-gray-700">
-                      <TikTokIcon size={20} />
-                    </div>
-                    <span className="text-sm font-semibold">TikTok</span>
-                  </a>
-                )}
-                {siteConfig.phone && (
-                  <a
-                    href={`tel:${siteConfig.phone}`}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
-                    onClick={() => setShowSupport(false)}
-                  >
-                    <MessageCircle size={20} className="text-emerald-600" />
-                    <span className="text-sm font-semibold">{siteConfig.phone}</span>
-                  </a>
-                )}
-              </div>
-            )}
           </div>
 
           {/* FAQ Link */}
@@ -371,6 +425,71 @@ export function TemuSearchBar({
               </div>
             </button>
           ))}
+        </div>,
+        document.body
+      )}
+      
+      {/* Support Dropdown Portal - render outside DOM to avoid z-index issues */}
+      {showSupport && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[150] min-w-[200px]"
+          style={{
+            top: `${supportPosition.top}px`,
+            left: `${supportPosition.left}px`
+          }}
+        >
+          {siteConfig.telegramUsername && (
+            <a
+              href={`https://t.me/${siteConfig.telegramUsername}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900"
+              onClick={() => setShowSupport(false)}
+            >
+              <div className="text-gray-700">
+                <TelegramIcon size={20} />
+              </div>
+              <span className="text-sm font-semibold">Telegram</span>
+            </a>
+          )}
+          {siteConfig.viberPhone && (
+            <a
+              href={`viber://chat?number=${encodeURIComponent(siteConfig.viberPhone)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+              onClick={() => setShowSupport(false)}
+            >
+              <div className="text-gray-700">
+                <ViberIcon size={20} />
+              </div>
+              <span className="text-sm font-semibold">Viber</span>
+            </a>
+          )}
+          {siteConfig.tiktokUsername && (
+            <a
+              href={`https://www.tiktok.com/@${siteConfig.tiktokUsername}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+              onClick={() => setShowSupport(false)}
+            >
+              <div className="text-gray-700">
+                <TikTokIcon size={20} />
+              </div>
+              <span className="text-sm font-semibold">TikTok</span>
+            </a>
+          )}
+          {siteConfig.phone && (
+            <a
+              href={`tel:${siteConfig.phone}`}
+              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+              onClick={() => setShowSupport(false)}
+            >
+              <MessageCircle size={20} className="text-emerald-600" />
+              <span className="text-sm font-semibold">{siteConfig.phone}</span>
+            </a>
+          )}
         </div>,
         document.body
       )}

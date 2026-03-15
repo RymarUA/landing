@@ -222,13 +222,13 @@ export function AddToCartButton({
         </div>
       )}
 
-      {/* CTA buttons */}
+      {/* CTA buttons - ✅ ВИПРАВЛЕННЯ: Збільшені padding та розмір тексту/іконок */}
       <div className={`flex gap-3 ${stickyCtaOnly ? "flex-col" : ""}`}>
         {!stickyCtaOnly && (
           <button
             onClick={handleAdd}
             disabled={!canAdd || isOutOfStock}
-            className={`flex-1 flex items-center justify-center gap-2 font-black py-4 rounded-2xl transition-all duration-200 text-base ${
+            className={`flex-1 flex items-center justify-center gap-2 font-black py-5 rounded-2xl transition-all duration-200 text-lg ${
               !canAdd || isOutOfStock
                 ? "bg-orange-300 cursor-not-allowed"
                 : added
@@ -238,12 +238,12 @@ export function AddToCartButton({
           >
             {added ? (
               <>
-                <CheckCircle size={22} />
+                <CheckCircle size={24} />
                 Додано!
               </>
             ) : (
               <>
-                <ShoppingCart size={22} />
+                <ShoppingCart size={24} />
                 До кошика
               </>
             )}
@@ -253,25 +253,25 @@ export function AddToCartButton({
         <button
           onClick={stickyCtaOnly ? handleAdd : handleCheckout}
           disabled={!canAdd || isOutOfStock}
-          className={`flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-black py-4 rounded-2xl transition-all duration-200 shadow-md shadow-orange-200 hover:shadow-orange-300 hover:-translate-y-0.5 text-base ${
+          className={`flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-black py-5 rounded-2xl transition-all duration-200 shadow-md shadow-orange-200 hover:shadow-orange-300 hover:-translate-y-0.5 text-lg ${
             !canAdd || isOutOfStock ? "opacity-50 cursor-not-allowed" : ""
-          } ${stickyCtaOnly ? "py-3.5" : ""} ${added && stickyCtaOnly ? "bg-green-500" : ""}`}
+          } ${stickyCtaOnly ? "py-4" : ""} ${added && stickyCtaOnly ? "bg-green-500" : ""}`}
         >
           {stickyCtaOnly ? (
             added ? (
               <>
-                <CheckCircle size={22} />
+                <CheckCircle size={24} />
                 Додано!
               </>
             ) : (
               <>
-                <ShoppingCart size={22} />
+                <ShoppingCart size={24} />
                 Купити
               </>
             )
           ) : (
             <>
-              <CreditCard size={22} />
+              <CreditCard size={24} />
               Купити
             </>
           )}

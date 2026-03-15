@@ -45,7 +45,7 @@ export default async function Home() {
   const products = await getCatalogProducts();
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       <main className="flex-1 bg-white flex flex-col">
         {/* Featured Sections */}
         <FeaturedProducts products={products} type="hits" />
@@ -58,7 +58,7 @@ export default async function Home() {
         </div>
         </main>
       <ShopFooter />
-    </>
+    </div>
   );
 }
 

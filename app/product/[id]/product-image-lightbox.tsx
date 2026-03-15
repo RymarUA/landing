@@ -31,7 +31,8 @@ export function ProductImageLightbox({ src, alt, children }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="relative h-80 md:h-auto min-h-[360px] w-full block cursor-zoom-in text-left"
+        // ✅ ВИПРАВЛЕННЯ: Збільшена висота з 360px до 480px
+        className="relative h-96 md:h-auto min-h-[480px] w-full block cursor-zoom-in text-left"
         aria-label="Збільшити зображення"
       >
         <Image

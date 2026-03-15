@@ -17,6 +17,7 @@ import { useSavedAddresses } from "@/lib/use-saved-addresses";
 import { trackInitiateCheckout } from "@/components/analytics";
 import { fetchNPCities, fetchNPWarehouses, type NPCity, type NPWarehouse } from "@/lib/novaposhta-api";
 import { Field } from "@/components/ui/field";
+import { ShopFooter } from "@/components/shop-footer";
 
 /* ─── Screens (Empty/Redirect) ─── */
 function EmptyCartScreen() {
@@ -292,7 +293,8 @@ export default function CheckoutPage() {
   if (redirecting) return <RedirectingScreen />;
 
   return (
-    <div className="min-h-screen bg-[#F6F4EF] py-10 px-4">
+    <div className="min-h-screen bg-[#F6F4EF] py-10 px-4 flex flex-col">
+      <div className="flex-1">
       <div className="max-w-5xl mx-auto">
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-[#7A8A84] hover:text-[#24312E] mb-6 transition-colors">
           <ChevronLeft size={16} /> Назад до магазину
@@ -599,6 +601,8 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+      </div>
+      <ShopFooter />
     </div>
   );
 }

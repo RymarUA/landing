@@ -1,14 +1,12 @@
-  // @ts-nocheck
+// @ts-nocheck
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Flame, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
-import { motion } from "framer-motion";
-import { ModernProductCard } from "@/components/modern-product-card";
+import { useRef, useEffect } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
+import { ModernProductCard } from "@/components/modern-product-card";
 import { useCart } from "@/components/cart-context";
-import { Container } from "@/components/container";
-import { Heading } from "@/components/heading";
+import { trackAddToCart } from "@/components/analytics";
 
 interface FeaturedProductsProps {
   products: CatalogProduct[];
@@ -16,18 +14,18 @@ interface FeaturedProductsProps {
 }
 
 export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
-  const { addItem } = useCart();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { addItem } = useCart();
 
-  // Filter products based on type
-  const filteredProducts = products.filter((p) =>
+  // Фільтруємо товари
+  const filtered = products.filter((p) => 
     type === "hits" ? p.isHit : p.isNew
   ).slice(0, 10); // Максимум 10 товарів
 
   // Автоскрол кожні 3 секунди
   useEffect(() => {
     const container = scrollRef.current;
-    if (!container || filteredProducts.length <= 3) return;
+    if (!container || filtered.length <= 3) return;
 
     const interval = setInterval(() => {
       const scrollWidth = container.scrollWidth;
@@ -44,19 +42,7 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
     }, 3000); // Кожні 3 секунди
 
     return () => clearInterval(interval);
-  }, [filteredProducts.length]);
-
-  if (filteredProducts.length === 0) return null;
-
-  const title = type === "hits" ? "Хіти продажів" : "Новинки";
-  const subtitle = type === "hits" 
-    ? "Найпопулярніші товари серед наших клієнтів"
-    : "Щойно додані до каталогу";
-  const Icon = type === "hits" ? Flame : Sparkles;
-  const bgGradient = type === "hits"
-    ? "from-orange-50 to-red-50"
-    : "from-purple-50 to-pink-50";
-  const accentColor = type === "hits" ? "text-orange-600" : "text-purple-600";
+  }, [filtered.length]);
 
   const handleAddToCart = (product: CatalogProduct) => {
     addItem({
@@ -67,10 +53,13 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
       size: product.sizes[0] ?? null,
       oldPrice: product.oldPrice ?? null,
     });
-  };
-
-  const handleViewAll = () => {
-    window.location.href = "/?category=#catalog";
+    
+    trackAddToCart({
+      contentId: product.id,
+      contentName: product.name,
+      value: product.price,
+      currency: "UAH",
+    });
   };
 
   const scroll = (direction: "left" | "right") => {
@@ -82,36 +71,24 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
     });
   };
 
+  if (filtered.length === 0) return null;
+
+  const title = type === "hits" ? "🔥 Хіти продажів" : "✨ Новинки";
+
   return (
-    <section className={`bg-gradient-to-br ${bgGradient} py-2 sm:py-3 overflow-x-hidden`}>
-      <Container>
-        {/* Header - Temu Style */}
-        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-          <div className="flex items-center gap-1.5">
-            <Heading size="sm" as="h2" className={`${accentColor} !text-left !mx-0`}>
-              {title}
-            </Heading>
-            <motion.div
-              animate={{
-                scale: [1, 1.2, 1],
-                rotate: [0, 10, -10, 0],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            >
-              <Flame className={`w-5 h-5 ${accentColor}`} />
-            </motion.div>
-          </div>
-          <button
-            onClick={handleViewAll}
-            className="text-xs sm:text-sm text-gray-600 hover:text-gray-900 flex items-center gap-0.5 font-medium transition-colors"
+    <section className="bg-gradient-to-b from-orange-50 to-white py-6 px-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Заголовок */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl md:text-2xl font-black text-gray-900">
+            {title}
+          </h2>
+          <a
+            href={`/?category=${type === "hits" ? "Хіт" : "Новинка"}#catalog`}
+            className="text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors"
           >
-            Дивитись всі
-            <ChevronRight size={14} className="sm:w-4 sm:h-4" />
-          </button>
+            Дивитись всі →
+          </a>
         </div>
 
         {/* Карусель з кнопками */}
@@ -134,29 +111,27 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
             <ChevronRight size={20} className="text-gray-700" />
           </button>
 
-          {/* Скролабельний контейнер */}
+          {/* Скролабельний контейнер - КОМПАКТНИЙ */}
           <div
             ref={scrollRef}
             className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth"
           >
-            {filteredProducts.map((product, index) => (
-              <motion.div
+            {filtered.map((product) => (
+              <div
                 key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
                 className="flex-shrink-0 w-[160px] sm:w-[180px] md:w-[200px]"
               >
                 <ModernProductCard
                   product={product}
                   onAddToCart={handleAddToCart}
-                  priority={index < 2}
+                  onClick={() => {}} // Відкриття модалки
+                  onQuickBuy={() => {}} // Швидка покупка
                 />
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
-      </Container>
+      </div>
     </section>
   );
 }

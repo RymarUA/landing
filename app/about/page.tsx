@@ -12,6 +12,7 @@ import {
   Clock,
 } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
+import { ShopFooter } from "@/components/shop-footer";
 
 function OrganizationJsonLd() {
   const sameAs = [
@@ -76,7 +77,8 @@ const values: Array<{ icon: ReactElement; title: string; desc: string }> = [
 export default function AboutPage() {
   return (
     <>
-      <main className="min-h-screen bg-[#F6F4EF]">
+      <div className="min-h-screen bg-[#F6F4EF] flex flex-col">
+        <div className="flex-1">
         <section className="bg-white pt-12 pb-16 px-4 border-b border-[#E7EFEA]">
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-[#E7EFEA] text-[#1F6B5E] text-xs font-bold px-4 py-2 rounded-full mb-6 uppercase tracking-widest">
@@ -184,9 +186,10 @@ export default function AboutPage() {
           </div>
         </div>
         </section>
-      </main>
+        </div>
+      </div>
+      <ShopFooter />
       <OrganizationJsonLd />
     </>
   );
 }
-

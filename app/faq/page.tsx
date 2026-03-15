@@ -1,5 +1,6 @@
 import type { Metadata } from "next/types";
 import { ShopFaq } from "@/components/shop-faq";
+import { ShopFooter } from "@/components/shop-footer";
 
 export const metadata: Metadata = {
   title: "Часті запитання | FAQ",
@@ -8,8 +9,11 @@ export const metadata: Metadata = {
 
 export default function FaqPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <ShopFaq />
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="flex-1">
+        <ShopFaq />
+      </div>
+      <ShopFooter />
     </div>
   );
 }

@@ -20,12 +20,14 @@ import {
   Phone, KeyRound, LogOut, Package, ChevronLeft,
   Loader2, CheckCircle, RefreshCw, User, ShoppingBag,
   AlertCircle, ChevronRight, Heart, Copy, Truck, RotateCcw,
+  Mail, Plus, Shield,
 } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
 import Image from "next/image";
 import { blurProps } from "@/lib/utils";
 import { siteConfig } from "@/lib/site-config";
+import { ShopFooter } from "@/components/shop-footer";
 import { useLocalStorage } from "@/hooks/use-isomorphic";
 import dynamic from "next/dynamic";
 
@@ -35,7 +37,17 @@ const ShopNovaPoshta = dynamic(
 );
 
 /* ─── Types ──────────────────────────────────────────── */
-type Step = "loading" | "phone" | "otp" | "profile";
+type Step = "loading" | "email" | "otp" | "profile" | "add-phone";
+
+/** Normalize email for API: lowercase, trimmed */
+function normalizeEmailForApi(email: string): string {
+  return email.toLowerCase().trim();
+}
+
+const EMAIL_VALID = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(email: string): boolean {
+  return EMAIL_VALID.test(email);
+}
 
 /** Normalize phone for API: always +380XXXXXXXXX (13 chars) */
 function normalizePhoneForApi(phone: string): string {
@@ -93,13 +105,16 @@ const PROMO_CODE = "FIRST10";
 /* ─── Main component ─────────────────────────────────── */
 export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: number; name: string; price: number; image: string; sizes?: string[] }> }) {
   const [step, setStep]     = useState<Step>("loading");
+  const [email, setEmail]   = useState("");
   const [phone, setPhone]   = useState("");
   const [otp, setOtp]       = useState(["", "", "", "", "", ""]);
+  const [loggedEmail, setLoggedEmail] = useState("");
   const [loggedPhone, setLoggedPhone] = useState("");
   const [profileName, setProfileName] = useLocalStorage<string>(PROFILE_NAME_KEY, "");
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [error, setError]   = useState("");
+  const [emailError, setEmailError] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [busy, setBusy]     = useState(false);
   const [resendIn, setResendIn] = useState(0);
@@ -107,6 +122,9 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [showPromoBlock, setShowPromoBlock] = useState(false);
   const [popupSeen] = useLocalStorage<string>("fhm_popup_seen", "");
   const [copiedTTN, setCopiedTTN] = useState<string | null>(null);
+  const [sitniksCustomer, setSitniksCustomer] = useState<any>(null);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [devMode, setDevMode] = useState(true); // Temporary dev mode
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -123,6 +141,32 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     if (step !== "profile") return;
     setShowPromoBlock(!!popupSeen);
   }, [step, popupSeen]);
+
+  /* ── Load Sitniks customer data ── */
+  const loadSitniksCustomer = useCallback(async (abortController?: AbortController) => {
+    setCustomerLoading(true);
+    try {
+      const res = await fetch("/api/profile/customer", { 
+        signal: abortController?.signal 
+      });
+      
+      if (!res.ok) {
+        if (!abortController?.signal.aborted) setSitniksCustomer(null);
+        return;
+      }
+      
+      const data = await res.json();
+      
+      if (!abortController?.signal.aborted) {
+        setSitniksCustomer(data.customer);
+      }
+    } catch (error) {
+      console.error("[profile] Failed to load Sitniks customer:", error);
+      if (!abortController?.signal.aborted) setSitniksCustomer(null);
+    } finally {
+      if (!abortController?.signal.aborted) setCustomerLoading(false);
+    }
+  }, []);
 
   /* ── Load orders from API (AbortController prevents setState on unmount) ── */
   const loadOrders = useCallback(async (_phone: string, abortController?: AbortController) => {
@@ -175,21 +219,25 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         const res = await fetch("/api/auth/me", { signal: abortController.signal });
         if (res.ok) {
           const data = await res.json();
-          setLoggedPhone(data.phone);
+          setLoggedEmail(data.email || "");
+          setLoggedPhone(data.phone || "");
           setStep("profile");
-          loadOrders(data.phone, abortController);
+          if (data.phone) {
+            loadOrders(data.phone, abortController);
+          }
+          loadSitniksCustomer(abortController);
         } else {
-          setStep("phone");
+          setStep("email");
         }
       } catch {
         if (!abortController.signal.aborted) {
-          setStep("phone");
+          setStep("email");
         }
       }
     })();
     
     return () => { abortController.abort(); };
-  }, [loadOrders]);
+  }, [loadOrders, loadSitniksCustomer]);
 
   /* ── Resend countdown ── */
   const startResendTimer = useCallback(() => {
@@ -210,20 +258,42 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   /* ── Step 1: Send OTP ── */
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const normalized = normalizePhoneForApi(phone);
-    if (!isValidPhone(phone)) {
-      setPhoneError("Номер некоректний");
-      setError("Введіть номер у форматі +38 (0XX) XXX-XX-XX");
+    
+    // DEV MODE: Skip OTP for testing
+    if (email === "dev@test.com") {
+      try {
+        const res = await fetch("/api/auth/dev-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setLoggedEmail(data.email);
+          setStep("profile");
+          setError("");
+          setEmailError("");
+          return;
+        }
+      } catch (error) {
+        console.error("Dev login failed:", error);
+      }
+    }
+    
+    const normalized = normalizeEmailForApi(email);
+    if (!isValidEmail(email)) {
+      setEmailError("Email некоректний");
+      setError("Введіть коректну email адресу");
       return;
     }
     setBusy(true);
     setError("");
-    setPhoneError("");
+    setEmailError("");
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalized }),
+        body: JSON.stringify({ email: normalized }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -251,19 +321,22 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalizePhoneForApi(phone), otp: otpString }),
+        body: JSON.stringify({ email: normalizeEmailForApi(email), otp: otpString }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Невірний код");
-      setLoggedPhone(data.phone);
+      setLoggedEmail(data.email);
+      setLoggedPhone(data.phone || "");
       setStep("profile");
-      loadOrders(data.phone, undefined);
+      if (data.phone) {
+        loadOrders(data.phone, undefined);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Помилка перевірки. Спробуйте ще раз.");
     } finally {
       setBusy(false);
     }
-  }, [otpString, phone, loadOrders]);
+  }, [otpString, email, loadOrders]);
 
   const lastAutoSubmittedOtp = useRef("");
   useEffect(() => {
@@ -295,34 +368,8 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setLoggedPhone("");
     setOrders([]);
     setOtp(["", "", "", "", "", ""]);
-    setError("");
-    setStep("phone");
-  };
-
-  /* ── Resend OTP ── */
-  const handleResend = async () => {
-    if (resendIn > 0) return;
-    setBusy(true);
-    setError("");
-    try {
-      const normalized = normalizePhoneForApi(phone);
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalized }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 429) throw new Error(data.error ?? "Спробуйте ще раз через 60 с.");
-        throw new Error(data.error ?? "Помилка");
-      }
-      setOtp(["", "", "", "", "", ""]);
-      startResendTimer();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Помилка. Спробуйте ще раз.");
-    } finally {
-      setBusy(false);
-    }
+    setEmail("");
+    window.location.href = "/profile";
   };
 
   /* ════════════════════════════════════════════════════════
@@ -337,8 +384,8 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     );
   }
 
-  /* ── PHONE STEP ── */
-  if (step === "phone") {
+  /* ── EMAIL STEP ── */
+  if (step === "email") {
     return (
       <div className="min-h-screen bg-gray-50 py-16 px-4 transition-opacity duration-300">
         <div className="max-w-md mx-auto">
@@ -351,47 +398,37 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
             <div className="h-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700" />
             <div className="p-8">
               <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                <User size={30} className="text-emerald-600" />
+                <Mail size={30} className="text-emerald-600" />
               </div>
               <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Особистий кабінет</h1>
               <p className="text-sm text-gray-500 text-center mb-7 leading-relaxed">
-                Введіть номер телефону, яким ви оформляли замовлення. Ми надішлемо код підтвердження.
+                Введіть вашу email адресу. Ми надішлемо код підтвердження для входу.
               </p>
 
               <form onSubmit={handleSendOtp} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Номер телефону</label>
+                  <label className="text-sm font-semibold text-gray-700">Email адреса</label>
                   <input
-                    type="tel"
-                    value={phone}
+                    type="email"
+                    value={email}
                     onChange={(e) => {
-                      const raw = e.target.value.replace(/\D/g, "");
-                      if (!raw.length) {
-                        setPhone("");
-                        setPhoneError("");
-                        setError("");
-                        return;
-                      }
-                      let ten = raw.length === 12 && raw.startsWith("38") ? raw.slice(2) : raw.slice(-10);
-                      if (ten.length === 10 && ten.startsWith("8")) ten = "0" + ten.slice(1);
-                      else if (ten.length === 9 && !ten.startsWith("0")) ten = "0" + ten;
-                      setPhone(formatPhoneDisplay(ten));
-                      setPhoneError("");
+                      setEmail(e.target.value);
+                      setEmailError("");
                       setError("");
                     }}
                     onBlur={() => {
-                      if (phone.trim() && !isValidPhone(phone)) setPhoneError("Номер некоректний");
-                      else setPhoneError("");
+                      if (email.trim() && !isValidEmail(email)) setEmailError("Email некоректний");
+                      else setEmailError("");
                     }}
-                    placeholder="+38 (067) 123-45-67"
+                    placeholder="example@email.com"
                     disabled={busy}
-                    autoComplete="tel"
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition disabled:opacity-60 disabled:cursor-not-allowed ${phoneError ? "border-red-400 bg-red-50/50" : "border-gray-200"}`}
+                    autoComplete="email"
+                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition disabled:opacity-60 disabled:cursor-not-allowed ${emailError ? "border-red-400 bg-red-50/50" : "border-gray-200"}`}
                   />
-                  {phoneError && (
+                  {emailError && (
                     <p className="text-sm text-red-600 flex items-center gap-1.5">
                       <AlertCircle size={14} className="flex-shrink-0" />
-                      {phoneError}
+                      {emailError}
                     </p>
                   )}
                 </div>
@@ -405,16 +442,16 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
                 <button
                   type="submit"
-                  disabled={busy || !phone.trim() || !isValidPhone(phone)}
+                  disabled={busy || !email.trim() || !isValidEmail(email)}
                   className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-emerald-200"
                 >
-                  {busy ? <Loader2 size={18} className="animate-spin" /> : <Phone size={18} />}
+                  {busy ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
                   {busy ? "Відправляємо…" : "Отримати код"}
                 </button>
               </form>
 
               <p className="text-xs text-gray-400 text-center mt-5 leading-relaxed">
-                Код буде надіслано через Telegram або SMS на вказаний номер.
+                Код підтвердження буде надіслано на вказану email адресу.
               </p>
             </div>
           </div>
@@ -449,11 +486,11 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       <div className="min-h-screen bg-gray-50 py-16 px-4 transition-opacity duration-300">
         <div className="max-w-md mx-auto">
           <button
-            onClick={() => { setStep("phone"); setError(""); setPhoneError(""); setOtp(["", "", "", "", "", ""]); }}
+            onClick={() => { setStep("email"); setError(""); setEmailError(""); setOtp(["", "", "", "", "", ""]); }}
             className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-8"
           >
             <ChevronLeft size={16} />
-            Змінити номер
+            Змінити email
           </button>
 
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
@@ -464,9 +501,9 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
               </div>
               <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Введіть код</h1>
               <p className="text-sm text-gray-500 text-center mb-1 leading-relaxed">
-                Код надіслано на номер
+                Код надіслано на email
               </p>
-              <p className="text-sm font-black text-gray-900 text-center mb-7">{phone}</p>
+              <p className="text-sm font-black text-gray-900 text-center mb-7">{email}</p>
 
               <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
@@ -523,9 +560,131 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     );
   }
 
+  /* ── ADD PHONE STEP ── */
+  if (step === "add-phone") {
+    const handleAddPhone = async (e: React.FormEvent) => {
+      e.preventDefault();
+      const normalized = normalizePhoneForApi(phone);
+      if (!isValidPhone(phone)) {
+        setPhoneError("Номер некоректний");
+        setError("Введіть номер у форматі +38 (0XX) XXX-XX-XX");
+        return;
+      }
+      setBusy(true);
+      setError("");
+      setPhoneError("");
+      try {
+        const res = await fetch("/api/auth/update-phone", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: normalized }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error ?? "Помилка додавання номера");
+        }
+        setLoggedPhone(normalized);
+        setPhone("");
+        setStep("profile");
+        loadOrders(normalized, undefined);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Помилка. Спробуйте ще раз.");
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50 py-16 px-4 transition-opacity duration-300">
+        <div className="max-w-md mx-auto">
+          <button
+            onClick={() => { setStep("profile"); setError(""); setPhoneError(""); setPhone(""); }}
+            className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-8"
+          >
+            <ChevronLeft size={16} />
+            Назад до профілю
+          </button>
+
+          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+            <div className="h-1.5 bg-gradient-to-r from-blue-600 to-blue-700" />
+            <div className="p-8">
+              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Shield size={30} className="text-blue-600" />
+              </div>
+              <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Підтвердження телефону</h1>
+              <p className="text-sm text-gray-500 text-center mb-7 leading-relaxed">
+                Додайте номер телефону для отримання замовлень та сповіщень про доставку.
+              </p>
+
+              <form onSubmit={handleAddPhone} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-gray-700">Номер телефону</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "");
+                      if (!raw.length) {
+                        setPhone("");
+                        setPhoneError("");
+                        setError("");
+                        return;
+                      }
+                      let ten = raw.length === 12 && raw.startsWith("38") ? raw.slice(2) : raw.slice(-10);
+                      if (ten.length === 10 && ten.startsWith("8")) ten = "0" + ten.slice(1);
+                      else if (ten.length === 9 && !ten.startsWith("0")) ten = "0" + ten;
+                      setPhone(formatPhoneDisplay(ten));
+                      setPhoneError("");
+                      setError("");
+                    }}
+                    onBlur={() => {
+                      if (phone.trim() && !isValidPhone(phone)) setPhoneError("Номер некоректний");
+                      else setPhoneError("");
+                    }}
+                    placeholder="+38 (067) 123-45-67"
+                    disabled={busy}
+                    autoComplete="tel"
+                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition disabled:opacity-60 disabled:cursor-not-allowed ${phoneError ? "border-red-400 bg-red-50/50" : "border-gray-200"}`}
+                  />
+                  {phoneError && (
+                    <p className="text-sm text-red-600 flex items-center gap-1.5">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      {phoneError}
+                    </p>
+                  )}
+                </div>
+
+                {error && (
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 text-sm text-red-600">
+                    <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={busy || !phone.trim() || !isValidPhone(phone)}
+                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-blue-200"
+                >
+                  {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                  {busy ? "Додаємо…" : "Додати номер"}
+                </button>
+              </form>
+
+              <p className="text-xs text-gray-400 text-center mt-5 leading-relaxed">
+                Номер телефону потрібен для відстеження замовлень через Ситнікс CRM
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /* ── PROFILE STEP ── */
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="flex-1 py-10 px-4">
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}
@@ -555,6 +714,45 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           )}
         </div>
 
+        {/* Sitniks Customer Stats */}
+        {sitniksCustomer && (
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-3xl p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingBag size={18} className="text-emerald-600" />
+              <h3 className="font-black text-gray-900">Статистика покупок</h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-600">{sitniksCustomer.ordersCount || 0}</p>
+                <p className="text-xs text-gray-600 font-medium">Замовлень</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-600">
+                  {sitniksCustomer.totalSpent ? sitniksCustomer.totalSpent.toLocaleString("uk-UA") : 0}
+                </p>
+                <p className="text-xs text-gray-600 font-medium">Витрачено, грн</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-600">
+                  {sitniksCustomer.averageOrderValue ? Math.round(sitniksCustomer.averageOrderValue).toLocaleString("uk-UA") : 0}
+                </p>
+                <p className="text-xs text-gray-600 font-medium">Середній чек, грн</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-600">
+                  {sitniksCustomer.lastOrderDate ? new Date(sitniksCustomer.lastOrderDate).toLocaleDateString("uk-UA", { day: "numeric", month: "short" }) : "-"}
+                </p>
+                <p className="text-xs text-gray-600 font-medium">Останнє замовлення</p>
+              </div>
+            </div>
+            {sitniksCustomer.createdAt && (
+              <p className="text-xs text-gray-500 text-center mt-3">
+                Клієнт з {new Date(sitniksCustomer.createdAt).toLocaleDateString("uk-UA", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* User card */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
           <div className="flex items-center gap-4">
@@ -564,11 +762,11 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
             <div className="flex-1 min-w-0">
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Мій профіль</p>
               <p className="font-black text-gray-900 text-lg">
-                {profileName.trim() ? `Привіт, ${profileName.trim()}!` : loggedPhone}
+                {profileName.trim() ? `Привіт, ${profileName.trim()}!` : loggedEmail}
               </p>
               <p className="text-xs text-green-600 font-semibold flex items-center gap-1 mt-0.5">
                 <CheckCircle size={11} />
-                Підтверджений номер
+                Підтверджена пошта
               </p>
               <input
                 type="text"
@@ -583,6 +781,30 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
             </div>
           </div>
         </div>
+
+        {/* Phone verification block */}
+        {!loggedPhone && (
+          <div className="bg-blue-50 border border-blue-200 rounded-3xl p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Phone size={18} className="text-blue-600" />
+                  <h3 className="font-black text-gray-900">Підтвердіть телефон</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Додайте номер телефону для отримання замовлень та сповіщень
+                </p>
+              </div>
+              <button
+                onClick={() => setStep("add-phone")}
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-xl transition-colors text-sm"
+              >
+                <Plus size={14} />
+                Додати
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Wishlist block */}
         {wishlistHydrated && (
@@ -778,6 +1000,8 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
       {/* Nova Poshta Tracking */}
       <ShopNovaPoshta />
+      </div>
+      <ShopFooter />
     </div>
   );
 }

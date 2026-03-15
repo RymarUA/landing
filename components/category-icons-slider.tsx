@@ -80,18 +80,43 @@ export function CategoryIconsSlider({
     onCategoryChange?.(category);
   };
 
-  // Auto-scroll active category into view
+  // ✅ ВИПРАВЛЕННЯ: Scroll ТІЛЬКИ контейнера, НЕ всієї сторінки
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
 
     const activeButton = container.querySelector(`[data-category="${activeCategory}"]`) as HTMLElement;
-    if (activeButton) {
-      activeButton.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
+    if (!activeButton) return;
+
+    // Store page scroll position to prevent jumps
+    const pageScrollY = window.scrollY;
+
+    // Отримуємо позиції
+    const containerRect = container.getBoundingClientRect();
+    const buttonRect = activeButton.getBoundingClientRect();
+    
+    // Перевіряємо чи кнопка видима в контейнері
+    const isVisible = 
+      buttonRect.left >= containerRect.left &&
+      buttonRect.right <= containerRect.right;
+
+    // Скролимо ТІЛЬКИ якщо кнопка не видима
+    if (!isVisible) {
+      const scrollLeft = 
+        activeButton.offsetLeft - 
+        container.offsetWidth / 2 + 
+        activeButton.offsetWidth / 2;
+
+      // ✅ Скролимо контейнер, НЕ елемент!
+      container.scrollTo({
+        left: scrollLeft,
+        behavior: 'smooth'
       });
+    }
+
+    // Restore page scroll position if it changed
+    if (window.scrollY !== pageScrollY) {
+      window.scrollTo(0, pageScrollY);
     }
   }, [activeCategory]);
 

@@ -13,6 +13,7 @@ import { AddToCartButton } from "./add-to-cart-button";
 import { ProductImageLightbox } from "./product-image-lightbox";
 import { ShareButton } from "./share-button";
 import { RecentlyViewedBlock } from "./recently-viewed-block";
+import { ShopFooter } from "@/components/shop-footer";
 import { siteConfig } from "@/lib/site-config";
 import {
   JsonLd,
@@ -114,13 +115,13 @@ export default async function ProductPage({
   ]);
 
   return (
-    <div className="min-h-screen bg-[#fdf6f0] pb-28 md:pb-0">
+    <div className="min-h-screen bg-[#fdf6f0] flex flex-col">
       <JsonLd id="product-schema" data={productSchema} />
       <JsonLd id="breadcrumb-schema" data={breadcrumbSchema} />
 
-      {/* ── Breadcrumb ── */}
+      {/* ── Breadcrumb - ✅ ВИПРАВЛЕННЯ: Збільшений текст з text-xs до text-sm ── */}
       <div className="bg-white border-b border-stone-100">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-stone-500 overflow-x-auto">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base text-stone-500 overflow-x-auto">
           <Link href="/" className="hover:text-orange-500 transition-colors whitespace-nowrap">Головна</Link>
           <span>/</span>
           <Link href="/#catalog" className="hover:text-orange-500 transition-colors whitespace-nowrap">Каталог</Link>
@@ -129,7 +130,8 @@ export default async function ProductPage({
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 lg:py-10">
+      <div className="flex-1">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 lg:py-10">
         <Link
           href="/#catalog"
           className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-stone-500 hover:text-stone-700 transition-colors mb-4 sm:mb-6"
@@ -160,7 +162,7 @@ export default async function ProductPage({
                   <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 lg:bottom-4 lg:left-4 lg:right-4 z-10">
                     <div className="bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl px-2 py-1.5 sm:px-3 sm:py-2 text-amber-700 text-[10px] sm:text-xs lg:text-sm font-semibold flex items-center gap-1.5 sm:gap-2">
                       <Flame size={12} className="sm:w-[14px] sm:h-[14px]" />
-                      Залишилось лише {product.stock} шт.!
+                      <span>Залишилось {product.stock} шт.</span>
                     </div>
                   </div>
                 )}
@@ -170,16 +172,22 @@ export default async function ProductPage({
 
           {/* Right Column: Product Info (lg:col-span-6) */}
           <div className="lg:col-span-6">
-            <div className="lg:sticky lg:top-24">
-              <div className="bg-white rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-sm p-4 sm:p-5 lg:p-6">
-                {/* Category & Title */}
-                <div className="mb-3 sm:mb-4">
-                  <p className="text-[10px] sm:text-xs font-bold text-orange-500 uppercase tracking-widest mb-1 sm:mb-1.5">{product.category}</p>
-                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 leading-tight">{product.name}</h1>
+            <div className="bg-white rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-sm p-4 sm:p-6 lg:p-8">
+              <div className="flex flex-col gap-3 sm:gap-4">
+                {/* Category Badge */}
+                <div className="inline-block">
+                  <span className="inline-block bg-orange-100 text-orange-600 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">
+                    {product.category}
+                  </span>
                 </div>
 
-                {/* Rating */}
-                <div className="flex items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+                {/* Title */}
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 leading-tight">
+                  {product.name}
+                </h1>
+
+                {/* Rating - ✅ ВИПРАВЛЕННЯ: Збільшені зірки з 11px до 14px */}
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <div className="flex items-center gap-0.5">
                     {Array.from({ length: 5 }).map((_, i) => {
                       const isFull = i < Math.floor(product.rating);
@@ -230,23 +238,23 @@ export default async function ProductPage({
                   <AddToCartButton product={product} />
                 </div>
 
-                {/* Trust Badges */}
-                <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-4 sm:mb-5">
-                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-emerald-50 border border-emerald-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
-                    <Shield size={14} className="sm:w-4 sm:h-4 text-emerald-600 flex-shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-semibold text-emerald-700 text-center">Гарантія якості</span>
+                {/* Trust Badges - ✅ ВИПРАВЛЕННЯ: Збільшені іконки та текст */}
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-5">
+                  <div className="flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-100 rounded-lg sm:rounded-xl px-3 py-3 sm:px-4 sm:py-3.5">
+                    <Shield size={16} className="sm:w-5 sm:h-5 text-emerald-600 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-semibold text-emerald-700 text-center">Гарантія якості</span>
                   </div>
-                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-blue-50 border border-blue-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
-                    <CreditCard size={14} className="sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-semibold text-blue-700 text-center">Безпечна оплата</span>
+                  <div className="flex items-center justify-center gap-2 bg-blue-50 border border-blue-100 rounded-lg sm:rounded-xl px-3 py-3 sm:px-4 sm:py-3.5">
+                    <CreditCard size={16} className="sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-semibold text-blue-700 text-center">Безпечна оплата</span>
                   </div>
-                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-purple-50 border border-purple-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
-                    <Truck size={14} className="sm:w-4 sm:h-4 text-purple-600 flex-shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-semibold text-purple-700 text-center">Швидка доставка</span>
+                  <div className="flex items-center justify-center gap-2 bg-purple-50 border border-purple-100 rounded-lg sm:rounded-xl px-3 py-3 sm:px-4 sm:py-3.5">
+                    <Truck size={16} className="sm:w-5 sm:h-5 text-purple-600 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-semibold text-purple-700 text-center">Швидка доставка</span>
                   </div>
-                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-amber-50 border border-amber-100 rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5">
-                    <Package size={14} className="sm:w-4 sm:h-4 text-amber-600 flex-shrink-0" />
-                    <span className="text-[10px] sm:text-xs font-semibold text-amber-700 text-center">Відео розпакування</span>
+                  <div className="flex items-center justify-center gap-2 bg-amber-50 border border-amber-100 rounded-lg sm:rounded-xl px-3 py-3 sm:px-4 sm:py-3.5">
+                    <Package size={16} className="sm:w-5 sm:h-5 text-amber-600 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-semibold text-amber-700 text-center">Відео розпакування</span>
                   </div>
                 </div>
 
@@ -346,7 +354,10 @@ export default async function ProductPage({
           />
         </ErrorBoundary>
       </div>
+      </div>
 
-          </div>
+      {/* ✅ ВИПРАВЛЕННЯ: ДОДАНО FOOTER */}
+      <ShopFooter />
+    </div>
   );
 }

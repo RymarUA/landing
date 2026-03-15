@@ -6,6 +6,7 @@ import { ShoppingCart, Trash2, Minus, Plus, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { ShopFooter } from "@/components/shop-footer";
 
 export default function CartPage() {
   const {
@@ -34,8 +35,9 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 pb-24">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 pt-20 flex flex-col">
+      <div className="flex-1">
+        <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Link
@@ -186,7 +188,9 @@ export default function CartPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
+      <ShopFooter />
     </div>
   );
 }

@@ -257,8 +257,8 @@ body {
 }
 
 html {
-  scroll-padding-top: 96px;
-  scroll-behavior: smooth;
+  /* scroll-padding-top: 96px; ← ВИМКНЕНО - може викликати автоматичний скрол */
+  /* scroll-behavior: smooth; ← ВИМКНЕНО - скролило всю сторінку при свайпі категорій */
 }
 
 .text-balance {

@@ -8,6 +8,7 @@ import { CheckCircle, Instagram, Home, Package, ArrowRight } from "lucide-react"
 import { useCart } from "@/components/cart-context";
 import { trackPurchase } from "@/components/analytics";
 import { siteConfig } from "@/lib/site-config";
+import { ShopFooter } from "@/components/shop-footer";
 
 /* ─────────────────────────────────────────────────────────────────────────
    /checkout/success
@@ -53,7 +54,8 @@ function SuccessContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F6F4EF] to-[#E7EFEA] flex items-center justify-center px-4 py-16">
+    <div className="min-h-screen bg-gradient-to-br from-[#F6F4EF] to-[#E7EFEA] flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-4 py-16">
       <div className="max-w-lg w-full">
 
         {/* ── Success card ── */}
@@ -148,6 +150,8 @@ function SuccessContent() {
           ))}
         </div>
       </div>
+      </div>
+      <ShopFooter />
     </div>
   );
 }

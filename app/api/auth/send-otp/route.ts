@@ -17,8 +17,9 @@ import {
   canSendOtpByIp,
   recordOtpSentByIp,
 } from "@/lib/otp-store";
-import { sendTelegramNotification } from "@/lib/telegram";
+import { sendEmailOtp, normalizeEmail } from "@/lib/email-otp";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\+?3?8?0\d{9}$/;
 const OTP_TTL_MS = 5 * 60 * 1000;
 
@@ -51,33 +52,95 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const emailRaw =
+    typeof body === "object" && body !== null && "email" in body
+      ? String((body as { email: unknown }).email ?? "").trim()
+      : "";
   const phoneRaw =
     typeof body === "object" && body !== null && "phone" in body
       ? String((body as { phone: unknown }).phone ?? "").trim()
       : "";
 
-  if (!PHONE_REGEX.test(phoneRaw.replace(/\s/g, ""))) {
-    return NextResponse.json({ error: "Невірний формат телефону" }, { status: 400 });
+  // Support both email and phone for backward compatibility
+  let identifier: string;
+  let type: "email" | "phone";
+  
+  if (emailRaw) {
+    if (!EMAIL_REGEX.test(emailRaw)) {
+      return NextResponse.json({ error: "Невірний формат email" }, { status: 400 });
+    }
+    identifier = normalizeEmail(emailRaw);
+    type = "email";
+  } else if (phoneRaw) {
+    if (!PHONE_REGEX.test(phoneRaw.replace(/\s/g, ""))) {
+      return NextResponse.json({ error: "Невірний формат телефону" }, { status: 400 });
+    }
+    identifier = normalizePhoneForAuth(phoneRaw);
+    type = "phone";
+  } else {
+    return NextResponse.json({ error: "Email або телефон обов'язковий" }, { status: 400 });
   }
 
-  const phone = normalizePhoneForAuth(phoneRaw);
-
-  if (!canSendOtpByPhone(phone)) {
-    return NextResponse.json(
-      { error: "Зачекайте хвилину перед повторним запитом коду." },
-      { status: 429 }
-    );
+  if (type === "phone") {
+    if (!canSendOtpByPhone(identifier)) {
+      return NextResponse.json(
+        { error: "Зачекайте хвилину перед повторним запитом коду." },
+        { status: 429 }
+      );
+    }
   }
 
   const code = generateOtp();
-  setOtp(phone, code, OTP_TTL_MS);
-  recordOtpSentByPhone(phone);
+  setOtp(identifier, code, OTP_TTL_MS);
+  if (type === "phone") {
+    recordOtpSentByPhone(identifier);
+  }
   recordOtpSentByIp(ip);
 
-  const message = `🔐 OTP для ${phone}: ${code}\nДійсний 5 хвилин.`;
-  sendTelegramNotification(message).catch((err) =>
-    console.error("[auth/send-otp] Telegram failed:", err)
-  );
+  try {
+    if (type === "email") {
+      const emailResult = await sendEmailOtp(identifier, code);
+      if (!emailResult.success) {
+        console.error("[auth/send-otp] Email failed:", emailResult.error);
+        // Fallback to Telegram if email fails
+        const message = `🔐 OTP для ${identifier}: ${code}\nДійсний 5 хвилин.`;
+        const { sendTelegramNotification } = await import("@/lib/telegram");
+        sendTelegramNotification(message).catch((err) =>
+          console.error("[auth/send-otp] Telegram fallback failed:", err)
+        );
+      }
+    } else {
+      // Phone: try SMS first, fallback to Telegram
+      const message = `🔐 OTP для ${identifier}: ${code}\nДійсний 5 хвилин.`;
+      try {
+        const { sendOtpSms } = await import("@/lib/sms");
+        const smsResult = await sendOtpSms(identifier, code);
+        if (!smsResult.success) {
+          console.error("[auth/send-otp] SMS failed:", smsResult.error);
+          // Fallback to Telegram if SMS fails
+          const { sendTelegramNotification } = await import("@/lib/telegram");
+          sendTelegramNotification(message).catch((err) =>
+            console.error("[auth/send-otp] Telegram fallback failed:", err)
+          );
+        }
+      } catch (err: any) {
+        console.error("[auth/send-otp] SMS service error:", err);
+        // Fallback to Telegram if SMS service fails
+        const { sendTelegramNotification } = await import("@/lib/telegram");
+        sendTelegramNotification(message).catch((err) =>
+          console.error("[auth/send-otp] Telegram fallback failed:", err)
+        );
+      }
+    }
+  } catch (err: any) {
+    console.error("[auth/send-otp] Service error:", err);
+    // Final fallback to Telegram
+    const message = `🔐 OTP для ${identifier}: ${code}\nДійсний 5 хвилин.`;
+    const { sendTelegramNotification } = await import("@/lib/telegram");
+    sendTelegramNotification(message).catch((err) =>
+      console.error("[auth/send-otp] Telegram fallback failed:", err)
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

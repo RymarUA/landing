@@ -37,6 +37,9 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
 
   useEffect(() => {
     const syncFromURL = () => {
+      // Store current scroll position to prevent jumps
+      const scrollY = window.scrollY;
+      
       const url = new URL(window.location.href);
       
       // Handle search query parameter (new format: ?q=query)
@@ -55,6 +58,9 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
           setVisibleCount(INITIAL_VISIBLE);
         }
       }
+      
+      // Restore scroll position immediately to prevent jump
+      window.scrollTo(0, scrollY);
     };
     
     // Handle custom search event
@@ -152,6 +158,9 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
     setActive(category);
     window.location.hash = `category=${encodeURIComponent(category)}`;
     setVisibleCount(INITIAL_VISIBLE);
+    
+    // Don't automatically scroll - let user control scrolling
+    // This prevents unwanted jumps when typing in search
   }, []);
 
   // СВАЙП ПО КАТЕГОРІЯХ
@@ -205,11 +214,9 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
           </div>
 
           {/* Promo Banner */}
-          {active === "Всі" && !searchQuery && (
-            <div className="mb-1.5 sm:mb-2">
-              <PromoBannerSlider />
-            </div>
-          )}
+          <div className="mb-1.5 sm:mb-2">
+            <PromoBannerSlider />
+          </div>
 
           {/* Заголовок */}
           <div className="mb-1.5 sm:mb-2">
@@ -331,7 +338,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5">
                 <AnimatePresence mode="popLayout">
                   {visibleSorted.map((product, index) => (
                     <motion.div

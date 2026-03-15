@@ -1,7 +1,7 @@
 /**
  * GET /api/auth/me
  *
- * Returns current user from JWT cookie fhm_auth. Response: { phone } or 401.
+ * Returns current user from JWT cookie fhm_auth. Response: { email?, phone? } or 401.
  */
 
 export const runtime = "nodejs";
@@ -19,10 +19,15 @@ export async function GET(req: NextRequest) {
   const secret = process.env.JWT_SECRET ?? "dev-secret-change-in-production";
   const payload = await verifyJwt(token, secret);
 
-  if (!payload || typeof payload.phone !== "string") {
+  if (!payload) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return NextResponse.json({ phone: payload.phone });
+  // Return user data - email and/or phone
+  const userData: { email?: string; phone?: string } = {};
+  if (typeof payload.email === "string") userData.email = payload.email;
+  if (typeof payload.phone === "string") userData.phone = payload.phone;
+
+  return NextResponse.json(userData);
 }
 

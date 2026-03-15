@@ -7,6 +7,7 @@ import { Heart, ShoppingCart, Trash2, ArrowLeft, PackageOpen } from "lucide-reac
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
+import { ShopFooter } from "@/components/shop-footer";
 
 interface Props {
   allProducts: CatalogProduct[];
@@ -64,7 +65,8 @@ export function WishlistPageClient({ allProducts }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="flex-1">
       {/* Header */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between">
@@ -205,6 +207,8 @@ export function WishlistPageClient({ allProducts }: Props) {
           </div>
         )}
       </div>
+      </div>
+      <ShopFooter />
     </div>
   );
 }

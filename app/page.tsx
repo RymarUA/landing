@@ -37,7 +37,7 @@ const CatalogFallback = () => (
 );
 
 const EnhancedShopCatalog = dynamic(
-  () => import("@/components/enhanced-shop-catalog"),
+  () => import("@/components/enhanced-shop-catalog").then(mod => ({ default: mod.EnhancedShopCatalog })),
   { loading: CatalogFallback }
 );
 

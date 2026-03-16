@@ -1,6 +1,6 @@
 // @ts-nocheck
 "use client";
-import { useState, useEffect, KeyboardEvent } from "react";
+import { useState, useEffect, useCallback, KeyboardEvent } from "react";
 import { Package, Truck, CheckCircle, Clock, MapPin, AlertCircle, Search } from "lucide-react";
 
 /* ─── Ukrainian error messages ───────────────────────── */
@@ -95,7 +95,7 @@ function TrackingResult({ data }: { data: TrackingData }) {
 }
 
 /* ─── Main component ────────────────────────────────── */
-export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
+export function ShopNovaPoshta({ initialTtn, fullWidth = false }: { initialTtn?: string; fullWidth?: boolean }) {
   const [ttn, setTtn] = useState("");
   const [status, setStatus] = useState<TrackingData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -107,22 +107,7 @@ export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
     }
   }, [initialTtn]);
 
-  useEffect(() => {
-    if (initialTtn?.trim() && ttn === initialTtn.trim()) {
-      // Auto-track if TTN is provided in URL and is set in state
-      const timer = setTimeout(() => {
-        track();
-        // Scroll to tracking section
-        const element = document.querySelector('[data-tracking-section]');
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 500); // Small delay to ensure UI is ready
-      return () => clearTimeout(timer);
-    }
-  }, [initialTtn, ttn]);
-
-  const track = async () => {
+  const track = useCallback(async () => {
     const trimmed = ttn.trim();
     if (!trimmed) {
       setError("Введіть номер ТТН — 14 цифр без пробілів.");
@@ -151,7 +136,22 @@ export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [ttn]);
+
+  useEffect(() => {
+    if (initialTtn?.trim() && ttn === initialTtn.trim()) {
+      // Auto-track if TTN is provided in URL and is set in state
+      const timer = setTimeout(() => {
+        track();
+        // Scroll to tracking section
+        const element = document.querySelector('[data-tracking-section]');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 500); // Small delay to ensure UI is ready
+      return () => clearTimeout(timer);
+    }
+  }, [initialTtn, ttn, track]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") track();
@@ -181,14 +181,14 @@ export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
   ];
 
   return (
-    <section className="bg-white py-4 px-4" data-tracking-section>
-      <div className="max-w-5xl mx-auto">
-        <div className="grid md:grid-cols-2 gap-10 items-start">
+    <section className={`bg-white py-8 px-4 md:py-10 md:px-6 lg:py-12 lg:px-8 ${fullWidth ? '-mx-4 md:-mx-6 lg:-mx-8 xl:-mx-16' : ''}`} data-tracking-section>
+      <div className={`${fullWidth ? 'w-full mx-auto' : 'max-w-5xl md:max-w-6xl lg:max-w-7xl mx-auto'}`}>
+        <div className={`grid ${fullWidth ? 'lg:grid-cols-2' : 'md:grid-cols-2'} gap-10 md:gap-12 lg:gap-16 items-start`}>
 
           {/* ── Left: Tracking ── */}
           <div>
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-8">
-              <h3 className="text-2xl font-bold text-center mb-2 text-gray-900">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-8 md:p-9 lg:p-10">
+              <h3 className="text-2xl md:text-2xl lg:text-3xl font-bold text-center mb-2 text-gray-900">
                 Відстеження посилки
               </h3>
               <p className="text-center text-gray-500 text-sm mb-6">
@@ -277,20 +277,20 @@ export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
             <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 text-xs font-semibold px-3 py-1 rounded-full mb-4 tracking-widest uppercase">
               Як це працює
             </div>
-            <h2 className="text-3xl font-black text-gray-900 mb-6">
+            <h2 className="text-3xl md:text-3xl lg:text-4xl font-black text-gray-900 mb-6">
               Доставка Новою Поштою
               <br />
               <span className="text-blue-600">по Україні</span>
             </h2>
-            <div className="space-y-5">
+            <div className="space-y-6">
               {steps.map((step, i) => (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                  <div className="flex-shrink-0 w-12 h-12 md:w-13 md:h-13 lg:w-14 lg:h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
                     {step.icon}
                   </div>
                   <div>
-                    <div className="font-bold text-gray-900">{step.title}</div>
-                    <div className="text-gray-600 text-sm">{step.desc}</div>
+                    <div className="font-bold text-gray-900 text-lg md:text-lg lg:text-xl">{step.title}</div>
+                    <div className="text-gray-600 text-sm md:text-sm lg:text-base">{step.desc}</div>
                   </div>
                 </div>
               ))}

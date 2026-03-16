@@ -2,7 +2,7 @@
 "use client";
 /**
  * DiscountPopup — спливає через 15 секунд після заходу на сайт.
- * Показує промокод EAST12 для знижки -12%.
+ * Показує промокод FIRST10 для знижки -10%.
  */
 
 import { useEffect, useState } from "react";
@@ -12,7 +12,7 @@ import { X, Tag, Sparkles } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-isomorphic";
 
 const STORAGE_KEY = "fhm_popup_seen";
-const PROMO_CODE = "EAST12";
+const PROMO_CODE = "FIRST10";
 const DELAY_MS = 15_000;
 
 type State = "idle" | "visible";
@@ -64,7 +64,7 @@ export function DiscountPopup() {
             Подарунок від «Здоровʼя Сходу»
           </h3>
           <p className="text-gray-600 text-sm mb-5">
-            Використайте промокод на перше замовлення та отримайте знижку -12%.
+            Використайте промокод на перше замовлення та отримайте знижку -10%.
           </p>
 
           <div className="flex items-center justify-center gap-2 bg-amber-50 border-2 border-dashed border-[#D4AF37] rounded-2xl px-6 py-4 mb-6">

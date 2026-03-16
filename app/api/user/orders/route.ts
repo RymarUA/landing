@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { sitniksSafe } from "@/lib/sitniks-consolidated";
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     // Check authentication
     const currentUser = await getCurrentUser();

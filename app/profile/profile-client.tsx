@@ -13,25 +13,32 @@
  *  5. Logout → POST /api/auth/logout
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo
+} from "react";
+import { useResponsive } from "@/hooks/use-responsive";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Phone, KeyRound, LogOut, Package, ChevronLeft,
-  Loader2, CheckCircle, RefreshCw, User, ShoppingBag,
+import { motion, AnimatePresence } from "framer-motion";
+import { ShopNovaPoshta } from "@/components/shop-novaposhta";
+import { ProductNotificationsWidget } from "@/components/product-notifications-widget";
+import NextImage from "next/image";
+import { 
+  User, Phone, Mail, KeyRound, LogOut, Package, ChevronLeft,
+  Loader2, CheckCircle, RefreshCw, ShoppingBag,
   AlertCircle, ChevronRight, Heart, Copy, Truck, RotateCcw,
-  Mail, Plus, Shield, CreditCard, X,
+  Shield, CreditCard, X, Edit3, Plus, Tag, Sparkles, Users
 } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
-import Image from "next/image";
 import { blurProps } from "@/lib/utils";
-import { siteConfig } from "@/lib/site-config";
+// import { siteConfig } from "@/lib/site-config";
 import { ShopFooter } from "@/components/shop-footer";
 import { useLocalStorage } from "@/hooks/use-isomorphic";
-import { motion, AnimatePresence } from "framer-motion";
-
-import { ShopNovaPoshta } from "@/components/shop-novaposhta";
 
 
 /* ─── Types ──────────────────────────────────────────── */
@@ -90,6 +97,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   "Очікує оплати":    { label: "Очікує оплати",    color: "text-amber-600 bg-amber-50 border-amber-100" },
   "Оплачено":         { label: "Оплачено",         color: "text-green-600 bg-green-50 border-green-100" },
   "Відправлено":      { label: "Відправлено",       color: "text-blue-600 bg-blue-50 border-blue-100" },
+  "У відділенні":     { label: "У відділенні",      color: "text-green-700 bg-green-100 border-green-200" },
   "Доставлено":       { label: "Доставлено",        color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
   "Скасовано":        { label: "Скасовано",         color: "text-red-600 bg-red-50 border-red-100" },
 };
@@ -99,10 +107,113 @@ function statusStyle(status: string) {
 }
 
 const PROFILE_NAME_KEY = "fhm_profile_name";
-const PROMO_CODE = "FIRST10";
+const PROFILE_ADDRESS_KEY = "fhm_profile_address";
+
+/* ─── Promo Code System ─────────────────────────────── */
+interface PromoCode {
+  code: string;
+  discount: number;
+  expiresAt: Date;
+  used: boolean;
+  minOrder: number;
+  description: string;
+  type: 'tier' | 'personalized' | 'referral';
+}
+
+const PROMO_TIER = {
+  NEW: "FIRST5",    // 5% за регистрацию
+  ACTIVE: "FIRST10", // 10% за первую покупку
+  LOYAL: "LOYAL15"   // 15% за 3+ покупки
+} as const;
+
+const PERSONALIZED_PROMOS = {
+  ABANDONED_CART: "COMEBACK10",      // 10% за брошенную корзину
+  SEASONAL: "SEASONAL15",           // 15% сезонная скидка
+  BIRTHDAY: "BIRTHDAY20",           // 20% на день рождения
+  REENGAGE: "WELCOME_BACK12"        // 12% для возвращающихся пользователей
+} as const;
+
+const REFERRAL_PROMOS = {
+  REFERRER: "REFER_FRIEND15",       // 15% тому, кто привел друга
+  REFERRAL: "FRIEND_WELCOME10"      // 10% новому пользователю по реферальной ссылке
+} as const;
+
+type PromoTier = keyof typeof PROMO_TIER;
+type PersonalizedPromo = keyof typeof PERSONALIZED_PROMOS;
+type ReferralPromo = keyof typeof REFERRAL_PROMOS;
+
+// Generate promo code with expiry
+const generatePromoCode = (tier: PromoTier, type: 'tier' | 'personalized' | 'referral' = 'tier'): PromoCode => {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  
+  const baseCode = type === 'tier' ? PROMO_TIER[tier] : '';
+  const discount = tier === 'NEW' ? 5 : tier === 'ACTIVE' ? 10 : 15;
+  
+  return {
+    code: baseCode,
+    discount,
+    expiresAt,
+    used: false,
+    minOrder: 500,
+    description: tier === 'NEW' ? 'Знижка для нових клієнтів' : 
+                tier === 'ACTIVE' ? 'Знижка за першу покупку' : 
+                'Знижка для постійних клієнтів',
+    type
+  };
+};
+
+// Generate personalized promo codes
+const generatePersonalizedPromo = (_type: PersonalizedPromo, _customData?: any): PromoCode => {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // 14 days
+  
+  const promoConfig = {
+    ABANDONED_CART: { discount: 10, minOrder: 300, description: 'З поверненням! Знижка на ваше замовлення' },
+    SEASONAL: { discount: 15, minOrder: 800, description: 'Сезонна знижка на обрані товари' },
+    BIRTHDAY: { discount: 20, minOrder: 500, description: 'З днем народження! Подарунок від нас' },
+    REENGAGE: { discount: 12, minOrder: 400, description: 'Ми сумували! Раді бачити знову' }
+  };
+  
+  const config = promoConfig[type];
+  
+  return {
+    code: PERSONALIZED_PROMOS[type],
+    discount: config.discount,
+    expiresAt,
+    used: false,
+    minOrder: config.minOrder,
+    description: config.description,
+    type: 'personalized' as const
+  };
+};
+
+// Generate referral promo codes
+const generateReferralPromo = (type: ReferralPromo): PromoCode => {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000); // 60 days
+  
+  const promoConfig = {
+    REFERRER: { discount: 15, minOrder: 1000, description: 'Дякуємо за рекомендацию!' },
+    REFERRAL: { discount: 10, minOrder: 300, description: 'Знижка для друзів' }
+  };
+  
+  const config = promoConfig[type];
+  
+  return {
+    code: REFERRAL_PROMOS[type],
+    discount: config.discount,
+    expiresAt,
+    used: false,
+    minOrder: config.minOrder,
+    description: config.description,
+    type: 'referral' as const
+  };
+};
 
 /* ─── Main component ─────────────────────────────────── */
 export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: number; name: string; price: number; image: string; sizes?: string[] }> }) {
+  const { is } = useResponsive();
   const [step, setStep]     = useState<Step>("loading");
   const [email, setEmail]   = useState("");
   const [phone, setPhone]   = useState("");
@@ -110,6 +221,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [loggedEmail, setLoggedEmail] = useState("");
   const [loggedPhone, setLoggedPhone] = useState("");
   const [profileName, setProfileName] = useLocalStorage<string>(PROFILE_NAME_KEY, "");
+  const [profileAddress, setProfileAddress] = useLocalStorage<string>(PROFILE_ADDRESS_KEY, "");
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [error, setError]   = useState("");
@@ -121,11 +233,40 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [showPromoBlock, setShowPromoBlock] = useState(false);
   const [popupSeen] = useLocalStorage<string>("fhm_popup_seen", "");
   const [copiedTTN, setCopiedTTN] = useState<string | null>(null);
+  const [userPromoCode, setUserPromoCode] = useState<PromoCode | null>(null);
+  const [, setPromoTier] = useState<PromoTier | null>(null);
+  const [personalizedPromos, setPersonalizedPromos] = useState<PromoCode[]>([]);
+  const [referralPromos, setReferralPromos] = useState<PromoCode[]>([]);
+  const [userReferralCode, setUserReferralCode] = useState<string | null>(null);
+  const [referralStats, setReferralStats] = useState({
+    referralCount: 0,
+    totalReward: 0,
+    pendingReferrals: 0
+  });
+  const [, setUserBehavior] = useState({
+    abandonedCart: false,
+    lastSeen: new Date(),
+    totalViews: 0,
+    favoriteCategories: [] as string[],
+    timeOnSite: 0 // minutes
+  });
   const [sitniksCustomer, setSitniksCustomer] = useState<any>(null);
-  const [customerLoading, setCustomerLoading] = useState(false);
-  const [devMode, setDevMode] = useState(true); // Temporary dev mode
+  const [, setCustomerLoading] = useState(false);
   const [showTracking, setShowTracking] = useState(false);
   const [trackingTtn, setTrackingTtn] = useState<string | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: ""
+  });
+  const [isChangingPhone, setIsChangingPhone] = useState(false);
+  const [newPhone, setNewPhone] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState(["", "", "", "", "", ""]);
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [phoneResendIn, setPhoneResendIn] = useState(0);
+  const phoneTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -136,11 +277,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const PLACEHOLDER_IMG = "https://lrggyvioreorxttbasgi.supabase.co/storage/v1/object/public/app-assets/9586/images/1772177782851-sneakers-hero";
 
   // Create a Set of valid product IDs for quick lookup
-  const validProductIds = new Set(allProducts.map(p => p.id));
-  
-  // Debug: Log available product IDs
-  console.log("[profile] Available product IDs:", Array.from(validProductIds));
-  console.log("[profile] Total available products:", allProducts.length);
+  const validProductIds = useMemo(() => new Set(allProducts.map(p => p.id)), [allProducts]);
 
   // Safe link component that handles navigation errors
   const SafeProductLink = ({ children, productId, ...props }: { children: React.ReactNode; productId: number; } & React.ComponentProps<typeof Link>) => {
@@ -161,6 +298,81 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setShowPromoBlock(!!popupSeen);
   }, [step, popupSeen]);
 
+  /* ── Track user behavior for personalized promos ── */
+  const trackUserBehavior = useCallback(() => {
+    // Check for abandoned cart
+    const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
+    const hasAbandonedCart = cartItems.length > 0;
+    
+    // Check time since last visit
+    const lastVisit = localStorage.getItem('fhm_last_visit');
+    const daysSinceLastVisit = lastVisit ? Math.floor((Date.now() - parseInt(lastVisit)) / (1000 * 60 * 60 * 24)) : 0;
+    
+    // Get favorite categories from wishlist/view history
+    const wishlistItems = JSON.parse(localStorage.getItem('wishlist') || '[]');
+    const favoriteCategories = Array.from(new Set(wishlistItems.map((item: any) => item.category).filter(Boolean)));
+    
+    // Calculate time on site
+    const sessionStart = sessionStorage.getItem('fhm_session_start');
+    const timeOnSite = sessionStart ? Math.floor((Date.now() - parseInt(sessionStart)) / (1000 * 60)) : 0;
+    
+    // Update current visit
+    localStorage.setItem('fhm_last_visit', Date.now().toString());
+    if (!sessionStart) {
+      sessionStorage.setItem('fhm_session_start', Date.now().toString());
+    }
+    
+    setUserBehavior(prev => ({
+      ...prev,
+      abandonedCart: hasAbandonedCart,
+      lastSeen: new Date(),
+      favoriteCategories,
+      timeOnSite: prev.timeOnSite + timeOnSite
+    }));
+    
+    return { hasAbandonedCart, daysSinceLastVisit, favoriteCategories, timeOnSite };
+  }, []);
+  
+  /* ── Generate personalized promos based on behavior ── */
+  const generatePersonalizedPromos = useCallback((behavior: any) => {
+    const promos: PromoCode[] = [];
+    
+    // Abandoned cart promo
+    if (behavior.abandonedCart) {
+      promos.push(generatePersonalizedPromo('ABANDONED_CART'));
+    }
+    
+    // Re-engagement promo (haven't visited in 7+ days)
+    if (behavior.daysSinceLastVisit >= 7) {
+      promos.push(generatePersonalizedPromo('REENGAGE'));
+    }
+    
+    // Seasonal promo (check current season)
+    const currentMonth = new Date().getMonth();
+    if (currentMonth >= 2 && currentMonth <= 4) { // Spring
+      promos.push(generatePersonalizedPromo('SEASONAL'));
+    } else if (currentMonth >= 10 || currentMonth <= 1) { // Winter
+      promos.push(generatePersonalizedPromo('SEASONAL'));
+    }
+    
+    // Birthday promo (if we have birthday info)
+    // TODO: Add birthday field to profile
+    
+    setPersonalizedPromos(promos);
+  }, []);
+  
+  /* ── Generate referral promos ── */
+  const generateReferralPromos = useCallback(() => {
+    const promos: PromoCode[] = [];
+    
+    // Generate referral codes for user to share
+    if (userReferralCode) {
+      promos.push(generateReferralPromo('REFERRER'));
+    }
+    
+    setReferralPromos(promos);
+  }, [userReferralCode]);
+  
   /* ── Load Sitniks customer data ── */
   const loadSitniksCustomer = useCallback(async (abortController?: AbortController) => {
     setCustomerLoading(true);
@@ -186,7 +398,147 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       if (!abortController?.signal.aborted) setCustomerLoading(false);
     }
   }, []);
-
+  
+  /* ── Handle referral link from URL ── */
+  const handleReferralLink = useCallback(async (referralCode: string) => {
+    if (!loggedEmail || sitniksCustomer?.referredBy) return;
+    
+    try {
+      // Find referrer by code
+      const referrerResponse = await fetch('/api/referral/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ referralCode })
+      });
+      
+      if (referrerResponse.ok) {
+        await referrerResponse.json();
+        
+        // Update current customer with referrer info in comment
+        const updateResponse = await fetch('/api/profile/customer', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment: `Referred by: ${referralCode}` })
+        });
+        
+        if (updateResponse.ok) {
+          console.log(`[profile] Applied referral: ${referralCode}`);
+          // Reload customer data
+          loadSitniksCustomer();
+        }
+      }
+    } catch (error) {
+      console.error('[profile] Failed to apply referral:', error);
+    }
+  }, [loggedEmail, sitniksCustomer, loadSitniksCustomer]);
+  
+  /* ── Generate referral code for user ── */
+  const generateUserReferralCode = useCallback(async () => {
+    if (!sitniksCustomer?.id || sitniksCustomer.referralCode) return;
+    
+    try {
+      // Generate unique referral code
+      const response = await fetch('/api/referral/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: sitniksCustomer.id })
+      });
+      
+      if (response.ok) {
+        const { referralCode } = await response.json();
+        setUserReferralCode(referralCode);
+        
+        // Update referral promos
+        generateReferralPromos();
+      }
+    } catch (error) {
+      console.error('[profile] Failed to generate referral code:', error);
+    }
+  }, [sitniksCustomer, generateReferralPromos]);
+  
+  /* ── Determine user promo tier ── */
+  const determinePromoTier = useCallback((): PromoTier | null => {
+    if (!sitniksCustomer) return null;
+    
+    const ordersCount = sitniksCustomer.ordersCount || 0;
+    const hasProfileName = profileName.trim().length > 0;
+    const hasPhone = loggedPhone.length > 0;
+    
+    // LOYAL: 3+ purchases
+    if (ordersCount >= 3) return 'LOYAL';
+    
+    // ACTIVE: First purchase + profile completion
+    if (ordersCount >= 1 && hasProfileName && hasPhone) return 'ACTIVE';
+    
+    // NEW: Just registered or viewed popup
+    if (popupSeen || hasProfileName) return 'NEW';
+    
+    return null;
+  }, [sitniksCustomer, profileName, loggedPhone, popupSeen]);
+  
+  /* ── Update referral code when customer data loads ── */
+  useEffect(() => {
+    if (sitniksCustomer) {
+      // Extract referral code from comment
+      const comment = sitniksCustomer.comment || '';
+      const referralMatch = comment.match(/Referral code: (REF_[^\s]+)/);
+      
+      if (referralMatch) {
+        setUserReferralCode(referralMatch[1]);
+      } else {
+        // Generate new referral code
+        generateUserReferralCode();
+      }
+      
+      // Set referral stats (simplified)
+      setReferralStats({
+        referralCount: 0,
+        totalReward: 0,
+        pendingReferrals: 0
+      });
+      
+      // Generate referral promos
+      generateReferralPromos();
+    }
+  }, [sitniksCustomer, generateUserReferralCode, generateReferralPromos]);
+  
+  /* ── Check for referral parameter in URL ── */
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    
+    if (refCode && loggedEmail && sitniksCustomer && !sitniksCustomer.comment?.includes('Referred by:')) {
+      handleReferralLink(refCode);
+    }
+  }, [loggedEmail, sitniksCustomer, handleReferralLink]);
+  
+  /* ── Update promo code based on tier and behavior ── */
+  useEffect(() => {
+    if (step !== "profile") return;
+    
+    // Track user behavior
+    const behavior = trackUserBehavior();
+    
+    // Generate personalized promos
+    generatePersonalizedPromos(behavior);
+    
+    // Generate referral promos
+    generateReferralPromos();
+    
+    // Determine tier-based promo
+    const tier = determinePromoTier();
+    setPromoTier(tier);
+    
+    if (tier) {
+      const promo = generatePromoCode(tier, 'tier');
+      setUserPromoCode(promo);
+      setShowPromoBlock(true);
+    } else {
+      setUserPromoCode(null);
+      setShowPromoBlock(false);
+    }
+  }, [step, determinePromoTier, trackUserBehavior, generatePersonalizedPromos, generateReferralPromos]);
+  
   /* ── Load orders from API (AbortController prevents setState on unmount) ── */
   const loadOrders = useCallback(async (_phone: string, abortController?: AbortController) => {
     console.log("[profile] loadOrders called with phone:", _phone);
@@ -244,7 +596,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
             imageUrl = imageUrl || item.image || item.preview || item.photo || item.imageUrl || PLACEHOLDER_IMG;
             
             return {
-              id: item.productVariationId || item.id,
+              id: item.productVariation?.productId || item.product?.id || item.productId || item.productVariationId || item.id,
               name: item.title || item.name,
               quantity: item.quantity || 1, // Default to 1 if not specified
               price: item.offerPrice || item.price,
@@ -252,6 +604,21 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
             };
           }),
           };
+        });
+        
+        // Debug: Log the mapping between different ID fields
+        transformedOrders.forEach((order, orderIndex) => {
+          order.items.forEach((item, itemIndex) => {
+            console.log(`[profile] Order ${orderIndex} Item ${itemIndex} ID mapping:`, {
+              productId: item.productId,
+              productVariationId: item.productVariationId,
+              productVariationProductId: item.productVariation?.productId,
+              mainProductId: item.product?.id,
+              finalId: item.id,
+              itemName: item.name,
+              isValid: validProductIds.has(item.id)
+            });
+          });
         });
         
         setOrders(transformedOrders);
@@ -262,7 +629,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     } finally {
       if (!abortController?.signal.aborted) setOrdersLoading(false);
     }
-  }, []);
+  }, [validProductIds]);
 
   /* ── Check existing session ── */
   useEffect(() => {
@@ -370,6 +737,34 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     }
   };
 
+  /* ── Resend OTP ── */
+  const handleResend = async () => {
+    const normalized = normalizeEmailForApi(email);
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalized }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 429) {
+          throw new Error(data.error ?? "Спробуйте ще раз через 60 с.");
+        }
+        throw new Error(data.error ?? "Помилка відправлення коду. Спробуйте ще раз.");
+      }
+      // Reset OTP input and restart timer
+      setOtp(["", "", "", "", "", ""]);
+      startResendTimer();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Помилка. Спробуйте ще раз.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /* ── Step 2: Verify OTP ── */
   const handleVerifyOtp = useCallback(async (e: React.FormEvent | { preventDefault: () => void }) => {
     e.preventDefault();
@@ -429,6 +824,114 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setOtp(["", "", "", "", "", ""]);
     setEmail("");
     window.location.href = "/profile";
+  };
+
+  /* ── Phone change functions ── */
+  const startPhoneChangeTimer = useCallback(() => {
+    setPhoneResendIn(60);
+    phoneTimerRef.current = setInterval(() => {
+      setPhoneResendIn((v) => {
+        if (v <= 1) {
+          clearInterval(phoneTimerRef.current!);
+          return 0;
+        }
+        return v - 1;
+      });
+    }, 1000);
+  }, []);
+
+  useEffect(() => () => { 
+    if (phoneTimerRef.current) clearInterval(phoneTimerRef.current); 
+  }, []);
+
+  const handleChangePhone = async () => {
+    const normalized = normalizePhoneForApi(newPhone);
+    if (!isValidPhone(newPhone)) {
+      setError("Номер некоректний");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/send-phone-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: normalized }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Помилка відправки коду. Спробуйте ще раз.");
+      }
+      setPhoneOtpSent(true);
+      startPhoneChangeTimer();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Помилка. Спробуйте ще раз.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVerifyPhoneOtp = async () => {
+    const otpString = phoneOtp.join("");
+    if (otpString.length !== 6) return;
+    setBusy(true);
+    setError("");
+    try {
+      const normalized = normalizePhoneForApi(newPhone);
+      const res = await fetch("/api/auth/update-phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: normalized, otp: otpString }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Невірний код");
+      setLoggedPhone(normalized);
+      setNewPhone("");
+      setPhoneOtp(["", "", "", "", "", ""]);
+      setPhoneOtpSent(false);
+      setIsChangingPhone(false);
+      loadOrders(normalized, undefined);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Помилка перевірки. Спробуйте ще раз.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCancelPhoneChange = () => {
+    setIsChangingPhone(false);
+    setNewPhone("");
+    setPhoneOtp(["", "", "", "", "", ""]);
+    setPhoneOtpSent(false);
+    setError("");
+  };
+
+  /* ── Profile editing functions ── */
+  const handleStartEditProfile = () => {
+    setEditFormData({
+      name: profileName,
+      email: loggedEmail,
+      phone: loggedPhone,
+      address: profileAddress
+    });
+    setIsEditingProfile(true);
+  };
+
+  const handleSaveProfile = () => {
+    // Update profile name
+    if (editFormData.name !== profileName) {
+      setProfileName(editFormData.name);
+    }
+    // Update profile address
+    if (editFormData.address !== profileAddress) {
+      setProfileAddress(editFormData.address);
+    }
+    // TODO: Update email, phone when APIs are available
+    setIsEditingProfile(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingProfile(false);
   };
 
   /* ════════════════════════════════════════════════════════
@@ -742,36 +1245,64 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
   /* ── PROFILE STEP ── */
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <motion.div className="flex-1 py-10 px-4" layout>
-        <div className="max-w-2xl mx-auto">
+    <div className={`
+      min-h-screen bg-gray-50 flex flex-col
+      ${is.mobile ? 'pb-20' : ''}
+    `}>
+      <motion.div className={`
+        flex-1 
+        ${is.mobile ? 'py-6 px-4' : 'py-10 px-4'}
+      `} layout>
+        <div className={`
+          mx-auto
+          ${is.mobile ? 'max-w-full' : 'max-w-2xl'}
+        `}>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
+        <div className={`
+          flex items-center justify-between 
+          ${is.mobile ? 'mb-6 flex-col gap-4' : 'mb-8'}
+        `}>
+          <div className={is.mobile ? 'text-center' : ''}>
             <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700">
-              <ChevronLeft size={15} />
+              <ChevronLeft size={is.mobile ? 18 : 15} />
               На головну
             </Link>
-            <h1 className="text-2xl font-black text-gray-900">Особистий кабінет</h1>
+            <h1 className={`
+              font-black text-gray-900
+              ${is.mobile ? 'text-xl mt-2' : 'text-2xl'}
+            `}>Особистий кабінет</h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${confirmLogout ? "text-red-600 hover:text-red-700" : "text-gray-400 hover:text-red-500"}`}
-          >
-            <LogOut size={15} />
-            {confirmLogout ? "Так, вийти" : "Вийти"}
-          </button>
-          {confirmLogout && (
+          <div className={`
+            flex items-center gap-2
+            ${is.mobile ? 'w-full justify-between' : ''}
+          `}>
             <button
-              type="button"
-              onClick={() => setConfirmLogout(false)}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              Скасувати
+              onClick={handleLogout}
+              className={`
+                flex items-center gap-1.5 text-sm font-semibold transition-colors
+                ${confirmLogout ? "text-red-600 hover:text-red-700" : "text-gray-400 hover:text-red-500"}
+                ${is.mobile ? 'flex-1 justify-center py-2 border border-gray-200 rounded-lg' : ''}
+              `}>
+              <LogOut size={is.mobile ? 18 : 15} />
+              <span className={is.mobile ? '' : ''}>{confirmLogout ? "Так, вийти" : "Вийти"}</span>
             </button>
-          )}
+            {confirmLogout && (
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(false)}
+                className={`
+                  text-sm text-gray-500 hover:text-gray-700
+                  ${is.mobile ? 'flex-1 justify-center py-2 border border-gray-200 rounded-lg' : ''}
+                `}>
+                Скасувати
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Product Notifications Widget */}
+        <ProductNotificationsWidget />
 
         {/* Sitniks Customer Stats */}
         {sitniksCustomer && (
@@ -819,41 +1350,334 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
               <User size={28} className="text-emerald-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Мій профіль</p>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-black text-gray-900 text-lg">
-                  {profileName.trim() ? `Привіт, ${profileName.trim()}!` : loggedEmail}
-                </p>
-                {/* Статус аккаунта */}
-                {loggedPhone ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
-                    <Shield size={11} />
-                    Верифіковано
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-full border border-gray-200">
-                    <AlertCircle size={11} />
-                    Не верифіковано
-                  </span>
-                )}
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Мій профіль</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-black text-gray-900 text-lg">
+                      {profileName.trim() ? `Привіт, ${profileName.trim()}!` : loggedEmail}
+                    </p>
+                    {/* Статус аккаунта */}
+                    {loggedPhone ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
+                        <Shield size={11} />
+                        Верифіковано
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-full border border-gray-200">
+                        <AlertCircle size={11} />
+                        Не верифіковано
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-green-600 font-semibold flex items-center gap-1 mt-0.5">
+                    <CheckCircle size={11} />
+                    Підтверджена пошта
+                  </p>
+                </div>
+                <button
+                  onClick={handleStartEditProfile}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 rounded-xl transition-colors text-sm font-medium"
+                >
+                  <Edit3 size={14} />
+                  Редагувати
+                </button>
               </div>
-              <p className="text-xs text-green-600 font-semibold flex items-center gap-1 mt-0.5">
-                <CheckCircle size={11} />
-                Підтверджена пошта
-              </p>
-              <input
-                type="text"
-                value={profileName}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setProfileName(v);
-                }}
-                placeholder="Додати ім'я"
-                className="mt-2 w-full max-w-[200px] px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-              />
+              
+              {/* Show input field only when no name is set */}
+              {!profileName.trim() && (
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setProfileName(v);
+                  }}
+                  placeholder="Додати ім'я"
+                  className="mt-2 w-full max-w-[200px] px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              )}
             </div>
           </div>
         </div>
+
+        {/* Address Card */}
+        {profileAddress.trim() && (
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Truck size={28} className="text-blue-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Адреса доставки</p>
+                <p className="font-medium text-gray-900 text-sm break-words">
+                  {profileAddress.trim()}
+                </p>
+              </div>
+              <button
+                onClick={handleStartEditProfile}
+                className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 rounded-xl transition-colors text-sm font-medium"
+              >
+                <Edit3 size={14} />
+                Змінити
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Profile Modal */}
+        <AnimatePresence mode="wait">
+          {isEditingProfile && (
+            <motion.div
+              key="edit-profile-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+              onClick={handleCancelEdit}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ type: "spring", duration: 0.3 }}
+                className="bg-white rounded-3xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-black text-gray-900">Редагувати профіль</h2>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                    >
+                      <X size={20} className="text-gray-500" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Name Field */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-semibold text-gray-700">Ім&apos;я</label>
+                      <input
+                        type="text"
+                        value={editFormData.name}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Введіть ім&apos;я"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      />
+                    </div>
+
+                    {/* Email Field */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-semibold text-gray-700">Email</label>
+                      <input
+                        type="email"
+                        value={editFormData.email}
+                        disabled
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                      />
+                      <p className="text-xs text-gray-500">Email не можна змінити</p>
+                    </div>
+
+                    {/* Phone Field */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-semibold text-gray-700">Телефон</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="tel"
+                          value={loggedPhone ? formatPhoneDisplay(loggedPhone.replace(/\D/g, "").slice(-10)) : "Не додано"}
+                          disabled
+                          className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                        />
+                        <button
+                          onClick={() => setIsChangingPhone(true)}
+                          className="px-3 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors text-sm"
+                        >
+                          Змінити
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500">Натисніть &quot;Змінити&quot; для оновлення номера</p>
+                    </div>
+
+                    {/* Address Field */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-semibold text-gray-700">Адреса доставки</label>
+                      <input
+                        type="text"
+                        value={editFormData.address}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="Введіть адресу доставки"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      />
+                      <p className="text-xs text-gray-500">Адреса буде збережена для майбутніх замовлень</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={handleCancelEdit}
+                      className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+                    >
+                      Скасувати
+                    </button>
+                    <button
+                      onClick={handleSaveProfile}
+                      className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl transition-colors shadow-lg shadow-emerald-200"
+                    >
+                      Зберегти
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Change Phone Modal */}
+        <AnimatePresence mode="wait">
+          {isChangingPhone && (
+            <motion.div
+              key="change-phone-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+              onClick={handleCancelPhoneChange}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ type: "spring", duration: 0.3 }}
+                className="bg-white rounded-3xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-black text-gray-900">Змінити номер телефону</h2>
+                    <button
+                      onClick={handleCancelPhoneChange}
+                      className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                    >
+                      <X size={20} className="text-gray-500" />
+                    </button>
+                  </div>
+
+                  {!phoneOtpSent ? (
+                    // Step 1: Enter new phone number
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-gray-700">Новий номер телефону</label>
+                        <input
+                          type="tel"
+                          value={newPhone}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "");
+                            if (!raw.length) {
+                              setNewPhone("");
+                              setError("");
+                              return;
+                            }
+                            let ten = raw.length === 12 && raw.startsWith("38") ? raw.slice(2) : raw.slice(-10);
+                            if (ten.length === 10 && ten.startsWith("8")) ten = "0" + ten.slice(1);
+                            else if (ten.length === 9 && !ten.startsWith("0")) ten = "0" + ten;
+                            setNewPhone(formatPhoneDisplay(ten));
+                            setError("");
+                          }}
+                          placeholder="+38 (067) 123-45-67"
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        />
+                      </div>
+
+                      {error && (
+                        <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 text-sm text-red-600">
+                          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                          {error}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleChangePhone}
+                        disabled={busy || !newPhone.trim() || !isValidPhone(newPhone)}
+                        className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-blue-200"
+                      >
+                        {busy ? <Loader2 size={18} className="animate-spin" /> : <Phone size={18} />}
+                        {busy ? "Відправляємо…" : "Отримати код"}
+                      </button>
+                    </div>
+                  ) : (
+                    // Step 2: Enter OTP code
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-gray-700">Код підтвердження</label>
+                        <p className="text-xs text-gray-500">Код надіслано на номер {newPhone}</p>
+                        <div className="flex justify-center gap-2 sm:gap-3">
+                          {[0, 1, 2, 3, 4, 5].map((i) => (
+                            <input
+                              key={i}
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={1}
+                              value={phoneOtp[i]}
+                              onChange={(e) => {
+                                const digit = e.target.value.replace(/\D/g, "").slice(-1);
+                                setError("");
+                                setPhoneOtp((prev) => {
+                                  const next = [...prev];
+                                  next[i] = digit;
+                                  return next;
+                                });
+                              }}
+                              disabled={busy}
+                              className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-black rounded-xl border-2 border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition disabled:opacity-60"
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {error && (
+                        <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 text-sm text-red-600">
+                          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                          {error}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleVerifyPhoneOtp}
+                        disabled={busy || phoneOtp.join("").length !== 6}
+                        className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-blue-200"
+                      >
+                        {busy ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                        {busy ? "Перевіряємо…" : "Підтвердити"}
+                      </button>
+
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={handleChangePhone}
+                          disabled={phoneResendIn > 0 || busy}
+                          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
+                        >
+                          <RefreshCw size={14} />
+                          {phoneResendIn > 0 ? `Повторний код через ${phoneResendIn}с` : "Надіслати код ще раз"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={handleCancelPhoneChange}
+                      className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Phone verification block */}
         {!loggedPhone && (
@@ -884,7 +1708,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Heart size={18} className="text-emerald-600 fill-emerald-600" />
+                <Heart size={18} className="text-orange-500 fill-orange-500" />
                 <h2 className="text-lg font-black text-gray-900">Список бажань</h2>
               </div>
               <Link
@@ -898,24 +1722,165 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           </div>
         )}
 
-        {/* Promo block (if popup was seen) */}
-        {showPromoBlock && (
-          <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 mb-6">
-            <p className="text-sm font-semibold text-gray-700 mb-2">Ваш промокод</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xl font-black text-amber-700 tracking-widest">{PROMO_CODE}</span>
+        {/* Personalized Promos Section */}
+        {personalizedPromos.length > 0 && (
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-3xl p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                <Sparkles size={18} className="text-white" />
+              </div>
+              <h3 className="font-black text-gray-900">Персональні пропозиції</h3>
+            </div>
+            <div className="space-y-3">
+              {personalizedPromos.map((promo, index) => (
+                <div key={index} className="bg-white/80 backdrop-blur rounded-2xl p-4 border border-purple-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="font-semibold text-purple-700 text-sm">{promo.description}</p>
+                      <p className="text-xs text-gray-500">Мін. замовлення {promo.minOrder} грн</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-black text-purple-700">-{promo.discount}%</p>
+                      <p className="text-xs text-gray-400">до {promo.expiresAt.toLocaleDateString("uk-UA", { day: "numeric", month: "short" })}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="text-sm font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">{promo.code}</code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(promo.code);
+                        setCopiedPromo(true);
+                        setTimeout(() => setCopiedPromo(false), 2000);
+                      }}
+                      className="text-xs font-semibold text-purple-600 hover:text-purple-700"
+                    >
+                      {copiedPromo ? "Скопійовано!" : "Копіювати"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Referral Section */}
+        {referralPromos.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-3xl p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
+                <Users size={18} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-black text-gray-900">Запросіть друзів</h3>
+                <p className="text-xs text-gray-500">Отримайте 15% від кожного замовлення друга</p>
+              </div>
+            </div>
+            
+            {/* Referral Stats */}
+            {referralStats.referralCount > 0 && (
+              <div className="bg-white/60 backdrop-blur rounded-xl p-3 mb-4 border border-blue-100">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <p className="text-lg font-black text-blue-600">{referralStats.referralCount}</p>
+                    <p className="text-xs text-gray-600">Запрошено</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-black text-green-600">{referralStats.totalReward} грн</p>
+                    <p className="text-xs text-gray-600">Зароблено</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-black text-amber-600">{referralStats.pendingReferrals}</p>
+                    <p className="text-xs text-gray-600">Очікує</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-3">
+              {referralPromos.map((promo, index) => (
+                <div key={index} className="bg-white/80 backdrop-blur rounded-2xl p-4 border border-blue-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="font-semibold text-blue-700 text-sm">{promo.description}</p>
+                      <p className="text-xs text-gray-500">Поділіться з друзями та отримайте знижку</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-black text-blue-700">-{promo.discount}%</p>
+                      <p className="text-xs text-gray-400">до {promo.expiresAt.toLocaleDateString("uk-UA", { day: "numeric", month: "short" })}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{userReferralCode || promo.code}</code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const code = userReferralCode || promo.code;
+                        navigator.clipboard.writeText(code);
+                        setCopiedPromo(true);
+                        setTimeout(() => setCopiedPromo(false), 2000);
+                      }}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                      {copiedPromo ? "Скопійовано!" : "Копіювати"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const referralUrl = `${window.location.origin}/?ref=${userReferralCode || promo.code}`;
+                        navigator.clipboard.writeText(referralUrl);
+                        setCopiedPromo(true);
+                        setTimeout(() => setCopiedPromo(false), 2000);
+                      }}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                      {copiedPromo ? "Посилання скопійовано!" : "Копіювати посилання"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Посилання: <code className="bg-gray-100 px-1 rounded">{window.location.origin}/?ref={userReferralCode || promo.code}</code>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {showPromoBlock && userPromoCode && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-3xl p-6 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
+                  <Tag size={18} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Ваш промокод</p>
+                  <p className="text-xs text-gray-500">{userPromoCode.description}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-black text-amber-700">-{userPromoCode.discount}%</p>
+                <p className="text-xs text-gray-500">Мін. замовлення {userPromoCode.minOrder} грн</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xl font-black text-amber-700 tracking-widest flex-1">{userPromoCode.code}</span>
               <button
                 type="button"
                 onClick={() => {
-                  navigator.clipboard.writeText(PROMO_CODE);
+                  navigator.clipboard.writeText(userPromoCode.code);
                   setCopiedPromo(true);
                   setTimeout(() => setCopiedPromo(false), 2000);
                 }}
-                className="flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800"
+                className="flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800 bg-white px-3 py-2 rounded-xl border border-amber-200 transition-colors"
               >
                 <Copy size={14} />
                 {copiedPromo ? "Скопійовано!" : "Копіювати"}
               </button>
+            </div>
+            <div className="mt-3 pt-3 border-t border-amber-200">
+              <p className="text-xs text-gray-500 text-center">
+                Діє до {userPromoCode.expiresAt.toLocaleDateString("uk-UA", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
             </div>
           </div>
         )}
@@ -954,7 +1919,18 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                     {allProducts.filter((p) => wishlistIds.has(p.id)).slice(0, 4).map((product) => (
                       <Link key={product.id} href={`/product/${product.id}`} className="block rounded-xl border border-gray-100 overflow-hidden bg-white hover:shadow-md transition-shadow">
                         <div className="aspect-square relative bg-gray-100">
-                          <Image src={product.image} alt={product.name} fill sizes="120px" className="object-cover" {...blurProps()} />
+                          <NextImage 
+                            src={product.image || ''} 
+                            alt={product.name || 'Товар'} 
+                            fill 
+                            sizes="120px" 
+                            className="object-cover" 
+                            {...blurProps()}
+                            onError={(e) => {
+                              console.log('[Profile] Wishlist image error:', product.image);
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
                         </div>
                         <div className="p-2">
                           <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
@@ -1011,14 +1987,18 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                               {/* Product Image */}
                               <div className="w-20 h-20 bg-white rounded-xl overflow-hidden flex-shrink-0 border border-gray-100">
                                 <div className="w-full h-full relative">
-                                  {item.image && item.image !== PLACEHOLDER_IMG ? (
-                                    <Image
+                                  {item.image && item.image !== PLACEHOLDER_IMG && typeof item.image === 'string' ? (
+                                    <NextImage
                                       src={item.image}
-                                      alt={item.name}
+                                      alt={item.name || 'Товар'}
                                       fill
                                       sizes="80px"
                                       className="object-cover"
                                       {...blurProps()}
+                                      onError={(e) => {
+                                        console.log('[Profile] Image load error:', item.image);
+                                        e.currentTarget.style.display = 'none';
+                                      }}
                                     />
                                   ) : (
                                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">
@@ -1160,16 +2140,6 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           )}
         </div>
 
-        {/* Support link */}
-                <p className="text-center text-xs text-gray-400 mt-6">
-          Потрібна допомога?{" "}
-          <a
-            href={`tel:${siteConfig.phone}`}
-            className="text-emerald-600 font-semibold hover:underline"
-          >
-            Зателефонуйте
-          </a>
-        </p>
         </div>
 
         {/* Tracking Section - Hidden by default, shown with animation */}
@@ -1189,7 +2159,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           className="border-t border-gray-200 pt-8 overflow-hidden"
           data-tracking-section
         >
-          <div className="max-w-2xl mx-auto">
+          <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-black text-gray-900">Відстеження посилки</h2>
               <button
@@ -1200,7 +2170,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 <X size={20} />
               </button>
             </div>
-            <ShopNovaPoshta initialTtn={trackingTtn || undefined} />
+            <ShopNovaPoshta initialTtn={trackingTtn || undefined} fullWidth={true} />
           </div>
         </motion.div>
       </motion.div>

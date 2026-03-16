@@ -6,6 +6,7 @@
  */
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useLocalStorage } from "@/hooks/use-isomorphic";
+import { useWishlistSync } from "@/hooks/use-product-tracking";
 
 const STORAGE_KEY = "fhm_wishlist_v1";
 
@@ -28,12 +29,27 @@ const WishlistContext = createContext<WishlistContextValue>({
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [idsArray, setIdsArray] = useLocalStorage<number[]>(STORAGE_KEY, []);
   const [hydrated, setHydrated] = useState(false);
+  const { syncWishlist } = useWishlistSync();
   const ids = new Set(idsArray);
 
   /* ── Mark as hydrated after localStorage load ── */
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  /* ── Sync wishlist to Sitniks when it changes ── */
+  useEffect(() => {
+    if (hydrated && idsArray.length > 0) {
+      console.log("[wishlist-context] Syncing wishlist:", idsArray.length, "items");
+      
+      // Debounce sync to avoid too many requests
+      const timer = setTimeout(() => {
+        syncWishlist(idsArray);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [idsArray, hydrated, syncWishlist]);
 
   const toggle = useCallback((id: number) => {
     setIdsArray((prev) => {
@@ -43,7 +59,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         return [...prev, id];
       }
     });
-  }, []);
+  }, [setIdsArray]);
 
   return (
     <WishlistContext.Provider

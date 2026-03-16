@@ -12,7 +12,7 @@ export const siteConfig = {
     "Центр східної медицини: лікувальні чаї, зігріваючі пластирі, ароматерапія та ортези з доставкою по Україні. Персональні рекомендації та підтримка від експертів щодня.",
 
   // Site URL (replaced automatically on deploy)
-  url: process.env.NEXT_PUBLIC_URL || "https://your-app.kleap.io",
+  url: (process.env.NEXT_PUBLIC_URL || "https://your-app.kleap.io").replace(/\/+$/, ''),
 
   // Layout: navbar is hidden by default. Set to true for marketing/landing sites.
   showNavbar: true,
@@ -60,6 +60,7 @@ export const siteConfig = {
   // "Всі" must always be first – it shows all products.
   catalogCategories: [
     "Всі",
+    "Хіти продажів",
     "Безкоштовна доставка",
     "Наколінники",
     "Лікувальні пластирі",

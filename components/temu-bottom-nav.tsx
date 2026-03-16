@@ -18,7 +18,6 @@ export function TemuBottomNav() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  // Показывать навигацию только на главной странице
   const shouldShow = pathname === "/";
   
   if (!shouldShow) {
@@ -57,30 +56,33 @@ export function TemuBottomNav() {
   ];
 
   return (
-    <div data-bottom-nav className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 lg:bg-emerald-900/85 border-t border-emerald-700/40 backdrop-blur-lg z-[100] pb-[env(safe-area-inset-bottom)] shadow-2xl lg:shadow-xl">
-      <nav className="flex justify-around items-center py-2 px-2 lg:py-1.5 lg:px-4" aria-label="Нижня навігація">
+    <div 
+      data-bottom-nav 
+      className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 lg:bg-emerald-900/85 border-t border-emerald-700/40 backdrop-blur-lg z-[100] pb-[env(safe-area-inset-bottom)] shadow-2xl lg:shadow-xl lg:hidden"
+    >
+      <nav className="flex justify-around items-center py-1.5 px-2" aria-label="Нижня навігація">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className={`relative flex flex-col items-center justify-center p-2 rounded-2xl transition-all min-w-[72px] lg:min-w-[64px] lg:p-1.5 ${
+            className={`relative flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all min-w-[68px] ${
               item.isActive
-                ? "text-[#D4AF37] bg-white/10 lg:bg-white/5"
-                : "text-white/70 hover:text-white hover:bg-white/5 lg:hover:bg-white/3"
+                ? "text-[#D4AF37] bg-white/10"
+                : "text-white/70 hover:text-white hover:bg-white/5"
             }`}
             aria-label={item.ariaLabel}
             aria-current={item.isActive ? "page" : undefined}
             prefetch={false}
           >
             <div className="relative">
-              <item.icon size={22} className="mb-1 lg:size-18 lg:mb-0.5" />
+              <item.icon size={20} className="mb-0.5" />
               {item.label === "Кошик" && totalCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5">
                   {totalCount > 99 ? "99+" : totalCount}
                 </span>
               )}
             </div>
-            <span className="text-[11px] font-semibold lg:text-[10px]">{item.label}</span>
+            <span className="text-[10px] font-semibold">{item.label}</span>
           </Link>
         ))}
       </nav>

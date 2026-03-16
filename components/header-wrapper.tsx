@@ -18,9 +18,9 @@ export function HeaderWrapper({ products, announcementText }: HeaderWrapperProps
     setAnnouncementVisible(Boolean(announcementText));
   }, [announcementText]);
 
-  const handleAnnouncementClose = () => {
-    setAnnouncementVisible(false);
-  };
+  // const handleAnnouncementClose = () => {
+  //   setAnnouncementVisible(false);
+  // };
 
   return (
     <div className="sticky top-0 left-0 right-0 z-[100] bg-emerald-900/95 backdrop-blur-md">
@@ -32,7 +32,6 @@ export function HeaderWrapper({ products, announcementText }: HeaderWrapperProps
       )}
       <TemuSearchBar 
         products={products} 
-        hasAnnouncement={announcementVisible}
       />
     </div>
   );

@@ -2,7 +2,7 @@
  * POST /api/auth/update-phone
  *
  * Updates user's phone number in JWT token.
- * Requires authenticated user (email-based login).
+ * Requires authenticated user (email-based login) and OTP verification.
  */
 
 export const runtime = "nodejs";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth-jwt";
-import { normalizePhoneForAuth } from "@/lib/otp-store";
+import { normalizePhoneForAuth, getOtp, deleteOtp } from "@/lib/otp-store";
 
 export async function POST(req: NextRequest) {
   // Verify authentication
@@ -41,9 +41,17 @@ export async function POST(req: NextRequest) {
   const phoneRaw = typeof body === "object" && body !== null && "phone" in body
     ? String((body as { phone: unknown }).phone ?? "").trim()
     : "";
+  
+  const otpRaw = typeof body === "object" && body !== null && "otp" in body
+    ? String((body as { otp: unknown }).otp ?? "").trim()
+    : "";
 
   if (!phoneRaw) {
     return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+  }
+
+  if (!otpRaw) {
+    return NextResponse.json({ error: "OTP code is required" }, { status: 400 });
   }
 
   // Basic phone validation
@@ -53,6 +61,19 @@ export async function POST(req: NextRequest) {
   }
 
   const normalizedPhone = normalizePhoneForAuth(phoneRaw);
+
+  // Verify OTP
+  const storedOtpEntry = getOtp(normalizedPhone);
+  if (!storedOtpEntry) {
+    return NextResponse.json({ error: "OTP not found or expired" }, { status: 400 });
+  }
+
+  if (storedOtpEntry.code !== otpRaw) {
+    return NextResponse.json({ error: "Invalid OTP code" }, { status: 400 });
+  }
+
+  // Delete OTP after successful verification
+  deleteOtp(normalizedPhone);
 
   // Create new JWT payload with phone
   const newPayload = {

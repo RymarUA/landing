@@ -210,6 +210,7 @@ export async function sitniksSafe<T>(
       "Content-Type": "application/json",
       Authorization: `Bearer ${config.apiKey}`,
       Accept: "application/json",
+      "User-Agent": "FamilyHub-Market/1.0",
     };
 
     // For GET requests, don't send body
@@ -245,8 +246,16 @@ export async function sitniksSafe<T>(
     clearTimeout(timeout);
     if (error instanceof Error && error.name === "AbortError") {
       console.error("[sitniks] Request timeout after 8000ms");
+    } else if (error instanceof Error) {
+      // Handle SSL errors specifically
+      if (error.message.includes('SSL') || error.message.includes('packet length')) {
+        console.error("[sitniks] SSL/Connection error - this might be a network or SSL certificate issue:", error.message);
+        console.error("[sitniks] Check if SITNIKS_API_URL is correct and accessible");
+      } else {
+        console.error("[sitniks] Request failed:", error);
+      }
     } else {
-      console.error("[sitniks] Request failed:", error);
+      console.error("[sitniks] Unknown error:", error);
     }
     return null;
   }
@@ -335,8 +344,8 @@ export async function getSitniksProductById(productId: number): Promise<SitniksP
 }
 
 export async function getSitniksCategories(): Promise<SitniksCategory[]> {
-  const res = await sitniks<SitniksCategory[]>("GET", "/open-api/products/categories");
-  return res;
+  const res = await sitniksSafe<SitniksCategory[]>("GET", "/open-api/products/categories");
+  return res ?? [];
 }
 
 // ─── Site Settings API ─────────────────────────────────────────────────────────────

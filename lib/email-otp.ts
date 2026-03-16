@@ -38,6 +38,11 @@ export async function sendEmailOtp(email: string, otp: string): Promise<EmailRes
   const isTestMode = email !== testEmail;
 
   const resend = new Resend(apiKey);
+  
+  // IMPORTANT: In test mode, we need to use the original email for OTP storage consistency
+  // but send to the test email for delivery
+  const targetEmailForDelivery = testEmail;
+  const originalEmailForStorage = email;
 
   const htmlTemplate = `
     <!DOCTYPE html>
@@ -114,8 +119,8 @@ FamilyHub Market - Код підтвердження
 
     const { data, error } = await resend.emails.send({
       from: "onboarding@resend.dev", // Use verified Resend domain
-      to: testEmail, // Send to verified email
-      subject: `Test OTP for ${email}`,
+      to: targetEmailForDelivery, // Send to verified email
+      subject: `Test OTP for ${originalEmailForStorage}`,
       html: htmlTemplate,
       text: textTemplate,
     });
@@ -139,11 +144,11 @@ FamilyHub Market - Код підтвердження
       return { success: false, error: error.message };
     }
 
-    const targetEmail = testEmail;
+    const targetEmail = targetEmailForDelivery;
     console.log(`[email-otp] OTP sent to ${targetEmail}, message ID: ${data?.id}`);
     
     if (isTestMode) {
-      console.log(`[email-otp] TEST MODE: Original email was ${email}, but sent to ${testEmail}`);
+      console.log(`[email-otp] TEST MODE: Original email was ${originalEmailForStorage}, but sent to ${testEmail}`);
     }
     
     return { 

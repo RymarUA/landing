@@ -1,7 +1,6 @@
 // @ts-nocheck
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
 import { ShoppingCart, X, Trash2, Minus, Plus } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import Image from "next/image";
@@ -9,13 +8,10 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function CartWidget() {
-  const pathname = usePathname();
   const [scrollY, setScrollY] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [footerHeight, setFooterHeight] = useState(0);
   const [bottomNavHeight, setBottomNavHeight] = useState(0);
-  const footerRef = useRef<HTMLDivElement>(null);
-  const bottomNavRef = useRef<HTMLDivElement>(null);
   const {
     items,
     removeItem,
@@ -33,21 +29,26 @@ export function CartWidget() {
   const [animate, setAnimate] = useState(false);
   const prevCount = useRef(totalCount);
 
-  const isProductPage = pathname?.startsWith("/product/");
+  // const isProductPage = pathname?.startsWith("/product/");
 
-  // Track scroll position, viewport height, and element positions for collision detection
+  // Simple tracking for collision detection
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    const handleResize = () => setViewportHeight(window.innerHeight);
-    
-    const updateElementHeights = () => {
-      // Check footer height
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+      // Update footer height on scroll
       const footer = document.querySelector('footer');
       if (footer) {
         setFooterHeight(footer.offsetHeight);
       }
-      
-      // Check bottom navigation height
+    };
+    
+    const handleResize = () => {
+      setViewportHeight(window.innerHeight);
+      // Update elements on resize
+      const footer = document.querySelector('footer');
+      if (footer) {
+        setFooterHeight(footer.offsetHeight);
+      }
       const bottomNav = document.querySelector('[data-bottom-nav]');
       if (bottomNav) {
         setBottomNavHeight(bottomNav.offsetHeight);
@@ -56,89 +57,51 @@ export function CartWidget() {
     
     handleScroll();
     handleResize();
-    updateElementHeights();
     
     window.addEventListener('scroll', handleScroll);
     window.addEventListener('resize', handleResize);
     
-    // Use MutationObserver to detect when footer/bottom nav appears
-    const observer = new MutationObserver(updateElementHeights);
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style']
-    });
-    
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
-      observer.disconnect();
     };
   }, []);
 
-  // Calculate adaptive bottom position with collision detection
+  // Fixed positioning with simple collision detection
   const getAdaptiveBottom = () => {
-    const baseBottom = isProductPage ? 128 : 80; // 32 vs 20 * 4 for rem units
-    const scrollThreshold = 200;
-    const maxScrollOffset = 60;
     const cartButtonHeight = 64; // h-16 = 4rem = 64px
     const safetyMargin = 20; // Extra space between cart and elements
+    const fixedBottom = 80; // Fixed position from bottom
     
-    let calculatedBottom = baseBottom;
+    let calculatedBottom = fixedBottom;
     
-    // Apply scroll-based adjustment
-    if (scrollY > scrollThreshold) {
-      const scrollProgress = Math.min((scrollY - scrollThreshold) / scrollThreshold, 1);
-      calculatedBottom = baseBottom + (scrollProgress * maxScrollOffset);
-    }
-    
-    // Check collision with footer
+    // Simple collision detection with footer
     if (footerHeight > 0) {
       const documentHeight = document.documentElement.scrollHeight;
       const footerTop = documentHeight - footerHeight - scrollY;
       const cartButtonTop = viewportHeight - calculatedBottom - cartButtonHeight;
       
-      // If cart button would overlap with footer, lift it up
+      // If cart button would overlap with footer, lift it up just enough
       if (cartButtonTop > footerTop - safetyMargin) {
         const overlap = cartButtonTop - (footerTop - safetyMargin);
         calculatedBottom += overlap + safetyMargin;
-        console.log('🛡️ Collision detected with footer, lifting cart by', overlap + safetyMargin, 'px');
       }
     }
     
-    // Check collision with bottom navigation (only on mobile)
-    if (bottomNavHeight > 0 && viewportHeight < 1024) { // lg breakpoint
+    // Simple collision detection with bottom navigation (mobile only)
+    if (bottomNavHeight > 0 && viewportHeight < 1024) {
       calculatedBottom = Math.max(calculatedBottom, bottomNavHeight + safetyMargin);
-      console.log('📱 Bottom nav detected, adjusting cart position to', calculatedBottom, 'px');
     }
     
-    // Ensure maximum bottom position to prevent going off-screen
-    const maxBottom = viewportHeight - cartButtonHeight - safetyMargin;
-    calculatedBottom = Math.min(calculatedBottom, maxBottom);
-    
-    const finalBottom = Math.max(calculatedBottom, safetyMargin);
-    
-    // Debug logging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛒 Cart position debug:', {
-        scrollY,
-        viewportHeight,
-        footerHeight,
-        bottomNavHeight,
-        baseBottom,
-        calculatedBottom: finalBottom
-      });
-    }
-    
-    return finalBottom;
+    return calculatedBottom;
   };
 
   // Calculate adaptive bottom position for toast
   const getToastBottom = () => {
     const buttonBottom = getAdaptiveBottom();
-    const toastOffset = 160; // Space above button
-    return Math.max(buttonBottom + toastOffset, scrollY > 200 ? 240 : 160);
+    const toastOffset = 72; // closer to the cart button
+    const minBottom = viewportHeight < 768 ? 120 : 150;
+    return Math.max(buttonBottom + toastOffset, minBottom);
   };
 
   useEffect(() => {

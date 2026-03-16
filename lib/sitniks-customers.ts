@@ -14,6 +14,7 @@ import { SitniksOrder } from "./sitniks-consolidated";
 
 // ─── Types ────────────────────────────────────────────────────────
 
+// Расширить интерфейс SitniksCustomer для реферальной программы
 export interface SitniksCustomer {
   id: number;
   fullname: string;
@@ -24,6 +25,33 @@ export interface SitniksCustomer {
   ordersCount?: number;
   totalSpent?: number;
   lastOrderAt?: string;
+  
+  // Поля реферальной программы
+  referralCode?: string;           // Уникальный код клиента
+  referredBy?: string;             // Кто пригласил
+  referralCount?: number;          // Сколько пригласил
+  referralEarnings?: number;      // Заработок на рефералах
+  
+  // Поля статистики
+  totalOrders?: number;
+  totalSpentAmount?: number;
+  averageOrderValue?: number;
+  lastOrderDate?: string;
+  
+  // Дополнительные поля
+  note?: string;
+  comment?: string;  // Альтернативное поле для заметок
+  discount?: number;
+  isBlocked?: boolean;
+  type?: string;
+  
+  // Custom fields из Sitniks API
+  customFields?: Array<{
+    id?: number;
+    code: string;
+    value: string;
+    name?: string;
+  }>;
 }
 
 export interface CreateCustomerDto {
@@ -38,13 +66,27 @@ export interface UpdateCustomerDto {
   phone?: string;
   email?: string;
   comment?: string;
+  referralCode?: string;         // Для установки реферального кода
+  referredBy?: string;           // Для установки пригласившего
+}
+
+// Новая сущность для отслеживания рефералов
+export interface SitniksReferral {
+  id: number;
+  referrerId: number;            // ID пригласившего клиента
+  referredCustomerId: number;    // ID приглашенного клиента
+  referralCode: string;          // Код приглашения
+  status: 'pending' | 'completed'; // Статус (сделал заказ или нет)
+  rewardAmount?: number;         // Награда в грн
+  createdAt: string;
+  completedAt?: string;
 }
 
 // ─── HTTP Client ───────────────────────────────────────────────────
 
 const SITNIKS_TIMEOUT_MS = 8000;
 
-async function sitniksRequest<T>(
+export async function sitniksRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -56,6 +98,9 @@ async function sitniksRequest<T>(
   }
 
   const url = `${baseUrl}${endpoint}`;
+  console.log("[sitniksRequest] Request URL:", url);
+  console.log("[sitniksRequest] API Key configured:", !!apiKey);
+  
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), SITNIKS_TIMEOUT_MS);
 
@@ -71,6 +116,7 @@ async function sitniksRequest<T>(
     });
 
     clearTimeout(timeout);
+    console.log("[sitniksRequest] Response status:", response.status);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
@@ -97,18 +143,26 @@ export async function searchSitniksCustomer(
   phone?: string
 ): Promise<SitniksCustomer | null> {
   try {
-    let endpoint = "/api/v1/customers/search";
+    let endpoint = "/open-api/clients";
     const params = new URLSearchParams();
     
     if (email) params.append("email", email);
     if (phone) params.append("phone", phone);
+    params.append("limit", "10");
     
     if (params.toString()) {
       endpoint += `?${params.toString()}`;
     }
 
-    const customers = await sitniksRequest<SitniksCustomer[]>(endpoint);
-    return customers.length > 0 ? customers[0] : null;
+    console.log("[sitniks-customers] Making request to:", endpoint);
+    const response = await sitniksRequest<any>(endpoint);
+    console.log("[sitniks-customers] API response:", response.clients?.length || 0, "clients found");
+    
+    // Open API возвращает ClientListEntity с массивом clients
+    if (response.clients && response.clients.length > 0) {
+      return response.clients[0];
+    }
+    return null;
   } catch (error) {
     console.error("[sitniks-customers] Search failed:", error);
     return null;
@@ -120,9 +174,9 @@ export async function searchSitniksCustomer(
  */
 export async function getSitniksCustomer(id: number): Promise<SitniksCustomer | null> {
   try {
-    const customer = await sitniksRequest<SitniksCustomer>(`/api/v1/customers/${id}`);
+    const customer = await sitniksRequest<SitniksCustomer>(`/open-api/clients/${id}`);
     
-    // Enrich with order statistics
+    // Enrich with order statistics - try orders endpoint but don't fail if it doesn't work
     try {
       const orders = await sitniksRequest<SitniksOrder[]>(`/api/v1/orders?customerId=${id}`);
       const completedOrders = orders.filter(order => 
@@ -134,15 +188,19 @@ export async function getSitniksCustomer(id: number): Promise<SitniksCustomer | 
       customer.lastOrderAt = orders.length > 0 ? 
         orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0].createdAt : 
         undefined;
-    } catch (orderError) {
-      console.warn("[sitniks-customers] Failed to fetch order stats:", orderError);
+    } catch (_error) {
+      console.warn("[sitniks-customers] Orders endpoint not available, using defaults");
+      // Set default values if orders endpoint fails
+      customer.ordersCount = 0;
+      customer.totalSpent = 0;
+      customer.lastOrderAt = undefined;
     }
     
     return customer;
-  } catch (error) {
-    console.error("[sitniks-customers] Get failed:", error);
-    return null;
-  }
+  } catch (_error) {
+      console.error("[sitniks-customers] Get failed:", _error);
+      return null;
+    }
 }
 
 /**
@@ -152,11 +210,14 @@ export async function createSitniksCustomer(
   data: CreateCustomerDto
 ): Promise<SitniksCustomer | null> {
   try {
-    const customer = await sitniksRequest<SitniksCustomer>("/api/v1/customers", {
+    const customer = await sitniksRequest<SitniksCustomer>("/open-api/clients", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        fullname: data.fullname || 'Клієнт',
+        email: data.email,
+        phone: data.phone || '+380000000000', // Фейковий телефон якщо не надано
+      }),
     });
-    
     console.log(`[sitniks-customers] Created customer: ${customer.id} (${customer.email})`);
     return customer;
   } catch (error) {
@@ -187,6 +248,39 @@ export async function updateSitniksCustomer(
 }
 
 /**
+ * Генерация уникального реферального кода
+ */
+export function generateReferralCode(customerId: number): string {
+  const timestamp = Date.now().toString(36);
+  const hash = Buffer.from(customerId.toString()).toString('base64').slice(0, 6).toUpperCase();
+  return `REF_${hash}_${timestamp}`;
+}
+
+/**
+ * Поиск клиента по реферальному коду через Sitniks Open API
+ */
+export async function findCustomerByReferralCode(referralCode: string): Promise<SitniksCustomer | null> {
+  try {
+    // Шукаємо по custom field або comment
+    const response = await sitniksRequest<any>(`/open-api/clients?limit=100`);
+    
+    if (response.clients && response.clients.length > 0) {
+      // Шукаємо клієнта з реферальним кодом в custom fields або comment
+      const customer = response.clients.find((client: any) => 
+        client.comment?.includes(referralCode) ||
+        client.customFields?.some((field: any) => field.value === referralCode)
+      );
+      
+      return customer || null;
+    }
+    return null;
+  } catch (error) {
+    console.error("[sitniks-customers] Find by referral code failed:", error);
+    return null;
+  }
+}
+
+/**
  * Find or create customer (used during registration)
  */
 export async function findOrCreateSitniksCustomer(
@@ -195,13 +289,17 @@ export async function findOrCreateSitniksCustomer(
   fullname?: string
 ): Promise<{ customer: SitniksCustomer; created: boolean } | null> {
   try {
+    console.log("[sitniks-customers] findOrCreate called:", { email, phone, fullname });
+    
     // Validate input
     if (!email && !phone) {
       throw new Error("Email or phone is required");
     }
     
     // First try to find by email
+    console.log("[sitniks-customers] Searching by email:", email);
     let customer = await searchSitniksCustomer(email);
+    console.log("[sitniks-customers] Search result:", customer ? "found" : "not found");
     
     if (customer) {
       // Update with additional info if provided
@@ -216,8 +314,10 @@ export async function findOrCreateSitniksCustomer(
     
     // Try to find by phone if provided
     if (phone) {
+      console.log("[sitniks-customers] Searching by phone:", phone);
       customer = await searchSitniksCustomer(undefined, phone);
       if (customer) {
+        console.log("[sitniks-customers] Found customer by phone:", customer.id);
         // Update email if missing
         if (email && !customer.email) {
           customer = await updateSitniksCustomer(customer.id, { email }) || customer;
@@ -226,6 +326,26 @@ export async function findOrCreateSitniksCustomer(
           customer = await updateSitniksCustomer(customer.id, { fullname }) || customer;
         }
         return { customer, created: false };
+      }
+      
+      // Try different phone formats
+      const phoneFormats = [
+        phone.replace('+', ''),           // 380507877430
+        phone.replace('+380', ''),        // 507877430
+        phone.replace('+', '00'),        // 00380507877430
+        phone.replace(/\s/g, ''),         // +380507877430 (no spaces)
+        phone.replace(/[-\s]/g, ''),     // +380507877430 (no dashes/spaces)
+      ];
+      
+      for (const format of phoneFormats) {
+        if (format !== phone) {
+          console.log("[sitniks-customers] Trying phone format:", format);
+          customer = await searchSitniksCustomer(undefined, format);
+          if (customer) {
+            console.log("[sitniks-customers] Found customer with format:", format, customer.id);
+            return { customer, created: false };
+          }
+        }
       }
     }
     

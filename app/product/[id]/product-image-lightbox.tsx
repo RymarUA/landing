@@ -51,24 +51,9 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
   return (
     <>
       <div className="space-y-4">
-        {/* Main Image */}
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="relative h-96 md:h-auto min-h-[480px] w-full block cursor-zoom-in text-left"
-          aria-label="Збільшити зображення"
-        >
-          <Image
-            src={currentImage}
-            alt={alt}
-            fill
-            sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-contain"
-            priority
-          />
-          {children}
-          
-          {/* Navigation arrows for multiple images */}
+        {/* Main Image Container */}
+        <div className="relative">
+          {/* Navigation arrows for multiple images - positioned outside the main button */}
           {showThumbnails && (
             <>
               <button
@@ -77,7 +62,7 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
                   e.stopPropagation();
                   handlePrevious();
                 }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors z-10"
                 aria-label="Попереднє зображення"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,7 +75,7 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
                   e.stopPropagation();
                   handleNext();
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors z-10"
                 aria-label="Наступне зображення"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,7 +84,25 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
               </button>
             </>
           )}
-        </button>
+          
+          {/* Main Image Button */}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="relative h-96 md:h-auto min-h-[480px] w-full block cursor-zoom-in text-left"
+            aria-label="Збільшити зображення"
+          >
+            <Image
+              src={currentImage}
+              alt={alt}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-contain"
+              priority
+            />
+            {children}
+          </button>
+        </div>
 
         {/* Thumbnail Gallery */}
         {showThumbnails && (
@@ -109,7 +112,7 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
                 key={index}
                 type="button"
                 onClick={() => handleThumbnailClick(index)}
-                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                   index === currentImageIndex
                     ? "border-orange-500 ring-2 ring-orange-200"
                     : "border-gray-200 hover:border-gray-300"
@@ -197,7 +200,7 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
                     key={index}
                     type="button"
                     onClick={() => handleThumbnailClick(index)}
-                    className={`flex-shrink-0 w-12 h-12 rounded overflow-hidden border-2 transition-all ${
+                    className={`relative flex-shrink-0 w-12 h-12 rounded overflow-hidden border-2 transition-all ${
                       index === currentImageIndex
                         ? "border-white"
                         : "border-transparent hover:border-white/50"

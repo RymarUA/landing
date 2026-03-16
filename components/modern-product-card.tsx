@@ -4,49 +4,51 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Heart, Star, Truck, ShoppingCart } from "lucide-react";
+import { Heart, Star, Truck } from "lucide-react";
 import { motion } from "framer-motion";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
-import { Badge } from "@/components/badge";
+// import { Badge } from "@/components/badge";
+import { useProductTracking } from "@/hooks/use-product-tracking";
 
 // Advanced StarRating component from shared
-function StarRating({ rating, count, size = 11 }: { rating: number; count: number; size?: number }) {
-  const fullStars = Math.floor(rating);
-  const hasHalfStar = rating % 1 >= 0.3 && rating % 1 < 0.8;
-  
-  return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: 5 }).map((_, i) => {
-        const isFull = i < fullStars;
-        const isHalf = i === fullStars && hasHalfStar;
-        
-        return (
-          <div key={i} className="relative" style={{ width: size, height: size }}>
-            <Star
-              size={size}
-              className={
-                isFull
-                  ? "fill-[#FF8C00] text-[#FF8C00]"
-                  : "fill-gray-200 text-gray-200"
-              }
-            />
-            {isHalf && (
-              <div className="absolute inset-0 overflow-hidden" style={{ width: `${size / 2}px` }}>
-                <Star
-                  size={size}
-                  className="fill-[#FF8C00] text-[#FF8C00]"
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
-      <span className="text-xs text-gray-400 ml-0.5">({count}+)</span>
-    </div>
-  );
-}
+// import { StarRating } from "@/components/star-rating";
+// function StarRating({ rating, count, size = 11 }: { rating: number; count: number; size?: number }) {
+//   const fullStars = Math.floor(rating);
+//   const hasHalfStar = rating % 1 >= 0.3 && rating % 1 < 0.8;
+//   
+//   return (
+//     <div className="flex items-center gap-0.5">
+//       {Array.from({ length: 5 }).map((_, i) => {
+//         const isFull = i < fullStars;
+//         const isHalf = i === fullStars && hasHalfStar;
+//         
+//         return (
+//           <div key={i} className="relative" style={{ width: size, height: size }}>
+//             <Star
+//               size={size}
+//               className={
+//                 isFull
+//                   ? "fill-[#FF8C00] text-[#FF8C00]"
+//                   : "fill-gray-200 text-gray-200"
+//               }
+//             />
+//             {isHalf && (
+//               <div className="absolute inset-0 overflow-hidden" style={{ width: `${size / 2}px` }}>
+//                 <Star
+//                   size={size}
+//                   className="fill-[#FF8C00] text-[#FF8C00]"
+//                 />
+//               </div>
+//             )}
+//           </div>
+//         );
+//       })}
+//       <span className="text-xs text-gray-400 ml-0.5">({count}+)</span>
+//     </div>
+//   );
+// }
 
 interface ModernProductCardProps {
   product: CatalogProduct;
@@ -65,6 +67,7 @@ export function ModernProductCard({
   const { has, toggle, hydrated } = useWishlist();
   const { addItem } = useCart();
   const router = useRouter();
+  const { trackClick } = useProductTracking();
   const inWishlist = hydrated && has(product.id);
   const [heartPulse, setHeartPulse] = useState(false);
 
@@ -105,11 +108,22 @@ export function ModernProductCard({
     ? (reviewCountRaw as number)
     : Number.parseInt(String(reviewCountRaw ?? ""), 10) || 0;
 
+  const handleCardClick = () => {
+    console.log('[ProductCard] Tracking click:', product.id, product.name);
+    trackClick({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+    });
+  };
+
   // Compact mode for carousel
   if (compact) {
     return (
       <Link
         href={`/product/${product.id}`}
+        onClick={handleCardClick}
         className="group bg-white rounded-md overflow-hidden border border-gray-100 hover:shadow-md transition-shadow duration-200 cursor-pointer flex flex-col h-full"
       >
         {/* Compact Image */}
@@ -220,6 +234,7 @@ export function ModernProductCard({
   return (
     <Link
       href={`/product/${product.id}`}
+      onClick={handleCardClick}
       className="group bg-white rounded-md overflow-hidden border border-gray-100 hover:shadow-md transition-shadow duration-200 cursor-pointer flex flex-col h-full"
     >
       {/* Зображення товару */}

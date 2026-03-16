@@ -1,35 +1,53 @@
 "use client";
 
-import { Search, Heart, MessageCircle, X, HelpCircle, Package } from "lucide-react";
-import { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
+import { Search, Heart, MessageCircle, HelpCircle, Package, Grid3x3, ChevronDown, Truck, Activity, Bandage, Shield, Vibrate, Droplets, Shirt, Menu } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { siteConfig } from "@/lib/site-config";
 import { useWishlist } from "@/components/wishlist-context";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 
 // Highlight component from shared
-function Highlight({ text, query }: { text: string; query: string }) {
-  if (!query.trim()) return <>{text}</>;
+// function Highlight({ text, query }: { text: string; query: string }) {
+//   if (!query.trim()) return <>{text}</>;
+//   
+//   const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+//   const parts = text.split(regex);
+//   
+//   return (
+//     <>
+//       {parts.map((part, i) =>
+//         part.toLowerCase() === query.toLowerCase() ? (
+//           <mark key={i} className="bg-amber-200 text-gray-900 rounded px-0.5">
+//             {part}
+//           </mark>
+//         ) : (
+//           <span key={i}>{part}</span>
+//         )
+//       )}
+//     </>
+//   );
+// }
+
+// Функція для автоматичного підбору іконки на основі назви категорії
+function getCategoryIcon(categoryName: string): React.ComponentType<{ size?: number; className?: string }> {
+  const name = categoryName.toLowerCase();
   
-  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
-  const parts = text.split(regex);
+  if (name.includes("всі") || name.includes("все")) return Grid3x3;
+  if (name.includes("доставк") || name.includes("доставка")) return Truck;
+  if (name.includes("наколінник") || name.includes("коліно") || name.includes("наколінники")) return Activity;
+  if (name.includes("пластир") || name.includes("пластирі")) return Bandage;
+  if (name.includes("налокотник") || name.includes("лікоть") || name.includes("налокотники")) return Shield;
+  if (name.includes("бандаж") || name.includes("бандажі")) return Shield;
+  if (name.includes("масаж")) return Vibrate;
+  if (name.includes("маз") || name.includes("гел") || name.includes("крем")) return Droplets;
+  if (name.includes("білизна") || name.includes("компресі")) return Shirt;
+  if (name.includes("інше") || name.includes("other")) return Package;
   
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === query.toLowerCase() ? (
-          <mark key={i} className="bg-amber-200 text-gray-900 rounded px-0.5">
-            {part}
-          </mark>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
-  );
+  return Package;
 }
 import { TelegramIcon } from "@/components/icons/telegram-icon";
 import { ViberIcon } from "@/components/icons/viber-icon";
@@ -38,30 +56,30 @@ import { CategoryIconsSlider } from "@/components/category-icons-slider";
 
 interface TemuSearchBarProps {
   products?: CatalogProduct[];
-  hasAnnouncement?: boolean;
+  // hasAnnouncement?: boolean;
 }
 
 export function TemuSearchBar({
   products = [],
-  hasAnnouncement = false,
+  // hasAnnouncement = false,
 }: TemuSearchBarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [catalogCategories, setCatalogCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState("Всі");
   const [suggestionsPosition, setSuggestionsPosition] = useState({ top: 0, left: 0, width: 0 });
   const [supportPosition, setSupportPosition] = useState({ top: 0, left: 0 });
+  const [catalogPosition, setCatalogPosition] = useState({ top: 0, left: 0 });
+  const [mobileMenuPosition, setMobileMenuPosition] = useState({ top: 0, right: 0 });
   const searchRef = useRef<HTMLFormElement>(null);
   const supportRef = useRef<HTMLDivElement>(null);
-  const scrollPositionRef = useRef(0);
+  const catalogRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const { count } = useWishlist();
-
-  // Initialize scroll position after mount
-  useEffect(() => {
-    scrollPositionRef.current = window.scrollY;
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -71,110 +89,90 @@ export function TemuSearchBar({
       if (supportRef.current && !supportRef.current.contains(event.target as Node)) {
         setShowSupport(false);
       }
+      if (catalogRef.current && !catalogRef.current.contains(event.target as Node)) {
+        setShowCatalog(false);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setShowMobileMenu(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ Prevent automatic scroll jumps while allowing manual scrolling
+  // Load catalog categories
   useEffect(() => {
-    let isInputFocused = false;
-    let lastUserScroll = Date.now();
-    let isTyping = false;
-    let typingTimeout: NodeJS.Timeout;
-
-    const handleFocus = (e: FocusEvent) => {
-      if (searchRef.current?.contains(e.target as Node)) {
-        isInputFocused = true;
-        scrollPositionRef.current = window.scrollY;
-      }
-    };
-
-    const handleBlur = (e: FocusEvent) => {
-      if (searchRef.current?.contains(e.target as Node)) {
-        isInputFocused = false;
-        isTyping = false;
-        clearTimeout(typingTimeout);
-      }
-    };
-
-    const handleKeyDown = () => {
-      if (isInputFocused) {
-        isTyping = true;
-        scrollPositionRef.current = window.scrollY;
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-          isTyping = false;
-        }, 150);
-      }
-    };
-
-    const handleWheel = () => {
-      lastUserScroll = Date.now();
-    };
-
-    const handleTouchMove = () => {
-      lastUserScroll = Date.now();
-    };
-
-    const handleScroll = () => {
-      if (isInputFocused && isTyping) {
-        const timeSinceUserScroll = Date.now() - lastUserScroll;
-        // Only prevent scroll if it's automatic (not user-initiated)
-        if (timeSinceUserScroll > 100) {
-          window.scrollTo(0, scrollPositionRef.current);
-        } else {
-          // User is scrolling, update the reference position
-          scrollPositionRef.current = window.scrollY;
+    async function loadCategories() {
+      try {
+        const response = await fetch("/api/categories");
+        const data = await response.json();
+        
+        if (data.success && data.categories) {
+          setCatalogCategories(data.categories);
         }
+      } catch (error) {
+        console.error("Failed to load categories:", error);
       }
-    };
-
-    document.addEventListener('focusin', handleFocus);
-    document.addEventListener('focusout', handleBlur);
-    document.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('wheel', handleWheel, { passive: true });
-    window.addEventListener('touchmove', handleTouchMove, { passive: true });
-    window.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      document.removeEventListener('focusin', handleFocus);
-      document.removeEventListener('focusout', handleBlur);
-      document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('scroll', handleScroll);
-      clearTimeout(typingTimeout);
-    };
+    }
+    
+    loadCategories();
   }, []);
 
-  // Sync category with URL hash
+  // Sync category with URL query and hash
   useEffect(() => {
-    const syncFromHash = () => {
-      // Store current scroll position
-      const scrollY = window.scrollY;
+    const syncFromURL = () => {
+      const url = new URL(window.location.href);
       
+      // Handle category from query parameter (new format)
+      const categoryParam = url.searchParams.get('category');
+      if (categoryParam) {
+        const cat = decodeURIComponent(categoryParam.trim());
+        setActiveCategory(cat);
+        return;
+      }
+      
+      // Fallback to hash for compatibility
       const hash = window.location.hash;
       const catMatch = hash.match(/category=([^&#]*)/);
       if (catMatch) {
         const cat = decodeURIComponent(catMatch[1].trim());
         setActiveCategory(cat);
       }
-      
-      // Restore scroll position immediately to prevent jump
-      window.scrollTo(0, scrollY);
     };
-    syncFromHash();
-    window.addEventListener("hashchange", syncFromHash);
-    return () => window.removeEventListener("hashchange", syncFromHash);
+    syncFromURL();
+    window.addEventListener("hashchange", syncFromURL);
+    window.addEventListener("popstate", syncFromURL);
+    return () => {
+      window.removeEventListener("hashchange", syncFromURL);
+      window.removeEventListener("popstate", syncFromURL);
+    };
   }, []);
 
   const handleCategoryChange = (category: string) => {
     setActiveCategory(category);
-    window.location.hash = `category=${encodeURIComponent(category)}`;
     
-    // Don't automatically scroll - let user control scrolling
-    // This prevents unwanted jumps when typing in search
+    // Update URL without page reload
+    const url = new URL(window.location.href);
+    if (category === "Всі") {
+      url.searchParams.delete('category');
+    } else {
+      url.searchParams.set('category', category);
+    }
+    url.hash = 'catalog';
+    window.history.replaceState({}, '', url.toString());
+    
+    // Scroll to catalog section
+    const catalogElement = document.getElementById('catalog');
+    if (catalogElement) {
+      catalogElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    // Close catalog dropdown if it's open
+    setShowCatalog(false);
+  };
+
+  const handleCatalogCategoryClick = (category: string) => {
+    handleCategoryChange(category);
   };
 
   // Use useMemo to prevent re-renders
@@ -192,62 +190,114 @@ export function TemuSearchBar({
     return [];
   }, [searchQuery, products]);
 
+  const updateMobileMenuPosition = useCallback(() => {
+    if (typeof window === "undefined" || !mobileMenuRef.current) return;
+    const rect = mobileMenuRef.current.getBoundingClientRect();
+    setMobileMenuPosition({
+      top: rect.bottom + 8,
+      right: window.innerWidth - rect.right,
+    });
+  }, []);
+
+  const updateSupportPosition = useCallback(() => {
+    if (typeof window === "undefined" || !supportRef.current) return;
+    const rect = supportRef.current.getBoundingClientRect();
+    setSupportPosition({
+      top: rect.bottom + 8,
+      left: rect.right - 200,
+    });
+  }, []);
+
+  const updateCatalogPosition = useCallback(() => {
+    if (typeof window === "undefined" || !catalogRef.current) return;
+    const rect = catalogRef.current.getBoundingClientRect();
+    setCatalogPosition({
+      top: rect.bottom + 8,
+      left: rect.left,
+    });
+  }, []);
+
+  const updateSuggestionsPosition = useCallback(() => {
+    if (typeof window === "undefined" || !searchRef.current) return;
+    const rect = searchRef.current.getBoundingClientRect();
+    setSuggestionsPosition({
+      top: rect.bottom + 8,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
+  // Update mobile menu dropdown position
+  useLayoutEffect(() => {
+    if (!showMobileMenu) return;
+    const handleReposition = () => updateMobileMenuPosition();
+    updateMobileMenuPosition();
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
+  }, [showMobileMenu, updateMobileMenuPosition]);
+
   // Update support dropdown position
   useLayoutEffect(() => {
-    if (showSupport && supportRef.current) {
-      const rect = supportRef.current.getBoundingClientRect();
-      setSupportPosition({
-        top: rect.bottom + window.scrollY + 8,
-        left: rect.right + window.scrollX - 200 // Align to right edge
-      });
-    }
-  }, [showSupport]);
+    if (!showSupport) return;
+    const handleReposition = () => updateSupportPosition();
+    updateSupportPosition();
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
+  }, [showSupport, updateSupportPosition]);
 
-  // Update suggestions visibility and position without causing scroll
+  // Update catalog dropdown position
+  useLayoutEffect(() => {
+    if (!showCatalog) return;
+    const handleReposition = () => updateCatalogPosition();
+    updateCatalogPosition();
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
+  }, [showCatalog, updateCatalogPosition]);
+
+  // Update suggestions visibility and position
   useLayoutEffect(() => {
     const shouldShow = suggestions.length > 0 && searchQuery.trim().length >= 2;
     
     if (shouldShow) {
-      // Store scroll before any DOM changes
-      const scrollY = window.scrollY;
-      
       setShowSuggestions(true);
       
-      // Update position for portal
-      if (searchRef.current) {
-        const rect = searchRef.current.getBoundingClientRect();
-        const newPosition = {
-          top: rect.bottom + window.scrollY + 8,
-          left: rect.left + window.scrollX,
-          width: rect.width
-        };
-        console.log('Suggestions position:', newPosition);
-        setSuggestionsPosition(newPosition);
-      }
-      
-      // Restore scroll immediately after DOM update
-      if (window.scrollY !== scrollY) {
-        window.scrollTo(0, scrollY);
-      }
+      updateSuggestionsPosition();
     } else {
       setShowSuggestions(false);
     }
-  }, [suggestions, searchQuery]);
+  }, [suggestions, searchQuery, updateSuggestionsPosition]);
+
+  useLayoutEffect(() => {
+    if (!showSuggestions) return;
+    const handleReposition = () => updateSuggestionsPosition();
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
+  }, [showSuggestions, updateSuggestionsPosition]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Store current scroll position
-      const scrollY = window.scrollY;
-      
       // Use only query parameters, no hash
       const url = new URL(window.location.href);
       url.searchParams.set('q', searchQuery);
       url.hash = ''; // Clear hash completely
       window.history.pushState({}, '', url);
-      
-      // Restore scroll position immediately
-      window.scrollTo(0, scrollY);
       
       // Trigger catalog update with custom event
       window.dispatchEvent(new CustomEvent('searchupdate', { detail: { query: searchQuery } }));
@@ -256,12 +306,12 @@ export function TemuSearchBar({
     }
   };
 
-  const handleSuggestionClick = (product: CatalogProduct) => {
-    setShowSuggestions(false);
-    
-    // Navigate to product page using Next.js router
-    router.push(`/product/${product.id}`);
-  };
+  // const handleSuggestionClick = (product: CatalogProduct) => {
+  //   setShowSuggestions(false);
+  //   
+  //   // Navigate to product page using window.location
+  //   window.location.href = `/product/${product.id}`;
+  // };
 
   return (
     <div 
@@ -288,8 +338,8 @@ export function TemuSearchBar({
             </div>
           </Link>
 
-          {/* Search */}
-          <div className="flex-1 max-w-2xl relative" style={{ zIndex: 1001 }}>
+          {/* Search - larger on mobile */}
+          <div className="flex-1 relative" style={{ zIndex: 1001 }}>
             <form onSubmit={handleSearch} className="relative" ref={searchRef}>
             <div className="relative">
             <input
@@ -310,7 +360,7 @@ export function TemuSearchBar({
               }}
               placeholder="Пошук: чаї, пластирі, масла..."
               aria-placeholder="Пошук товарів&hellip;"
-              className="w-full h-9 md:h-10 pl-9 sm:pl-11 pr-3 sm:pr-4 rounded-full bg-white text-xs sm:text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D4AF37] shadow-sm"
+              className="w-full h-10 md:h-10 pl-10 pr-3 rounded-full bg-white text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D4AF37] shadow-sm sm:pl-11 sm:pr-4"
               inputMode="search"
               autoComplete="off"
               autoCorrect="off"
@@ -323,53 +373,83 @@ export function TemuSearchBar({
           </form>
           </div>
 
-          
-          {/* Support Button with Dropdown */}
-          <div className="relative" ref={supportRef}>
-            <button
-              onClick={() => setShowSupport(!showSupport)}
+          {/* Desktop Navigation - hidden on mobile */}
+          <div className="hidden sm:flex items-center gap-2 sm:gap-3">
+            {/* Catalog Dropdown - only when not on home page */}
+            {pathname !== "/" && (
+              <div className="relative" ref={catalogRef}>
+                <button
+                  onClick={() => setShowCatalog(!showCatalog)}
+                  className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+                  aria-label="Каталог товарів"
+                >
+                  <Grid3x3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden md:inline">Каталог</span>
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Support Button with Dropdown */}
+            <div className="relative" ref={supportRef}>
+              <button
+                onClick={() => setShowSupport(!showSupport)}
+                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+                aria-label="Зв'язатися з нами"
+              >
+                <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden md:inline">Підтримка</span>
+              </button>
+            </div>
+
+            {/* FAQ Link */}
+            <Link
+              href="/faq"
               className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
-              aria-label="Зв'язатися з нами"
+              aria-label="Часті запитання"
             >
-              <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden md:inline">Підтримка</span>
-            </button>
+              <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden md:inline">FAQ</span>
+            </Link>
+
+            {/* Wishlist */}
+            <Link
+              href="/wishlist"
+              className="relative flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+              aria-label="Переглянути список бажань"
+            >
+              <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden md:inline">Бажання</span>
+              {count > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-red-500 text-[9px] sm:text-[10px] font-bold text-white shadow-md">
+                  {count}
+                </span>
+              )}
+            </Link>
+
+            {/* Nova Poshta Tracking - hide when on tracking page */}
+            {pathname !== "/tracking" && (
+              <Link
+                href="/tracking"
+                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+                aria-label="Відстежити посилку Новою Поштою"
+              >
+                <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden md:inline">Відстежити посилку</span>
+              </Link>
+            )}
           </div>
 
-          {/* FAQ Link */}
-          <Link
-            href="/faq"
-            className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
-            aria-label="Часті запитання"
-          >
-            <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden md:inline">FAQ</span>
-          </Link>
-
-          {/* Wishlist */}
-          <Link
-            href="/wishlist"
-            className="relative flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
-            aria-label="Переглянути список бажань"
-          >
-            <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden md:inline">Бажання</span>
-            {count > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-red-500 text-[9px] sm:text-[10px] font-bold text-white shadow-md">
-                {count}
-              </span>
-            )}
-          </Link>
-
-          {/* Nova Poshta Tracking */}
-          <Link
-            href="/tracking"
-            className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
-            aria-label="Відстежити посилку Новою Поштою"
-          >
-            <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden md:inline">Відстежити посилку</span>
-          </Link>
+          {/* Mobile Menu Button */}
+          <div className="sm:hidden relative" ref={mobileMenuRef}>
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-1.5 text-[10px] font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+              aria-label="Меню"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -406,7 +486,7 @@ export function TemuSearchBar({
                 console.log('MouseDown on product!', product.id);
                 setShowSuggestions(false);
                 setTimeout(() => {
-                  router.push(`/product/${product.id}`);
+                  window.location.href = `/product/${product.id}`;
                 }, 0);
               }}
               className="w-full flex items-center gap-3 p-3 hover:bg-emerald-50 transition-colors text-left border-b border-gray-50 last:border-b-0 cursor-pointer"
@@ -501,6 +581,125 @@ export function TemuSearchBar({
               <MessageCircle size={20} className="text-emerald-600" />
               <span className="text-sm font-semibold">{siteConfig.phone}</span>
             </a>
+          )}
+        </div>,
+        document.body
+      )}
+
+      {/* Mobile Menu Dropdown Portal - render outside DOM to avoid z-index issues */}
+      {showMobileMenu && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[150] min-w-[200px] right-4"
+          style={{
+            top: `${mobileMenuPosition.top}px`,
+            right: `${mobileMenuPosition.right}px`
+          }}
+        >
+          {/* Catalog Dropdown - only when not on home page */}
+          {pathname !== "/" && (
+            <button
+              onClick={() => {
+                setShowCatalog(!showCatalog);
+                setShowMobileMenu(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 text-left"
+            >
+              <div className="text-emerald-600">
+                <Grid3x3 size={18} />
+              </div>
+              <span className="text-sm font-semibold">Каталог</span>
+            </button>
+          )}
+
+          {/* Support Button */}
+          <button
+            onClick={() => {
+              setShowSupport(!showSupport);
+              setShowMobileMenu(false);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 text-left border-t border-gray-100"
+          >
+            <div className="text-gray-700">
+              <MessageCircle size={18} />
+            </div>
+            <span className="text-sm font-semibold">Підтримка</span>
+          </button>
+
+          {/* FAQ Link */}
+          <Link
+            href="/faq"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+            onClick={() => setShowMobileMenu(false)}
+          >
+            <div className="text-gray-700">
+              <HelpCircle size={18} />
+            </div>
+            <span className="text-sm font-semibold">FAQ</span>
+          </Link>
+
+          {/* Wishlist */}
+          <Link
+            href="/wishlist"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+            onClick={() => setShowMobileMenu(false)}
+          >
+            <div className="text-gray-700">
+              <Heart size={18} />
+            </div>
+            <span className="text-sm font-semibold">Бажання</span>
+            {count > 0 && (
+              <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                {count}
+              </span>
+            )}
+          </Link>
+
+          {/* Nova Poshta Tracking - hide when on tracking page */}
+          {pathname !== "/tracking" && (
+            <Link
+              href="/tracking"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+              onClick={() => setShowMobileMenu(false)}
+            >
+              <div className="text-gray-700">
+                <Package size={18} />
+              </div>
+              <span className="text-sm font-semibold">Відстежити посилку</span>
+            </Link>
+          )}
+        </div>,
+        document.body
+      )}
+
+      {/* Catalog Dropdown Portal - render outside DOM to avoid z-index issues */}
+      {showCatalog && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[150] min-w-[220px] max-h-[400px] overflow-y-auto"
+          style={{
+            top: `${catalogPosition.top}px`,
+            left: `${catalogPosition.left}px`
+          }}
+        >
+          {catalogCategories.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-gray-500">
+              Завантаження категорій...
+            </div>
+          ) : (
+            catalogCategories.map((category) => {
+              const Icon = getCategoryIcon(category);
+              return (
+                <button
+                  key={category}
+                  onClick={() => handleCatalogCategoryClick(category)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 text-left border-t border-gray-100 first:border-t-0"
+                >
+                  <div className="text-emerald-600">
+                    <Icon size={18} />
+                  </div>
+                  <span className="text-sm font-semibold">{category}</span>
+                </button>
+              );
+            })
           )}
         </div>,
         document.body

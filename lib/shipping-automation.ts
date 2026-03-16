@@ -53,7 +53,6 @@ export async function updateOrderShippingStatus(
     }
 
     // Update Sitniks if status changed
-    let sitniksUpdated = false;
     if (oldStatus !== newStatus) {
       try {
         // Map our status to Sitniks status
@@ -71,7 +70,7 @@ export async function updateOrderShippingStatus(
         }
         
         await updateSitniksOrder(order.orderReference, sitniksStatus);
-        sitniksUpdated = true;
+        // sitniksUpdated = true;
       } catch (error) {
         console.error(`[shipping-automation] Failed to update Sitniks order ${order.orderReference}:`, error);
       }
@@ -159,7 +158,7 @@ export async function batchUpdateShippingStatuses(
  * This would typically integrate with your order management system
  */
 export async function getOrdersNeedingUpdate(
-  hoursSinceLastCheck: number = 6
+  _hoursSinceLastCheck: number = 6
 ): Promise<OrderWithTracking[]> {
   // This is a placeholder implementation
   // In a real application, you would:

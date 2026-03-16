@@ -23,6 +23,7 @@
 import Script from "next/script";
 import { useEffect } from "react";
 import { useWindow } from "@/hooks/use-isomorphic";
+import { useLocalStorage } from "@/hooks/use-isomorphic";
 
 /* ─── Extend Window for fbq / gtag ──────────────────────── */
 declare global {
@@ -40,9 +41,19 @@ declare global {
 const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
 const GA4_ID   = process.env.NEXT_PUBLIC_GA4_ID;
 
+const STORAGE_KEY = "fhm_cookie_consent";
+
+interface CookieConsent {
+  necessary: boolean;
+  analytics: boolean;
+  marketing: boolean;
+  ts: number;
+}
+
 /* ─── Analytics script component ────────────────────────── */
 export function Analytics() {
   const { isClient } = useWindow();
+  const [consent] = useLocalStorage<CookieConsent | null>(STORAGE_KEY, null);
   
   // Setup global error handling when component mounts
   useEffect(() => {
@@ -51,10 +62,14 @@ export function Analytics() {
     }
   }, [isClient]);
 
+  // Check if analytics and marketing are allowed
+  const allowAnalytics = consent?.analytics ?? false;
+  const allowMarketing = consent?.marketing ?? false;
+
   return (
     <>
-      {/* ── Meta Pixel ── */}
-      {PIXEL_ID && (
+      {/* ── Meta Pixel (Marketing) ── */}
+      {PIXEL_ID && allowMarketing && (
         <>
           <Script id="meta-pixel" strategy="afterInteractive">{`
             !function(f,b,e,v,n,t,s)
@@ -82,8 +97,8 @@ export function Analytics() {
         </>
       )}
 
-      {/* ── Google Analytics 4 ── */}
-      {GA4_ID && (
+      {/* ── Google Analytics 4 (Analytics) ── */}
+      {GA4_ID && allowAnalytics && (
         <>
           <Script
             id="ga4-loader"
@@ -133,162 +148,222 @@ interface ViewContentParams {
 
 /** Fire a custom Meta Pixel event + GA4 custom event */
 export function trackEvent(eventName: string, params?: Record<string, unknown>) {
-  try {
-    if (typeof window !== 'undefined') {
-      if (window.fbq) window.fbq("trackCustom", eventName, params ?? {});
-      if (window.gtag) window.gtag("event", eventName, params ?? {});
+  // Check consent before tracking
+  if (typeof window !== 'undefined') {
+    try {
+      const consentStr = localStorage.getItem(STORAGE_KEY);
+      if (consentStr) {
+        const consent: CookieConsent | null = JSON.parse(consentStr);
+        if (!consent) return;
+        
+        // Meta Pixel requires marketing consent
+        if (window.fbq && consent.marketing) {
+          window.fbq("trackCustom", eventName, params ?? {});
+        }
+        
+        // GA4 requires analytics consent
+        if (window.gtag && consent.analytics) {
+          window.gtag("event", eventName, params ?? {});
+        }
+      }
+    } catch (e) {
+      console.warn("[analytics] trackEvent error:", e);
     }
-  } catch (e) {
-    console.warn("[analytics] trackEvent error:", e);
   }
 }
 
 /** 🛒 Purchase — fire on /checkout/success */
 export function trackPurchase(params: PurchaseParams) {
   const { value, currency = "UAH", orderId, contents } = params;
-  try {
-    if (typeof window !== 'undefined') {
-      /* Meta Pixel */
-      if (window.fbq) {
-        window.fbq("track", "Purchase", {
-          value,
-          currency,
-          order_id: orderId,
-          content_type: "product",
-          ...(contents ? { contents } : {}),
-        });
+  if (typeof window !== 'undefined') {
+    try {
+      const consentStr = localStorage.getItem(STORAGE_KEY);
+      if (consentStr) {
+        const consent: CookieConsent | null = JSON.parse(consentStr);
+        if (!consent) return;
+        
+        /* Meta Pixel - requires marketing consent */
+        if (window.fbq && consent.marketing) {
+          window.fbq("track", "Purchase", {
+            value,
+            currency,
+            order_id: orderId,
+            content_type: "product",
+            ...(contents ? { contents } : {}),
+          });
+        }
+        
+        /* GA4 - requires analytics consent */
+        if (window.gtag && consent.analytics) {
+          window.gtag("event", "purchase", {
+            transaction_id: orderId,
+            value,
+            currency,
+            items: contents?.map((c) => ({
+              item_id: c.id,
+              quantity: c.quantity,
+              price: c.item_price,
+            })) ?? [],
+          });
+        }
       }
-      /* GA4 — standard e-commerce event */
-      if (window.gtag) {
-        window.gtag("event", "purchase", {
-          transaction_id: orderId,
-          value,
-          currency,
-          items: contents?.map((c) => ({
-            item_id: c.id,
-            quantity: c.quantity,
-            price: c.item_price,
-          })) ?? [],
-        });
-      }
+    } catch (e) {
+      console.warn("[analytics] trackPurchase error:", e);
     }
-  } catch (e) {
-    console.warn("[analytics] trackPurchase error:", e);
   }
 }
 
 /** 🛍️ AddToCart */
 export function trackAddToCart(params: AddToCartParams) {
   const { contentId, contentName, value, currency = "UAH" } = params;
-  try {
-    if (typeof window !== 'undefined') {
-      if (window.fbq) {
-        window.fbq("track", "AddToCart", {
-          content_ids: [String(contentId)],
-          content_name: contentName,
-          value,
-          currency,
-          content_type: "product",
-        });
+  if (typeof window !== 'undefined') {
+    try {
+      const consentStr = localStorage.getItem(STORAGE_KEY);
+      if (consentStr) {
+        const consent: CookieConsent | null = JSON.parse(consentStr);
+        if (!consent) return;
+        
+        if (window.fbq && consent.marketing) {
+          window.fbq("track", "AddToCart", {
+            content_ids: [String(contentId)],
+            content_name: contentName,
+            value,
+            currency,
+            content_type: "product",
+          });
+        }
+        
+        if (window.gtag && consent.analytics) {
+          window.gtag("event", "add_to_cart", {
+            currency,
+            value,
+            items: [{ item_id: contentId, item_name: contentName, price: value }],
+          });
+        }
       }
-      if (window.gtag) {
-        window.gtag("event", "add_to_cart", {
-          currency,
-          value,
-          items: [{ item_id: contentId, item_name: contentName, price: value }],
-        });
-      }
+    } catch (e) {
+      console.warn("[analytics] trackAddToCart error:", e);
     }
-  } catch (e) {
-    console.warn("[analytics] trackAddToCart error:", e);
   }
 }
 
 /** 👁️ ViewContent — fire on product pages */
 export function trackViewContent(params: ViewContentParams) {
   const { contentId, contentName, contentCategory, value, currency = "UAH" } = params;
-  try {
-    if (typeof window !== 'undefined') {
-      if (window.fbq) {
-        window.fbq("track", "ViewContent", {
-          content_ids: [String(contentId)],
-          content_name: contentName,
-          content_category: contentCategory,
-          value,
-          currency,
-          content_type: "product",
-        });
+  if (typeof window !== 'undefined') {
+    try {
+      const consentStr = localStorage.getItem(STORAGE_KEY);
+      if (consentStr) {
+        const consent: CookieConsent | null = JSON.parse(consentStr);
+        if (!consent) return;
+        
+        if (window.fbq && consent.marketing) {
+          window.fbq("track", "ViewContent", {
+            content_ids: [String(contentId)],
+            content_name: contentName,
+            content_category: contentCategory,
+            value,
+            currency,
+            content_type: "product",
+          });
+        }
+        
+        if (window.gtag && consent.analytics) {
+          window.gtag("event", "view_item", {
+            currency,
+            value,
+            items: [{ item_id: contentId, item_name: contentName, item_category: contentCategory, price: value }],
+          });
+        }
       }
-      if (window.gtag) {
-        window.gtag("event", "view_item", {
-          currency,
-          value,
-          items: [{ item_id: contentId, item_name: contentName, item_category: contentCategory, price: value }],
-        });
-      }
+    } catch (e) {
+      console.warn("[analytics] trackViewContent error:", e);
     }
-  } catch (e) {
-    console.warn("[analytics] trackViewContent error:", e);
   }
 }
 
 /** 🔍 Search */
 export function trackSearch(query: string) {
-  try {
-    if (typeof window !== 'undefined') {
-      if (window.fbq) window.fbq("track", "Search", { search_string: query });
-      if (window.gtag) window.gtag("event", "search", { search_term: query });
+  if (typeof window !== 'undefined') {
+    try {
+      const consentStr = localStorage.getItem(STORAGE_KEY);
+      if (consentStr) {
+        const consent: CookieConsent | null = JSON.parse(consentStr);
+        if (!consent) return;
+        
+        if (window.fbq && consent.marketing) {
+          window.fbq("track", "Search", { search_string: query });
+        }
+        
+        if (window.gtag && consent.analytics) {
+          window.gtag("event", "search", { search_term: query });
+        }
+      }
+    } catch (e) {
+      console.warn("[analytics] trackSearch error:", e);
     }
-  } catch (e) {
-    console.warn("[analytics] trackSearch error:", e);
   }
 }
 
 /** ❤️ AddToWishlist */
 export function trackAddToWishlist(params: { contentId: string | number; contentName: string; value: number }) {
-  try {
-    if (typeof window !== 'undefined') {
-      if (window.fbq) {
-        window.fbq("track", "AddToWishlist", {
-          content_ids: [String(params.contentId)],
-          content_name: params.contentName,
-          value: params.value,
-          currency: "UAH",
-        });
+  if (typeof window !== 'undefined') {
+    try {
+      const consentStr = localStorage.getItem(STORAGE_KEY);
+      if (consentStr) {
+        const consent: CookieConsent | null = JSON.parse(consentStr);
+        if (!consent) return;
+        
+        if (window.fbq && consent.marketing) {
+          window.fbq("track", "AddToWishlist", {
+            content_ids: [String(params.contentId)],
+            content_name: params.contentName,
+            value: params.value,
+            currency: "UAH",
+          });
+        }
+        
+        if (window.gtag && consent.analytics) {
+          window.gtag("event", "add_to_wishlist", {
+            currency: "UAH",
+            value: params.value,
+            items: [{ item_id: params.contentId, item_name: params.contentName, price: params.value }],
+          });
+        }
       }
-      if (window.gtag) {
-        window.gtag("event", "add_to_wishlist", {
-          currency: "UAH",
-          value: params.value,
-          items: [{ item_id: params.contentId, item_name: params.contentName, price: params.value }],
-        });
-      }
+    } catch (e) {
+      console.warn("[analytics] trackAddToWishlist error:", e);
     }
-  } catch (e) {
-    console.warn("[analytics] trackAddToWishlist error:", e);
   }
 }
 
 /** 📋 InitiateCheckout */
 export function trackInitiateCheckout(params: { value: number; numItems: number }) {
-  try {
-    if (typeof window !== 'undefined') {
-      if (window.fbq) {
-        window.fbq("track", "InitiateCheckout", {
-          value: params.value,
-          currency: "UAH",
-          num_items: params.numItems,
-        });
+  if (typeof window !== 'undefined') {
+    try {
+      const consentStr = localStorage.getItem(STORAGE_KEY);
+      if (consentStr) {
+        const consent: CookieConsent | null = JSON.parse(consentStr);
+        if (!consent) return;
+        
+        if (window.fbq && consent.marketing) {
+          window.fbq("track", "InitiateCheckout", {
+            value: params.value,
+            currency: "UAH",
+            num_items: params.numItems,
+          });
+        }
+        
+        if (window.gtag && consent.analytics) {
+          window.gtag("event", "begin_checkout", {
+            currency: "UAH",
+            value: params.value,
+          });
+        }
       }
-      if (window.gtag) {
-        window.gtag("event", "begin_checkout", {
-          currency: "UAH",
-          value: params.value,
-        });
-      }
+    } catch (e) {
+      console.warn("[analytics] trackInitiateCheckout error:", e);
     }
-  } catch (e) {
-    console.warn("[analytics] trackInitiateCheckout error:", e);
   }
 }
 
@@ -308,12 +383,27 @@ interface ClientErrorData {
 /** Log client-side JavaScript errors */
 export async function logClientError(errorData: ClientErrorData): Promise<void> {
   try {
+    // Validate error data before logging
+    if (!errorData) {
+      return;
+    }
+    
+    // Check if all required fields are empty or invalid
+    const hasValidMessage = errorData.message && errorData.message.trim() !== '';
+    const hasValidLabel = errorData.label && errorData.label.trim() !== '';
+    const hasValidUrl = errorData.url && errorData.url.trim() !== '';
+    
+    if (!hasValidMessage && !hasValidLabel && !hasValidUrl) {
+      // Skip completely empty error objects
+      return;
+    }
+    
     // Log to console
     console.error('[Client Error]', {
-      label: errorData.label,
-      message: errorData.message,
-      url: errorData.url,
-      timestamp: errorData.timestamp,
+      label: errorData.label || 'Unknown',
+      message: errorData.message || 'No message',
+      url: errorData.url || 'Unknown URL',
+      timestamp: errorData.timestamp || new Date().toISOString(),
     });
     
     // Send to Telegram if configured
@@ -356,22 +446,50 @@ export function setupGlobalErrorHandling(): void {
   // Handle uncaught JavaScript errors
   if (typeof window !== 'undefined') {
     window.addEventListener('error', (event) => {
-      logClientError({
+      // Validate error before processing
+      if (!event.message || event.message.trim() === '') {
+        return;
+      }
+      
+      // Filter out common React DOM errors that are non-critical
+      if (event.message.includes("Cannot read properties of null (reading 'removeChild')")) {
+        // This is a common React cleanup error, log at warning level instead of error
+        console.warn('[React DOM Cleanup Warning]', {
+          message: event.message,
+          url: event.filename || window.location.href,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+      
+      // Additional validation for the error object
+      const errorData = {
         label: 'Global Error Handler',
         message: event.message,
         url: event.filename || window.location.href,
         timestamp: new Date().toISOString(),
         stack: event.error?.stack,
-      });
+      };
+      
+      // Only log if we have meaningful data
+      if (errorData.message && errorData.message.trim() !== '') {
+        logClientError(errorData);
+      }
     });
   }
   
   // Handle unhandled promise rejections
   if (typeof window !== 'undefined') {
     window.addEventListener('unhandledrejection', (event) => {
+      // Validate rejection reason before processing
+      const reasonMessage = event.reason?.message || String(event.reason);
+      if (!reasonMessage || reasonMessage.trim() === '') {
+        return;
+      }
+      
       logClientError({
         label: 'Unhandled Promise Rejection',
-        message: event.reason?.message || String(event.reason),
+        message: reasonMessage,
         url: window.location.href,
         timestamp: new Date().toISOString(),
         stack: event.reason?.stack,

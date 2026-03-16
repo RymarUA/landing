@@ -92,6 +92,12 @@ export async function POST(req: NextRequest) {
 
   const code = generateOtp();
   setOtp(identifier, code, OTP_TTL_MS);
+  
+  // Development: Log OTP code for testing
+  if (process.env.NODE_ENV === "development") {
+    console.log(`🔐 DEV MODE: OTP for ${identifier} is ${code}`);
+  }
+  
   if (type === "phone") {
     recordOtpSentByPhone(identifier);
   }

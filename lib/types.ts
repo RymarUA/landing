@@ -296,6 +296,8 @@ export interface CatalogProduct {
   oldPrice: number | null;
   /** Primary image URL */
   image: string;
+  /** Additional product images (if available) */
+  images?: string[];
   /** Short badge text (e.g. "Хіт", "Новинка", "Знижка") or null */
   badge: string | null;
   /** Tailwind bg-color class for the badge */

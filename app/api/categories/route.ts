@@ -33,8 +33,8 @@ export async function GET() {
       })
       .map((cat) => cat.title);
 
-    // Додаємо "Всі" на початку
-    const uniqueCategories = ["Всі", ...categoryNames];
+    // Додаємо "Всі" та "Безкоштовна доставка" на початку
+    const uniqueCategories = ["Всі", "Безкоштовна доставка", ...categoryNames.filter(cat => cat !== "Безкоштовна доставка")];
 
     return NextResponse.json({
       success: true,

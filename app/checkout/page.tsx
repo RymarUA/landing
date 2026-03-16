@@ -18,6 +18,7 @@ import { trackInitiateCheckout } from "@/components/analytics";
 import { fetchNPCities, fetchNPWarehouses, type NPCity, type NPWarehouse } from "@/lib/novaposhta-api";
 import { Field } from "@/components/ui/field";
 import { ShopFooter } from "@/components/shop-footer";
+import { Minus, Plus, Trash2 } from "lucide-react";
 
 /* ─── Screens (Empty/Redirect) ─── */
 function EmptyCartScreen() {
@@ -56,7 +57,7 @@ function RedirectingScreen() {
 
 /* ─── Main Component ─── */
 export default function CheckoutPage() {
-  const { items, totalCount, totalPrice } = useCart();
+  const { items, totalCount, totalPrice, updateQuantity, removeItem, totalSavings } = useCart();
   const { saved: savedAddress, save: saveAddress, hydrated: addressHydrated } = useSavedAddresses();
   const [submitting, setSubmitting] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
@@ -71,6 +72,7 @@ export default function CheckoutPage() {
   const [cities, setCities] = useState<NPCity[]>([]);
   const [warehouses, setWarehouses] = useState<NPWarehouse[]>([]);
   const [selectedCityRef, setSelectedCityRef] = useState<string>("");
+  const [selectedWarehouseRef, setSelectedWarehouseRef] = useState<string>("");
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [showCityResults, setShowCityResults] = useState(false);
@@ -96,6 +98,11 @@ export default function CheckoutPage() {
       paymentMethod: "online"
     }
   });
+
+  // Register paymentMethod field
+  useEffect(() => {
+    setValue("paymentMethod", paymentMethod);
+  }, [paymentMethod, setValue]);
 
   const nameValue = watch("name") ?? "";
   const phoneValue = watch("phone") ?? "";
@@ -251,17 +258,33 @@ export default function CheckoutPage() {
   }, []);
 
   const onSubmit = async (data: any) => {
+    console.log("[checkout] Form submitted:", data);
+    console.log("[checkout] Payment method:", paymentMethod);
+    console.log("[checkout] Items:", items);
+    
     setSubmitting(true);
     setServerError(null);
     trackInitiateCheckout({ value: totalPrice, numItems: totalCount });
 
     try {
       await cancelAbandonedCart();
+      console.log("[checkout] Sending to API...");
+      console.log("[checkout] Request body:", {
+        ...data,
+        paymentMethod,
+        promoCode: promoResult ? promoInput.trim().toUpperCase() : undefined,
+        discountAmount: discountAmount > 0 ? discountAmount : undefined,
+        items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+        totalPrice: finalPrice,
+      });
+      
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
+          cityRef: selectedCityRef,
+          departmentRef: selectedWarehouseRef,
           paymentMethod,
           promoCode: promoResult ? promoInput.trim().toUpperCase() : undefined,
           discountAmount: discountAmount > 0 ? discountAmount : undefined,
@@ -270,22 +293,34 @@ export default function CheckoutPage() {
         }),
       });
 
+      console.log("[checkout] API response status:", res.status);
       const json = await res.json();
+      console.log("[checkout] API response:", json);
+      
       if (!res.ok) throw new Error(json.error || "Помилка");
 
       saveAddress({ city: data.city, warehouse: data.warehouse, cityRef: selectedCityRef });
 
+      // Clear cart after successful order creation
+      items.forEach(item => removeItem(item.id));
+
       if (paymentMethod === "cod") {
-        window.location.href = `/checkout/success?ref=${json.orderReference}&method=cod`;
+        window.location.href = `/checkout/success?ref=${json.orderNumber}&method=cod`;
         return;
       }
 
       setRedirecting(true);
       setTimeout(() => { window.location.href = json.paymentUrl; }, 800);
     } catch (err: any) {
+      console.error("[checkout] Error:", err);
       setServerError(err.message);
       setSubmitting(false);
     }
+  };
+
+  const onError = (errors: any) => {
+    console.error("[checkout] Validation errors:", errors);
+    setServerError("Будь ласка, заповніть всі обов'язкові поля");
   };
 
   if (!mounted) return null;
@@ -293,25 +328,25 @@ export default function CheckoutPage() {
   if (redirecting) return <RedirectingScreen />;
 
   return (
-    <div className="min-h-screen bg-[#F6F4EF] py-10 px-4 flex flex-col">
-      <div className="flex-1">
+    <div className="min-h-screen bg-[#F6F4EF] flex flex-col">
+      <div className="flex-1 py-6 sm:py-10 px-3 sm:px-4">
       <div className="max-w-5xl mx-auto">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-[#7A8A84] hover:text-[#24312E] mb-6 transition-colors">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm text-[#7A8A84] hover:text-[#24312E] mb-4 sm:mb-6 transition-colors">
           <ChevronLeft size={16} /> Назад до магазину
         </Link>
 
-        <h1 className="text-3xl font-black text-[#0F2D2A] mb-8 flex items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-black text-[#0F2D2A] mb-6 sm:mb-8 flex items-center gap-3">
           Оформлення замовлення
           <span className="text-sm font-semibold bg-[#E7EFEA] text-[#1F6B5E] px-3 py-1 rounded-full">{totalCount}</span>
         </h1>
 
-        <div className="grid lg:grid-cols-5 gap-8">
+        <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
           {/* LEFT: FORM */}
-          <div className="lg:col-span-3 flex flex-col gap-5">
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+          <div className="lg:col-span-3 flex flex-col gap-4 sm:gap-5">
+            <form onSubmit={handleSubmit(onSubmit, onError)} className="flex flex-col gap-5">
               
               {/* 1. Contacts */}
-              <div className="bg-white rounded-3xl shadow-sm border border-[#E7EFEA] p-6 flex flex-col gap-5">
+              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-[#E7EFEA] p-4 sm:p-6 flex flex-col gap-4 sm:gap-5">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">1</div>
                   <h2 className="text-lg font-black text-[#0F2D2A]">Контактні дані</h2>
@@ -325,7 +360,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* 2. Delivery */}
-              <div className="bg-white rounded-3xl shadow-sm border border-[#E7EFEA] p-6 flex flex-col gap-5 overflow-visible">
+              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-[#E7EFEA] p-4 sm:p-6 flex flex-col gap-4 sm:gap-5 overflow-visible">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">2</div>
                   <h2 className="text-lg font-black text-[#0F2D2A]">Доставка Новою Поштою</h2>
@@ -442,7 +477,7 @@ export default function CheckoutPage() {
                           }
                         }
                       }}
-                      className="px-3 py-1.5 rounded-lg border border-[#E7EFEA] text-sm font-medium text-[#24312E] hover:border-[#C9B27C]/50 hover:text-[#1F6B5E] transition-colors"
+                      className="px-2 sm:px-3 py-1.5 rounded-lg border border-[#E7EFEA] text-xs sm:text-sm font-medium text-[#24312E] hover:border-[#C9B27C]/50 hover:text-[#1F6B5E] transition-colors"
                     >
                       {cityName}
                     </button>
@@ -455,6 +490,13 @@ export default function CheckoutPage() {
                     <select
                       {...register("warehouse")}
                       disabled={!selectedCityRef || loadingWarehouses}
+                      onChange={(e) => {
+                        const selectedWarehouse = warehouses.find(wh => wh.Description === e.target.value);
+                        if (selectedWarehouse) {
+                          setSelectedWarehouseRef(selectedWarehouse.Ref);
+                        }
+                        setValue("warehouse", e.target.value, { shouldValidate: true });
+                      }}
                       className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] bg-white text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none disabled:bg-[#F6F4EF] transition appearance-none cursor-pointer"
                     >
                       <option value="">{loadingWarehouses ? "Завантаження..." : "Оберіть відділення"}</option>
@@ -473,7 +515,7 @@ export default function CheckoutPage() {
                   <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">3</div>
                   <h2 className="text-lg font-black text-[#0F2D2A]">Спосіб оплати</h2>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {([
                     { value: "online" as const, label: "Онлайн-оплата", sublabel: "WayForPay — Visa/MC", icon: <CreditCard size={20} /> },
                     { value: "cod"    as const, label: "Накладений платіж", sublabel: "Оплата при отриманні", icon: <Banknote size={20} /> },
@@ -500,7 +542,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* 4. Promo code */}
-              <div className="bg-white rounded-3xl shadow-sm border border-[#E7EFEA] p-6">
+              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-[#E7EFEA] p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">4</div>
                   <h2 className="text-lg font-black text-[#0F2D2A]">Промокод</h2>
@@ -521,7 +563,7 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <div className="relative flex-1">
                       <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A8A84]" />
                       <input
@@ -553,7 +595,7 @@ export default function CheckoutPage() {
                 <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm font-medium">⚠️ {serverError}</div>
               )}
 
-              <button type="submit" disabled={submitting} className="flex items-center justify-center gap-3 bg-[#1F6B5E] hover:bg-[#0F2D2A] disabled:opacity-60 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98]">
+              <button type="submit" disabled={submitting} className="flex items-center justify-center gap-3 bg-[#1F6B5E] hover:bg-[#0F2D2A] disabled:opacity-60 text-white font-black py-3 sm:py-4 px-4 rounded-xl sm:rounded-2xl shadow-lg transition-all active:scale-[0.98] text-sm sm:text-base">
                 {submitting ? <Loader2 size={20} className="animate-spin" /> : (
                   <>
                     {paymentMethod === "online" ? <CreditCard size={20} /> : <Banknote size={20} />}
@@ -565,25 +607,58 @@ export default function CheckoutPage() {
           </div>
 
           {/* RIGHT: SUMMARY */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-3xl shadow-sm border border-[#E7EFEA] p-6 sticky top-24">
+          <div className="lg:col-span-2 order-first lg:order-last mb-6 lg:mb-0">
+            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-[#E7EFEA] p-4 sm:p-6 lg:sticky lg:top-24">
               <h2 className="text-base font-black text-[#0F2D2A] mb-4">Ваше замовлення</h2>
-              <div className="flex flex-col gap-3 max-h-72 overflow-y-auto mb-5 scrollbar-thin">
+              <div className="flex flex-col gap-3 max-h-80 sm:max-h-72 overflow-y-auto mb-4 sm:mb-5 scrollbar-thin">
                 {items.map((item) => (
-                  <div key={`${item.id}-${item.size ?? ""}`} className="flex items-center gap-3 group">
-                    <div className="relative w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-[#E7EFEA]">
+                  <div key={`${item.id}-${item.size ?? ""}`} className="flex items-center gap-3 group py-3 border-b border-[#E7EFEA] last:border-b-0">
+                    <div className="relative w-14 h-14 sm:w-12 sm:h-12 flex-shrink-0 rounded-xl overflow-hidden bg-[#E7EFEA]">
                       <Image src={item.image} alt={item.name} fill sizes="48px" className="object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[#0F2D2A] truncate">{item.name}</p>
-                      <p className="text-xs text-[#7A8A84]">× {item.quantity}</p>
+                      <p className="text-sm sm:text-sm font-bold text-[#0F2D2A] line-clamp-2">{item.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center bg-[#F6F4EF] rounded-lg h-10 sm:h-8">
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                            className="p-2.5 sm:p-1 hover:bg-[#E7EFEA] rounded-l-lg transition-colors h-full flex items-center justify-center"
+                          >
+                            <Minus size={7} className="sm:size-5 text-[#1F6B5E]" />
+                          </button>
+                          <span className="px-3 sm:px-2 text-sm sm:text-xs font-semibold text-[#0F2D2A] min-w-[32px] sm:min-w-[20px] text-center">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            className="p-2.5 sm:p-1 hover:bg-[#E7EFEA] rounded-r-lg transition-colors h-full flex items-center justify-center"
+                          >
+                            <Plus size={7} className="sm:size-5 text-[#1F6B5E]" />
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="p-2.5 sm:p-1 hover:bg-red-50 rounded-lg transition-colors group h-10 w-10 sm:h-8 sm:w-8 flex items-center justify-center"
+                        >
+                          <Trash2 size={14} className="sm:size-12 text-[#7A8A84] group-hover:text-red-500" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-sm font-semibold text-[#0F2D2A]">{(item.price * item.quantity).toLocaleString()} грн</div>
+                    <div className="text-sm sm:text-sm font-semibold text-[#0F2D2A] min-w-0 text-right">{(item.price * item.quantity).toLocaleString()} грн</div>
                   </div>
                 ))}
               </div>
-              <div className="border-t border-[#E7EFEA] pt-4 space-y-2">
-                <div className="flex justify-between text-sm text-[#7A8A84]"><span>Доставка</span><span className="text-[#1F6B5E] font-semibold">За тарифами НП</span></div>
+              <div className="border-t border-[#E7EFEA] pt-4 sm:pt-4 space-y-3">
+                {totalSavings > 0 && (
+                  <div className="flex justify-between text-sm text-green-600 font-semibold">
+                    <span>Економія:</span>
+                    <span>{totalSavings.toLocaleString()} грн</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm text-[#7A8A84] py-1"><span>Доставка</span><span className="text-[#1F6B5E] font-semibold">За тарифами НП</span></div>
                 {discountAmount > 0 && (
                   <>
                     <div className="flex justify-between text-sm text-[#7A8A84]">
@@ -595,7 +670,7 @@ export default function CheckoutPage() {
                     </div>
                   </>
                 )}
-                <div className="flex justify-between items-center"><span className="font-semibold text-[#0F2D2A]">До оплати:</span><span className="text-xl font-semibold text-[#1F6B5E]">{finalPrice.toLocaleString()} грн</span></div>
+                <div className="flex justify-between items-center pt-2 border-t border-[#E7EFEA]"><span className="font-semibold text-[#0F2D2A] text-base">До оплати:</span><span className="text-xl sm:text-xl font-semibold text-[#1F6B5E]">{finalPrice.toLocaleString()} грн</span></div>
               </div>
             </div>
           </div>

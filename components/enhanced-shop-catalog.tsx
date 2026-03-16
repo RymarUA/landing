@@ -354,6 +354,7 @@ export function EnhancedShopCatalog({ products }: EnhancedShopCatalogProps) {
                         onAddToCart={handleAddToCart}
                         searchQuery={searchQuery}
                         priority={index < 2} // First 2 images get priority in grid
+                        compact={false}
                       />
                     </motion.div>
                   ))}

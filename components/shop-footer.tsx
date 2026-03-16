@@ -2,38 +2,22 @@
 "use client";
 import Link from "next/link";
 import { Instagram, Phone } from "lucide-react";
+import { TikTokIcon } from "./icons/tiktok-icon";
 import { siteConfig } from "@/lib/site-config";
 
 export function ShopFooter() {
   return (
     <footer className="bg-emerald-900 text-white py-8 px-4 mt-auto">
       <div className="max-w-6xl mx-auto">
-        {/* Основна інформація в один рядок на desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        {/* 4 колонки: Каталог, Підтримка, Контакти, Соціальні мережі */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-6">
           
-          {/* Бренд */}
+          {/* 1. Каталог - тільки категорії */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#D4AF37]/50 bg-emerald-700 text-white text-sm font-bold">
-                ЗС
-              </span>
-              <div>
-                <div className="text-base font-bold">Здоров&apos;я Сходу</div>
-                <div className="text-xs text-white/70">Ритуали турботи щодня</div>
-              </div>
-            </div>
-            <p className="text-white/70 text-sm">
-              Ритуали східної медицини для дому та клініки.
-            </p>
-          </div>
-
-          {/* Каталог - компактно */}
-          <div>
-            <div className="font-bold text-xs mb-2 text-white/80 uppercase">Каталог</div>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            <div className="font-bold text-sm mb-3 text-white uppercase tracking-wide">Каталог</div>
+            <div className="flex flex-col gap-2">
               {siteConfig.catalogCategories
                 .filter((c) => c !== "Всі")
-                .slice(0, 6) // Тільки перші 6
                 .map((cat) => (
                   <a
                     key={cat}
@@ -46,10 +30,29 @@ export function ShopFooter() {
             </div>
           </div>
 
-          {/* Контакти */}
+          {/* 2. Підтримка */}
           <div>
-            <div className="font-bold text-xs mb-2 text-white/80 uppercase">Контакти</div>
-            <div className="space-y-2">
+            <div className="font-bold text-sm mb-3 text-white uppercase tracking-wide">Підтримка</div>
+            <div className="flex flex-col gap-2">
+              <a href="/about" className="text-white/70 hover:text-[#D4AF37] text-sm transition-colors">
+                Повернення товару
+              </a>
+              <a href="/about" className="text-white/70 hover:text-[#D4AF37] text-sm transition-colors">
+                Умови доставки
+              </a>
+              <a href="/about" className="text-white/70 hover:text-[#D4AF37] text-sm transition-colors">
+                Оплата
+              </a>
+              <a href="/about" className="text-white/70 hover:text-[#D4AF37] text-sm transition-colors">
+                Гарантія
+              </a>
+            </div>
+          </div>
+
+          {/* 3. Контакти */}
+          <div>
+            <div className="font-bold text-sm mb-3 text-white uppercase tracking-wide">Контакти</div>
+            <div className="flex flex-col gap-2">
               {siteConfig.phone && (
                 <a
                   href={`tel:${siteConfig.phone}`}
@@ -59,33 +62,50 @@ export function ShopFooter() {
                   {siteConfig.phone}
                 </a>
               )}
-              
-              <div className="flex gap-2 pt-2">
-                {siteConfig.instagramUsername && (
-                  <a
-                    href={`https://www.instagram.com/${siteConfig.instagramUsername}/`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full text-xs font-semibold transition"
-                  >
-                    <Instagram size={14} />
-                    Instagram
-                  </a>
-                )}
-                {siteConfig.telegramUsername && (
-                  <a
-                    href={`https://t.me/${siteConfig.telegramUsername}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full text-xs font-semibold transition"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
-                    </svg>
-                    Telegram
-                  </a>
-                )}
-              </div>
+              <p className="text-white/70 text-sm">м. Одеса, Україна</p>
+              <p className="text-white/70 text-sm">Пн-Пт: 9:00 - 17:00</p>
+            </div>
+          </div>
+
+          {/* 4. Соціальні мережі */}
+          <div>
+            <div className="font-bold text-sm mb-3 text-white uppercase tracking-wide">Соціальні мережі</div>
+            <div className="flex flex-col gap-2">
+              {siteConfig.instagramUsername && (
+                <a
+                  href={`https://www.instagram.com/${siteConfig.instagramUsername}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-white/70 hover:text-[#D4AF37] text-sm transition-colors"
+                >
+                  <Instagram size={14} />
+                  Instagram
+                </a>
+              )}
+              {siteConfig.telegramUsername && (
+                <a
+                  href={`https://t.me/${siteConfig.telegramUsername}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-white/70 hover:text-[#D4AF37] text-sm transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
+                  </svg>
+                  Telegram
+                </a>
+              )}
+              {siteConfig.tiktokUsername && (
+                <a
+                  href={`https://www.tiktok.com/@${siteConfig.tiktokUsername}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-white/70 hover:text-[#D4AF37] text-sm transition-colors"
+                >
+                  <TikTokIcon size={14} />
+                  TikTok
+                </a>
+              )}
             </div>
           </div>
         </div>

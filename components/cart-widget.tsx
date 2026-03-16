@@ -10,6 +10,12 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export function CartWidget() {
   const pathname = usePathname();
+  const [scrollY, setScrollY] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [footerHeight, setFooterHeight] = useState(0);
+  const [bottomNavHeight, setBottomNavHeight] = useState(0);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const bottomNavRef = useRef<HTMLDivElement>(null);
   const {
     items,
     removeItem,
@@ -29,6 +35,112 @@ export function CartWidget() {
 
   const isProductPage = pathname?.startsWith("/product/");
 
+  // Track scroll position, viewport height, and element positions for collision detection
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    const handleResize = () => setViewportHeight(window.innerHeight);
+    
+    const updateElementHeights = () => {
+      // Check footer height
+      const footer = document.querySelector('footer');
+      if (footer) {
+        setFooterHeight(footer.offsetHeight);
+      }
+      
+      // Check bottom navigation height
+      const bottomNav = document.querySelector('[data-bottom-nav]');
+      if (bottomNav) {
+        setBottomNavHeight(bottomNav.offsetHeight);
+      }
+    };
+    
+    handleScroll();
+    handleResize();
+    updateElementHeights();
+    
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleResize);
+    
+    // Use MutationObserver to detect when footer/bottom nav appears
+    const observer = new MutationObserver(updateElementHeights);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+      observer.disconnect();
+    };
+  }, []);
+
+  // Calculate adaptive bottom position with collision detection
+  const getAdaptiveBottom = () => {
+    const baseBottom = isProductPage ? 128 : 80; // 32 vs 20 * 4 for rem units
+    const scrollThreshold = 200;
+    const maxScrollOffset = 60;
+    const cartButtonHeight = 64; // h-16 = 4rem = 64px
+    const safetyMargin = 20; // Extra space between cart and elements
+    
+    let calculatedBottom = baseBottom;
+    
+    // Apply scroll-based adjustment
+    if (scrollY > scrollThreshold) {
+      const scrollProgress = Math.min((scrollY - scrollThreshold) / scrollThreshold, 1);
+      calculatedBottom = baseBottom + (scrollProgress * maxScrollOffset);
+    }
+    
+    // Check collision with footer
+    if (footerHeight > 0) {
+      const documentHeight = document.documentElement.scrollHeight;
+      const footerTop = documentHeight - footerHeight - scrollY;
+      const cartButtonTop = viewportHeight - calculatedBottom - cartButtonHeight;
+      
+      // If cart button would overlap with footer, lift it up
+      if (cartButtonTop > footerTop - safetyMargin) {
+        const overlap = cartButtonTop - (footerTop - safetyMargin);
+        calculatedBottom += overlap + safetyMargin;
+        console.log('🛡️ Collision detected with footer, lifting cart by', overlap + safetyMargin, 'px');
+      }
+    }
+    
+    // Check collision with bottom navigation (only on mobile)
+    if (bottomNavHeight > 0 && viewportHeight < 1024) { // lg breakpoint
+      calculatedBottom = Math.max(calculatedBottom, bottomNavHeight + safetyMargin);
+      console.log('📱 Bottom nav detected, adjusting cart position to', calculatedBottom, 'px');
+    }
+    
+    // Ensure maximum bottom position to prevent going off-screen
+    const maxBottom = viewportHeight - cartButtonHeight - safetyMargin;
+    calculatedBottom = Math.min(calculatedBottom, maxBottom);
+    
+    const finalBottom = Math.max(calculatedBottom, safetyMargin);
+    
+    // Debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🛒 Cart position debug:', {
+        scrollY,
+        viewportHeight,
+        footerHeight,
+        bottomNavHeight,
+        baseBottom,
+        calculatedBottom: finalBottom
+      });
+    }
+    
+    return finalBottom;
+  };
+
+  // Calculate adaptive bottom position for toast
+  const getToastBottom = () => {
+    const buttonBottom = getAdaptiveBottom();
+    const toastOffset = 160; // Space above button
+    return Math.max(buttonBottom + toastOffset, scrollY > 200 ? 240 : 160);
+  };
+
   useEffect(() => {
     if (!hydrated) return;
     if (totalCount > prevCount.current) {
@@ -44,27 +156,32 @@ export function CartWidget() {
 
   return (
     <>
-      {/* ── Floating button: on product page move up on mobile to avoid sticky bar ── */}
-      <motion.button
-        onClick={toggleCart}
-        className={`fixed right-6 z-[110] w-16 h-16 rounded-full shadow-2xl flex items-center justify-center
-          ${isProductPage ? "bottom-32 md:bottom-24" : "bottom-20 md:bottom-24"}
-          bg-gradient-to-br from-emerald-600 to-emerald-700 text-white`}
-        aria-label="Відкрити кошик"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        animate={animate ? { 
-          scale: [1, 1.2, 1.1, 1.2, 1], 
-          boxShadow: [
-            "0 0 0 0 rgba(16, 185, 129, 0.4)",
-            "0 0 0 8px rgba(16, 185, 129, 0.2)",
-            "0 0 0 16px rgba(16, 185, 129, 0.1)",
-            "0 0 0 8px rgba(16, 185, 129, 0.2)",
-            "0 0 0 0 rgba(16, 185, 129, 0)"
-          ]
-        } : { scale: 1, boxShadow: "0 0 0 0 rgba(16, 185, 129, 0)" }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-      >
+      {/* ── Adaptive positioning container ── */}
+      <div className="fixed inset-0 pointer-events-none z-[110]">
+        {/* ── Adaptive floating button: position changes based on scroll ── */}
+        <motion.button
+          onClick={toggleCart}
+          className={`absolute right-6 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center pointer-events-auto
+            bg-gradient-to-br from-emerald-600 to-emerald-700 text-white`}
+          style={{
+            bottom: `${getAdaptiveBottom()}px`,
+            transition: 'bottom 0.3s ease-out'
+          }}
+          aria-label="Відкрити кошик"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          animate={animate ? { 
+            scale: [1, 1.2, 1.1, 1.2, 1], 
+            boxShadow: [
+              "0 0 0 0 rgba(16, 185, 129, 0.4)",
+              "0 0 0 8px rgba(16, 185, 129, 0.2)",
+              "0 0 0 16px rgba(16, 185, 129, 0.1)",
+              "0 0 0 8px rgba(16, 185, 129, 0.2)",
+              "0 0 0 0 rgba(16, 185, 129, 0)"
+            ]
+          } : { scale: 1, boxShadow: "0 0 0 0 rgba(16, 185, 129, 0)" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
         <ShoppingCart size={26} />
         <AnimatePresence>
           {showBadge && (
@@ -113,18 +230,20 @@ export function CartWidget() {
           </div>
 
           {/* Scrollable Content - занимает все доступное пространство */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 flex items-center">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
             {items.length === 0 ? (
-              <div className="text-center py-8 w-full">
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ShoppingCart size={64} className="text-gray-200 mx-auto mb-4" />
-                  <p className="text-gray-400 text-lg font-medium mb-2">Кошик порожній</p>
-                  <p className="text-gray-300 text-sm">Додайте товари з каталогу</p>
-                </motion.div>
+              <div className="flex items-center justify-center h-full w-full">
+                <div className="text-center py-8 w-full">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <ShoppingCart size={64} className="text-gray-200 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg font-medium mb-2">Кошик порожній</p>
+                    <p className="text-gray-300 text-sm">Додайте товари з каталогу</p>
+                  </motion.div>
+                </div>
               </div>
             ) : (
               items.map((item) => (
@@ -245,62 +364,55 @@ export function CartWidget() {
       {/* Toast: quantity increased */}
       {lastQuantityToast && (
         <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.5, rotateX: -15 }}
-          animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }}
-          exit={{ opacity: 0, y: -30, scale: 0.8, rotateX: 15 }}
+          initial={{ opacity: 0, y: 15, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -10, scale: 0.98 }}
           transition={{ 
-            duration: 0.4, 
-            ease: [0.34, 1.56, 0.64, 1],
-            scale: { type: "spring", stiffness: 300, damping: 15 }
+            duration: 0.15,
+            ease: [0.25, 0.46, 0.45, 0.94]
           }}
-          className="fixed bottom-32 md:bottom-28 left-4 right-4 sm:left-auto sm:right-28 z-[60] max-w-sm"
+          className="fixed left-4 right-4 sm:left-auto sm:right-28 z-[60] max-w-sm"
+          style={{
+            bottom: `${getToastBottom()}px`,
+            transition: 'bottom 0.3s ease-out'
+          }}
         >
           <motion.div 
+            initial={{ scale: 0.98, opacity: 0.9 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.02, duration: 0.1 }}
             className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-3 border border-emerald-400/20"
-            animate={{ 
-              boxShadow: [
-                "0 0 0 0 rgba(16, 185, 129, 0.4)",
-                "0 0 0 12px rgba(16, 185, 129, 0.1)",
-                "0 0 0 0 rgba(16, 185, 129, 0)"
-              ]
-            }}
-            transition={{ duration: 1.5, repeat: 1 }}
           >
             <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.1, type: "spring", stiffness: 400, damping: 10 }}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.04, duration: 0.08 }}
               className="w-12 h-12 bg-white/25 rounded-full flex items-center justify-center flex-shrink-0 backdrop-blur-sm"
             >
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ delay: 0.3, duration: 0.5, repeat: 2 }}
-              >
-                <ShoppingCart size={20} />
-              </motion.div>
+              <ShoppingCart size={20} />
             </motion.div>
             <div className="flex-1 min-w-0">
               <motion.p 
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.06, duration: 0.1 }}
                 className="text-sm font-bold leading-tight"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
               >
                 {lastQuantityToast.quantity === 1 ? "Товар додано в кошик!" : "Кількість збільшено!"}
               </motion.p>
               <motion.p 
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.08, duration: 0.1 }}
                 className="text-xs text-white/90 mt-0.5 truncate"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
               >
                 {lastQuantityToast.name} × {lastQuantityToast.quantity}
               </motion.p>
             </div>
             <motion.div
-              initial={{ scale: 0, opacity: 0 }}
+              initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.4, type: "spring", stiffness: 350 }}
+              transition={{ delay: 0.1, duration: 0.08 }}
               className="text-sm bg-white/25 px-3 py-1.5 rounded-full font-bold backdrop-blur-sm border border-white/20"
             >
               +1
@@ -308,6 +420,7 @@ export function CartWidget() {
           </motion.div>
         </motion.div>
       )}
+      </div>
     </>
   );
 }

@@ -31,13 +31,20 @@ import { normalizePhone } from "@/lib/phone-utils";
 import { getCatalogProductById } from "@/lib/instagram-catalog";
 import { logger } from "@/lib/logger";
 import { buildWfpPaymentUrl, getWfpConfig } from "@/lib/wayforpay";
+import { getCurrentUser } from "@/lib/auth-helpers";
 
 // ── Отримай ці ID з Sitniks: Налаштування → Нова Пошта → ID інтеграції
 const NP_INTEGRATION_ID = Number(process.env.SITNIKS_NP_INTEGRATION_ID ?? 0);
 // ── Канал продажів для сайту (Налаштування → Канали продажів)
 const SALES_CHANNEL_ID  = Number(process.env.SITNIKS_SALES_CHANNEL_ID ?? 0);
 // ── Статус "Новий" (Налаштування → Статуси замовлень → ID)
-const NEW_ORDER_STATUS  = Number(process.env.SITNIKS_NEW_STATUS_ID ?? 1);
+const NEW_ORDER_STATUS  = process.env.SITNIKS_NEW_STATUS_ID ? Number(process.env.SITNIKS_NEW_STATUS_ID) : 0;
+
+console.log("[/api/checkout] Environment variables loaded:");
+console.log("  NP_INTEGRATION_ID:", NP_INTEGRATION_ID);
+console.log("  SALES_CHANNEL_ID:", SALES_CHANNEL_ID);
+console.log("  NEW_ORDER_STATUS:", NEW_ORDER_STATUS);
+console.log("  SITNIKS_NEW_STATUS_ID env:", process.env.SITNIKS_NEW_STATUS_ID);
 
 interface CheckoutItem {
   id?: number;
@@ -78,6 +85,9 @@ function validateBody(body: unknown): body is CheckoutBody {
 
 export async function POST(req: NextRequest) {
   try {
+    // Get current authenticated user if available
+    const currentUser = await getCurrentUser();
+    
     const body = await req.json();
 
     if (!validateBody(body)) {
@@ -97,7 +107,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const department = body.department ?? body.warehouse ?? "";
+    const department = body.warehouse ?? "";
+    
+    console.log("[/api/checkout] Received data:");
+    console.log("  cityRef:", body.cityRef);
+    console.log("  departmentRef:", body.departmentRef);
+    console.log("  city:", body.city);
+    console.log("  warehouse:", body.warehouse);
 
     // Server-side price: get products from catalog by ID, ignore frontend totalPrice
     let serverTotal = 0;
@@ -155,7 +171,7 @@ export async function POST(req: NextRequest) {
       })),
 
       // Нова Пошта
-      ...(NP_INTEGRATION_ID > 0 ? {
+      ...(NP_INTEGRATION_ID > 0 && body.cityRef && body.departmentRef ? {
         npDelivery: {
           integrationNovaposhtaId: NP_INTEGRATION_ID,
           price: finalAmount,
@@ -175,16 +191,19 @@ export async function POST(req: NextRequest) {
         }
       } : {}),
 
-      statusId: NEW_ORDER_STATUS > 0 ? NEW_ORDER_STATUS : undefined,
-      salesChannelId: SALES_CHANNEL_ID > 0 ? SALES_CHANNEL_ID : undefined,
+      // Не передаємо statusId, якщо він не встановлений
+      // ВРЕМЕННО ОТКЛЮЧЕНО: statusId вызывает ошибку status_must_be_valid
+      // ...(NEW_ORDER_STATUS > 0 ? { statusId: NEW_ORDER_STATUS } : {}),
+      ...(SALES_CHANNEL_ID > 0 ? { salesChannelId: SALES_CHANNEL_ID } : {}),
 
       clientComment: body.comment,
-      managerComment: `Замовлення з сайту. Оплата: ${(body.paymentMethod === "card" || body.paymentMethod === "online") ? "картка" : "накладений платіж"}`,
+      managerComment: `Замовлення з сайту. Оплата: ${(body.paymentMethod === "card" || body.paymentMethod === "online") ? "картка" : "накладений платіж"}${currentUser ? `. UserID: ${currentUser.userId}` : ""}`,
 
       // Зберігаємо унікальний ID щоб уникнути дублікатів
-      externalId: `web-${Date.now()}`,
+      externalId: `web-${Date.now()}${currentUser ? `-user-${currentUser.userId}` : ""}`,
     };
 
+    console.log("[/api/checkout] Creating order with DTO:", JSON.stringify(dto, null, 2));
     const order = await createSitniksOrder(dto);
 
     if (!order) {

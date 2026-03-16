@@ -124,13 +124,13 @@ export async function fetchNPCities(
  * 
  * @param cityRef - Nova Poshta city reference ID
  * @param query - Optional search string to filter warehouses
- * @param limit - Maximum number of results (default: 50)
+ * @param limit - Maximum number of results (default: 500)
  * @returns Array of warehouses in the specified city
  */
 export async function fetchNPWarehouses(
   cityRef: string,
   query: string = "",
-  limit: number = 50
+  limit: number = 500
 ): Promise<NPWarehouse[]> {
   if (!cityRef) {
     return [];

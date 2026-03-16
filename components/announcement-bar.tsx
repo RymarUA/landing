@@ -27,7 +27,7 @@ export function AnnouncementBar({ announcementText, onVisibilityChange }: Announ
   if (!visible || !announcementText) return null;
 
   return (
-    <div className="sticky top-0 z-[90] bg-emerald-900/95 text-white font-bold text-sm py-2.5 px-4 text-center">
+    <div className="text-white font-bold text-sm py-2.5 px-4 text-center relative">
       <div className="flex items-center justify-center gap-2 flex-wrap px-8">
         <span>{announcementText}</span>
       </div>

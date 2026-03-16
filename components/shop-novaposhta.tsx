@@ -107,6 +107,21 @@ export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
     }
   }, [initialTtn]);
 
+  useEffect(() => {
+    if (initialTtn?.trim() && ttn === initialTtn.trim()) {
+      // Auto-track if TTN is provided in URL and is set in state
+      const timer = setTimeout(() => {
+        track();
+        // Scroll to tracking section
+        const element = document.querySelector('[data-tracking-section]');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 500); // Small delay to ensure UI is ready
+      return () => clearTimeout(timer);
+    }
+  }, [initialTtn, ttn]);
+
   const track = async () => {
     const trimmed = ttn.trim();
     if (!trimmed) {
@@ -166,7 +181,7 @@ export function ShopNovaPoshta({ initialTtn }: { initialTtn?: string }) {
   ];
 
   return (
-    <section className="bg-white py-4 px-4">
+    <section className="bg-white py-4 px-4" data-tracking-section>
       <div className="max-w-5xl mx-auto">
         <div className="grid md:grid-cols-2 gap-10 items-start">
 

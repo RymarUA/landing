@@ -17,13 +17,16 @@ import { ShopFooter } from "@/components/shop-footer";
    ───────────────────────────────────────────────────────────────────────── */
 function SuccessContent() {
   const params = useSearchParams();
-  const orderId = params.get("orderId") ?? "—";
+  const orderNumber = params.get("ref") ?? "—";
+  const paymentMethod = params.get("method") ?? "online";
   const amount  = Number(params.get("amount") ?? 0);
   const { items, totalPrice, clearCart } = useCart();
+  
+  const isCOD = paymentMethod === "cod";
 
   /* Clear cart + fire analytics Purchase event once per order */
   useEffect(() => {
-    const trackKey = `tracked-${orderId}`;
+    const trackKey = `tracked-${orderNumber}`;
     const hasTracked = typeof window !== "undefined" ? sessionStorage.getItem(trackKey) : null;
     if (hasTracked) return;
 
@@ -38,19 +41,24 @@ function SuccessContent() {
     trackPurchase({
       value,
       currency: "UAH",
-      orderId,
+      orderId: orderNumber,
       contents,
     });
 
     clearCart();
     sessionStorage.setItem(trackKey, "true");
-  }, [amount, clearCart, items, orderId, totalPrice]);
+  }, [amount, clearCart, items, orderNumber, totalPrice]);
 
-  const steps = [
-    { icon: "✅", label: "Замовлення прийнято" },
-    { icon: "💳", label: "Оплата підтверджена" },
-    { icon: "📦", label: "Передаємо до відправки" },
-    { icon: "🚚", label: "Нова Пошта доставить за 1–3 дні" },
+  const steps = isCOD ? [
+    { icon: "✅", label: "Замовлення прийнято", active: true },
+    { icon: "💰", label: "Оплата при отриманні", active: true },
+    { icon: "�", label: "Передаємо до відправки", active: false },
+    { icon: "🚚", label: "Нова Пошта доставить за 1–3 дні", active: false },
+  ] : [
+    { icon: "✅", label: "Замовлення прийнято", active: true },
+    { icon: "�💳", label: "Оплата підтверджена", active: true },
+    { icon: "📦", label: "Передаємо до відправки", active: false },
+    { icon: "🚚", label: "Нова Пошта доставить за 1–3 дні", active: false },
   ];
 
   return (
@@ -72,12 +80,15 @@ function SuccessContent() {
               <span className="absolute -top-1 -right-1 text-2xl animate-bounce">🎉</span>
             </div>
 
+            {/* Success message */}
             <h1 className="text-2xl md:text-3xl font-black text-[#0F2D2A] mb-2">
-              Оплата успішна!
+              {isCOD ? "Замовлення прийнято!" : "Оплата успішна!"}
             </h1>
+
+            {/* Order number */}
             <p className="text-[#7A8A84] text-sm mb-1">Номер вашого замовлення:</p>
             <div className="inline-block bg-[#F6F4EF] border border-[#C9B27C]/40 rounded-2xl px-6 py-2 mb-6">
-              <span className="text-2xl font-black text-[#1F6B5E] tracking-widest">#{orderId}</span>
+              <span className="text-2xl font-black text-[#1F6B5E] tracking-widest">#{orderNumber}</span>
             </div>
 
             <p className="text-[#24312E] text-sm leading-relaxed mb-8 max-w-sm mx-auto">
@@ -87,11 +98,11 @@ function SuccessContent() {
 
             {/* Progress steps */}
             <div className="grid grid-cols-2 gap-3 mb-8">
-              {steps.map((step, i) => (
+              {steps.map((step, idx) => (
                 <div
-                  key={i}
+                  key={idx}
                   className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold ${
-                    i <= 1
+                    step.active
                       ? "bg-[#E7EFEA] text-[#1F6B5E] border border-[#C9B27C]/40"
                       : "bg-[#F6F4EF] text-[#7A8A84] border border-[#E7EFEA]"
                   }`}

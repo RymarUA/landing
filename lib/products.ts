@@ -16,6 +16,7 @@ export type Product = {
   price: number;
   oldPrice: number | null;
   image: string;
+  images?: string[];
   badge: string | null;
   badgeColor: string;
   sizes: string[];

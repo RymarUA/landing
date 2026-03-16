@@ -158,57 +158,59 @@ export function ModernProductCard({
 
         {/* Compact Info */}
         <div className="p-1.5 flex flex-col flex-1">
-          {/* Title - single line */}
-          <h3 className="text-[13px] font-semibold text-gray-900 line-clamp-2 leading-tight mb-1">
-            {product.name}
-          </h3>
+          <div className="flex flex-col flex-1">
+            {/* Title - single line */}
+            <h3 className="text-[13px] font-semibold text-gray-900 line-clamp-2 leading-tight mb-1 flex-1">
+              {product.name}
+            </h3>
 
-          {/* Price - bold and prominent */}
-          <div className="mb-1">
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black text-[#E31C25] leading-none">
-                {product.price}
-              </span>
-              <span className="text-[10px] font-bold text-[#E31C25]">грн</span>
-              {product.oldPrice && (
-                <span className="text-[10px] text-gray-400 line-through ml-1">
-                  {product.oldPrice}
-                </span>
-              )}
+            {/* Rating - compact */}
+            <div className="flex items-center gap-0.5 mb-1">
+              <Star size={11} className="fill-[#FF8C00] text-[#FF8C00]" />
+              <span className="text-[11px] font-bold text-gray-900">{product.rating.toFixed(1)}</span>
+              <span className="text-[10px] text-gray-400">({reviewCount}+)</span>
             </div>
-          </div>
 
-          {/* Rating - compact */}
-          <div className="flex items-center gap-0.5 mb-1">
-            <Star size={11} className="fill-[#FF8C00] text-[#FF8C00]" />
-            <span className="text-[11px] font-bold text-gray-900">{product.rating.toFixed(1)}</span>
-            <span className="text-[10px] text-gray-400">({reviewCount}+)</span>
-          </div>
+            {/* Badges - ХІТ and Free Shipping */}
+            {(product.isHit || product.freeShipping) && (
+              <div className="flex flex-wrap gap-1 mb-1.5 mt-auto">
+                {product.isHit && (
+                  <span className="bg-[#FF8C00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                    ★ ХІТ
+                  </span>
+                )}
+                {product.freeShipping && (
+                  <span className="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                    Безкоштовна доставка
+                  </span>
+                )}
+              </div>
+            )}
 
-          {/* Badges - ХІТ and Free Shipping */}
-          {(product.isHit || product.freeShipping) && (
-            <div className="flex flex-wrap gap-1 mb-1.5">
-              {product.isHit && (
-                <span className="bg-[#FF8C00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                  ★ ХІТ
+            {/* Price - bold and prominent */}
+            <div className="mb-1">
+              <div className="flex items-baseline gap-1">
+                <span className="text-lg font-black text-[#E31C25] leading-none">
+                  {product.price}
                 </span>
-              )}
-              {product.freeShipping && (
-                <span className="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                  Безкоштовна доставка
-                </span>
-              )}
+                <span className="text-[10px] font-bold text-[#E31C25]">грн</span>
+                {product.oldPrice && (
+                  <span className="text-[10px] text-gray-400 line-through ml-1">
+                    {product.oldPrice} грн
+                  </span>
+                )}
+              </div>
             </div>
-          )}
 
-          {/* Single compact button */}
-          <button
-            onClick={handleAddToCart}
-            disabled={product.stock === 0}
-            className="w-full bg-[#FF8C00] hover:bg-[#FF7A00] disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-1.5 px-2 rounded-md transition-colors text-[11px] mt-auto"
-          >
-            Купити зараз
-          </button>
+            {/* Single compact button */}
+            <button
+              onClick={handleAddToCart}
+              disabled={product.stock === 0}
+              className="w-full bg-[#FF8C00] hover:bg-[#FF7A00] disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-1.5 px-2 rounded-md transition-colors text-[11px] mt-auto"
+            >
+              Купити зараз
+            </button>
+          </div>
         </div>
       </Link>
     );
@@ -271,65 +273,68 @@ export function ModernProductCard({
 
       {/* Інформація про товар */}
       <div className="p-1.5 flex flex-col flex-1">
-        {/* Назва товару */}
-        <h3 className="text-[13px] font-semibold text-gray-900 line-clamp-2 leading-tight mb-1">
-          {product.name}
-        </h3>
+        <div className="flex flex-col flex-1">
+          {/* Назва товару */}
+          <h3 className="text-[13px] font-semibold text-gray-900 line-clamp-2 leading-tight mb-1 flex-1">
+            {product.name}
+          </h3>
 
-        {/* Рейтинг */}
-        <div className="flex items-center gap-0.5 mb-1">
-          <Star size={11} className="fill-[#FF8C00] text-[#FF8C00]" />
-          <span className="text-[11px] font-bold text-gray-900">{product.rating.toFixed(1)}</span>
-          <span className="text-[10px] text-gray-400">({reviewCount}+)</span>
-        </div>
-
-        {/* Теги ХІТ та Безкоштовна доставка ПІД фото */}
-        {(product.isHit || product.freeShipping) && (
-          <div className="flex flex-wrap gap-1 mb-1.5">
-            {product.isHit && (
-              <span className="bg-[#FF8C00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                ★ ХІТ
-              </span>
-            )}
-            {product.freeShipping && (
-              <span className="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                Безкоштовна доставка
-              </span>
-            )}
+          {/* Рейтинг */}
+          <div className="flex items-center gap-0.5 mb-1">
+            <Star size={11} className="fill-[#FF8C00] text-[#FF8C00]" />
+            <span className="text-[11px] font-bold text-gray-900">{product.rating.toFixed(1)}</span>
+            <span className="text-[10px] text-gray-400">({reviewCount} відгуків)</span>
           </div>
-        )}
 
-        {/* Ціна */}
-        <div className="mb-2">
-          <div className="flex items-baseline gap-1">
-            <span className="text-lg font-black text-[#E31C25] leading-none">
-              {product.price}
-            </span>
-            <span className="text-[10px] font-bold text-[#E31C25]">грн</span>
-            {product.oldPrice && (
-              <span className="text-[10px] text-gray-400 line-through ml-1">
-                {product.oldPrice}
+          {/* Теги ХІТ та Безкоштовна доставка ПІД фото */}
+          {(product.isHit || product.freeShipping) && (
+            <div className="flex flex-wrap gap-1 mb-1.5 mt-auto">
+              {product.isHit && (
+                <span className="bg-[#FF8C00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                  ★ ХІТ
+                </span>
+              )}
+              {product.freeShipping && (
+                <span className="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                  <Truck size={10} />
+                  Безкоштовна доставка
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Ціна */}
+          <div className="mb-2">
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-black text-[#E31C25] leading-none">
+                {product.price}
               </span>
-            )}
+              <span className="text-[10px] font-bold text-[#E31C25]">грн</span>
+              {product.oldPrice && (
+                <span className="text-[10px] text-gray-400 line-through ml-1">
+                  {product.oldPrice} грн
+                </span>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Компактні кнопки як на Temu */}
-        <div className="mt-auto grid grid-cols-2 gap-1">
-          <button
-            onClick={handleAddToCart}
-            disabled={product.stock === 0}
-            className="bg-white border-2 border-[#FF8C00] text-[#FF8C00] hover:bg-[#FF8C00] hover:text-white disabled:bg-gray-100 disabled:border-gray-300 disabled:text-gray-400 font-bold py-1.5 px-2 rounded-md transition-colors text-xs uppercase"
-          >
-            В кошик
-          </button>
-          <button
-            onClick={handleQuickBuy}
-            disabled={product.stock === 0}
-            className="bg-[#FF8C00] hover:bg-[#FF7A00] disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-1.5 px-2 rounded-md transition-colors text-xs uppercase"
-          >
-            Купити
-          </button>
+          {/* Компактні кнопки як на Temu */}
+          <div className="mt-auto grid grid-cols-2 gap-1">
+            <button
+              onClick={handleAddToCart}
+              disabled={product.stock === 0}
+              className="bg-white border-2 border-[#FF8C00] text-[#FF8C00] hover:bg-[#FF8C00] hover:text-white disabled:bg-gray-100 disabled:border-gray-300 disabled:text-gray-400 font-bold py-1.5 px-2 rounded-md transition-colors text-xs uppercase"
+            >
+              В кошик
+            </button>
+            <button
+              onClick={handleQuickBuy}
+              disabled={product.stock === 0}
+              className="bg-[#FF8C00] hover:bg-[#FF7A00] disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-1.5 px-2 rounded-md transition-colors text-xs uppercase"
+            >
+              Купити
+            </button>
+          </div>
         </div>
       </div>
     </Link>

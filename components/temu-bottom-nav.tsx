@@ -57,7 +57,7 @@ export function TemuBottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 lg:bg-emerald-900/85 border-t border-emerald-700/40 backdrop-blur-lg z-[100] pb-[env(safe-area-inset-bottom)] shadow-2xl lg:shadow-xl">
+    <div data-bottom-nav className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 lg:bg-emerald-900/85 border-t border-emerald-700/40 backdrop-blur-lg z-[100] pb-[env(safe-area-inset-bottom)] shadow-2xl lg:shadow-xl">
       <nav className="flex justify-around items-center py-2 px-2 lg:py-1.5 lg:px-4" aria-label="Нижня навігація">
         {navItems.map((item) => (
           <Link

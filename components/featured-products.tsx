@@ -151,6 +151,7 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
                   product={product}
                   onAddToCart={handleAddToCart}
                   priority={index < 2}
+                  compact={false}
                 />
               </motion.div>
             ))}

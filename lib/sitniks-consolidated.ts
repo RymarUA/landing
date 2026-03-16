@@ -190,10 +190,11 @@ function getSitniksConfigOrThrow(): SitniksConfig {
 }
 
 /** Safe fetch: timeout 8000ms, on error log and return null. */
-async function sitniksSafe<T>(
+export async function sitniksSafe<T>(
   method: "GET" | "POST" | "PATCH",
   path: string,
-  body?: unknown
+  body?: unknown,
+  options?: { revalidate?: number }
 ): Promise<T | null> {
   const config = getSitniksConfig();
   if (!config) {
@@ -211,19 +212,31 @@ async function sitniksSafe<T>(
       Accept: "application/json",
     };
 
-    const res = await fetch(`${config.apiUrl}${path}`, {
+    // For GET requests, don't send body
+    const fetchOptions: RequestInit = {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
-      next: { revalidate: 60 },
-    });
+      next: { revalidate: options?.revalidate ?? 60 },
+    };
+
+    // Only add body for POST/PATCH requests
+    if (method !== "GET" && body !== undefined) {
+      fetchOptions.body = JSON.stringify(body);
+    }
+
+    const res = await fetch(`${config.apiUrl}${path}`, fetchOptions);
 
     clearTimeout(timeout);
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error(`[sitniks] HTTP ${res.status}: ${errorText}`);
+      // Reduce noise for expected 404 errors on product lookup
+      if (res.status === 404 && (path.includes('/products/') || path.includes('/open-api/products/'))) {
+        console.log(`[sitniks] Product not found (404): ${path}`);
+      } else {
+        console.error(`[sitniks] HTTP ${res.status}: ${errorText}`);
+      }
       return null;
     }
 
@@ -451,7 +464,10 @@ function createFallbackSettings(): { settings: SiteSettings; source: 'fallback' 
  * Create a new order (safe version - returns null on error).
  */
 export async function createSitniksOrder(dto: CreateOrderDto): Promise<SitniksOrder | null> {
-  return sitniksSafe<SitniksOrder>("POST", "/open-api/orders", dto);
+  console.log("[sitniks] Creating order with DTO:", JSON.stringify(dto, null, 2));
+  const result = await sitniksSafe<SitniksOrder>("POST", "/open-api/orders", dto);
+  console.log("[sitniks] Order creation result:", result);
+  return result;
 }
 
 /**
@@ -530,9 +546,10 @@ export async function updateSitniksOrderStatus(
  */
 export async function getSitniksOrdersByPhone(phone: string): Promise<any[]> {
   try {
+    // Use the working endpoint: /open-api/orders with client_phone parameter
     const response = await sitniksSafe<{ data?: any[]; orders?: any[] }>(
       "GET",
-      `/orders?contact_phone=${encodeURIComponent(phone)}`
+      `/open-api/orders?client_phone=${encodeURIComponent(phone)}`
     );
     
     const list = response?.data ?? response?.orders ?? [];

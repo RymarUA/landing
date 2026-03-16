@@ -44,12 +44,28 @@ const STORAGE_KEY = "fhm_cart_v1";
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems, hydrateCart] = useLocalStorage<CartItem[]>(STORAGE_KEY, []);
+  const [storedItems, setStoredItems] = useLocalStorage<CartItem[]>(STORAGE_KEY, []);
+  const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [lastQuantityToast, setLastQuantityToast] = useState<{ name: string; quantity: number } | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<number>(Date.now());
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ── Load items from localStorage on mount ─────────────
+  useEffect(() => {
+    if (storedItems && storedItems.length > 0) {
+      setItems(storedItems);
+    }
+    setHydrated(true);
+  }, [storedItems]);
+
+  // ── Sync items to localStorage whenever they change ─────────────
+  useEffect(() => {
+    if (hydrated) {
+      setStoredItems(items);
+    }
+  }, [items, hydrated, setStoredItems]);
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
@@ -59,10 +75,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setSessionStartTime(Date.now());
   }, []);
 
-  // ── Mark as hydrated after localStorage load ─────────────
+  // ── Prevent body scroll when cart is open ─────────────
   useEffect(() => {
-    setHydrated(true);
-  }, []);
+    if (isCartOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    };
+  }, [isCartOpen]);
 
   // ── Cleanup toast timer on unmount ─────────────
   useEffect(() => {

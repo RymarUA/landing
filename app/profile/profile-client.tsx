@@ -20,7 +20,7 @@ import {
   Phone, KeyRound, LogOut, Package, ChevronLeft,
   Loader2, CheckCircle, RefreshCw, User, ShoppingBag,
   AlertCircle, ChevronRight, Heart, Copy, Truck, RotateCcw,
-  Mail, Plus, Shield,
+  Mail, Plus, Shield, CreditCard, X,
 } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
@@ -29,12 +29,10 @@ import { blurProps } from "@/lib/utils";
 import { siteConfig } from "@/lib/site-config";
 import { ShopFooter } from "@/components/shop-footer";
 import { useLocalStorage } from "@/hooks/use-isomorphic";
-import dynamic from "next/dynamic";
+import { motion, AnimatePresence } from "framer-motion";
 
-const ShopNovaPoshta = dynamic(
-  () => import("@/components/shop-novaposhta").then(mod => ({ default: mod.ShopNovaPoshta })),
-  { ssr: false }
-);
+import { ShopNovaPoshta } from "@/components/shop-novaposhta";
+
 
 /* ─── Types ──────────────────────────────────────────── */
 type Step = "loading" | "email" | "otp" | "profile" | "add-phone";
@@ -88,6 +86,7 @@ interface Order {
 
 /* ─── Status label map ───────────────────────────────── */
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  "Новий":            { label: "Новий",            color: "text-sky-600 bg-sky-50 border-sky-100" },
   "Очікує оплати":    { label: "Очікує оплати",    color: "text-amber-600 bg-amber-50 border-amber-100" },
   "Оплачено":         { label: "Оплачено",         color: "text-green-600 bg-green-50 border-green-100" },
   "Відправлено":      { label: "Відправлено",       color: "text-blue-600 bg-blue-50 border-blue-100" },
@@ -125,6 +124,8 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [sitniksCustomer, setSitniksCustomer] = useState<any>(null);
   const [customerLoading, setCustomerLoading] = useState(false);
   const [devMode, setDevMode] = useState(true); // Temporary dev mode
+  const [showTracking, setShowTracking] = useState(false);
+  const [trackingTtn, setTrackingTtn] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -133,6 +134,24 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const { count: wishlistCount, ids: wishlistIds, hydrated: wishlistHydrated } = useWishlist();
   const { addItem, updateQuantity } = useCart();
   const PLACEHOLDER_IMG = "https://lrggyvioreorxttbasgi.supabase.co/storage/v1/object/public/app-assets/9586/images/1772177782851-sneakers-hero";
+
+  // Create a Set of valid product IDs for quick lookup
+  const validProductIds = new Set(allProducts.map(p => p.id));
+  
+  // Debug: Log available product IDs
+  console.log("[profile] Available product IDs:", Array.from(validProductIds));
+  console.log("[profile] Total available products:", allProducts.length);
+
+  // Safe link component that handles navigation errors
+  const SafeProductLink = ({ children, productId, ...props }: { children: React.ReactNode; productId: number; } & React.ComponentProps<typeof Link>) => {
+    const isValid = validProductIds.has(productId);
+    
+    if (!isValid) {
+      return <span className="text-gray-600">{children}</span>;
+    }
+    
+    return <Link href={`/product/${productId}`} {...props}>{children}</Link>;
+  };
 
   useEffect(() => {
     // Profile name is handled by useLocalStorage hook
@@ -170,6 +189,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
   /* ── Load orders from API (AbortController prevents setState on unmount) ── */
   const loadOrders = useCallback(async (_phone: string, abortController?: AbortController) => {
+    console.log("[profile] loadOrders called with phone:", _phone);
     setOrdersLoading(true);
     try {
       const res = await fetch("/api/profile/orders", { 
@@ -183,22 +203,56 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       
       const data = await res.json();
       
+      console.log("[profile] API Response status:", res.status);
+      console.log("[profile] Raw API response:", data);
+      
       if (!abortController?.signal.aborted) {
+        console.log("[profile] Orders array:", data.orders);
+        console.log("[profile] Orders length:", data.orders?.length);
         // Transform Sitniks orders to our Order interface
-        const transformedOrders: Order[] = (data.orders || []).map((order: any) => ({
+        const transformedOrders: Order[] = (data.orders || []).map((order: any) => {
+          console.log("[profile] Processing order:", order);
+          return {
           id: order.orderNumber || order.id,
           createdAt: order.createdAt,
-          status: order.status?.name || order.status || 'В обробці',
-          total: order.totalAmount || order.total || 0,
+          status: order.status?.title || order.status?.name || order.status || 'В обробці',
+          total: order.totalPrice || order.totalAmount || order.total || 0,
           trackingNumber: order.trackingNumber,
-          items: (order.products || []).map((item: any) => ({
-            id: item.productVariationId || item.id,
-            name: item.title || item.name,
-            quantity: item.quantity,
-            price: item.price,
-            image: item.image || PLACEHOLDER_IMG,
-          })),
-        }));
+          items: (order.products || order.offers || []).map((item: any) => {
+            // Debug: log productVariation structure
+            console.log("[profile] Product item:", item);
+            console.log("[profile] Product variation:", item.productVariation);
+            console.log("[profile] Product variation images:", item.productVariation?.images);
+            console.log("[profile] Product variation attachments:", item.productVariation?.attachments);
+            
+            // Get image from productVariation if available
+            let imageUrl = PLACEHOLDER_IMG;
+            if (item.productVariation?.images && item.productVariation.images.length > 0) {
+              const firstImage = item.productVariation.images[0];
+              console.log("[profile] First image object:", firstImage);
+              imageUrl = firstImage.url || firstImage.src || firstImage.path || PLACEHOLDER_IMG;
+              console.log("[profile] Found image from productVariation:", imageUrl);
+            }
+            // Try attachments as fallback
+            else if (item.productVariation?.attachments && item.productVariation.attachments.length > 0) {
+              const firstAttachment = item.productVariation.attachments[0];
+              console.log("[profile] First attachment object:", firstAttachment);
+              imageUrl = firstAttachment.url || firstAttachment.src || firstAttachment.path || PLACEHOLDER_IMG;
+              console.log("[profile] Found image from attachments:", imageUrl);
+            }
+            // Fallback to other image fields
+            imageUrl = imageUrl || item.image || item.preview || item.photo || item.imageUrl || PLACEHOLDER_IMG;
+            
+            return {
+              id: item.productVariationId || item.id,
+              name: item.title || item.name,
+              quantity: item.quantity || 1, // Default to 1 if not specified
+              price: item.offerPrice || item.price,
+              image: imageUrl,
+            };
+          }),
+          };
+        });
         
         setOrders(transformedOrders);
       }
@@ -219,11 +273,16 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         const res = await fetch("/api/auth/me", { signal: abortController.signal });
         if (res.ok) {
           const data = await res.json();
+          console.log("[profile] User data from /api/auth/me:", data);
           setLoggedEmail(data.email || "");
           setLoggedPhone(data.phone || "");
+          console.log("[profile] User phone:", data.phone);
           setStep("profile");
           if (data.phone) {
+            console.log("[profile] Calling loadOrders with phone:", data.phone);
             loadOrders(data.phone, abortController);
+          } else {
+            console.log("[profile] No phone found for user, skipping loadOrders");
           }
           loadSitniksCustomer(abortController);
         } else {
@@ -684,13 +743,13 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   /* ── PROFILE STEP ── */
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="flex-1 py-10 px-4">
-      <div className="max-w-2xl mx-auto">
+      <motion.div className="flex-1 py-10 px-4" layout>
+        <div className="max-w-2xl mx-auto">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 mb-2">
+            <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700">
               <ChevronLeft size={15} />
               На головну
             </Link>
@@ -761,9 +820,23 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Мій профіль</p>
-              <p className="font-black text-gray-900 text-lg">
-                {profileName.trim() ? `Привіт, ${profileName.trim()}!` : loggedEmail}
-              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-black text-gray-900 text-lg">
+                  {profileName.trim() ? `Привіт, ${profileName.trim()}!` : loggedEmail}
+                </p>
+                {/* Статус аккаунта */}
+                {loggedPhone ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
+                    <Shield size={11} />
+                    Верифіковано
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-full border border-gray-200">
+                    <AlertCircle size={11} />
+                    Не верифіковано
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-green-600 font-semibold flex items-center gap-1 mt-0.5">
                 <CheckCircle size={11} />
                 Підтверджена пошта
@@ -865,7 +938,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
               </div>
               <p className="font-bold text-gray-500 mb-1">Замовлень поки немає</p>
               <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto leading-relaxed">
-                Ваші майбутні замовлення з ������� ����� будуть відображатися тут.
+                Ваші майбутні замовлення з каталогу будуть відображатися тут.
               </p>
               <Link
                 href="/#catalog"
@@ -894,90 +967,191 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
               )}
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {orders.map((order) => {
                 const { label, color } = statusStyle(order.status);
                 return (
-                  <div key={order.id} className="border border-gray-100 rounded-2xl p-4 flex flex-col gap-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-black text-gray-900 text-sm">Замовлення #{order.id}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {new Date(order.createdAt).toLocaleDateString("uk-UA", {
-                            day: "numeric", month: "long", year: "numeric",
-                          })}
-                        </p>
-                      </div>
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full border ${color}`}>
-                        {label}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {order.items.map((item, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 truncate max-w-[200px]">{item.name} × {item.quantity}</span>
-                          <span className="text-gray-800 font-semibold flex-shrink-0">{(item.price * item.quantity).toLocaleString("uk-UA")} грн</span>
+                  <div key={order.id} className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+                    {/* Order Header */}
+                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-4 border-b border-emerald-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <ShoppingBag size={16} className="text-emerald-600" />
+                            <p className="font-black text-gray-900 text-lg">Замовлення #{order.id}</p>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {new Date(order.createdAt).toLocaleDateString("uk-UA", {
+                              day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit"
+                            })}
+                          </p>
                         </div>
-                      ))}
+                        <span className={`text-sm font-bold px-4 py-2 rounded-full border ${color}`}>
+                          {label}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                      <span className="text-xs text-gray-400">Разом:</span>
-                      <span className="font-black text-emerald-600">{order.total.toLocaleString("uk-UA")} грн</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-2">
+
+                    {/* Order Items */}
+                    <div className="p-6">
+                      <div className="space-y-4">
+                        {order.items.map((item, i) => {
+                          const isValidProduct = item.id && validProductIds.has(item.id);
+                          
+                          // Debug: Log each item's validation
+                          console.log(`[profile] Order item ${i}:`, {
+                            itemId: item.id,
+                            itemName: item.name,
+                            isValid: isValidProduct,
+                            inValidIds: item.id && validProductIds.has(item.id)
+                          });
+                          
+                          return (
+                            <div key={i} className={`flex gap-4 p-4 bg-gray-50 rounded-2xl ${isValidProduct ? 'hover:bg-gray-100 transition-colors' : 'opacity-75'}`}>
+                              {/* Product Image */}
+                              <div className="w-20 h-20 bg-white rounded-xl overflow-hidden flex-shrink-0 border border-gray-100">
+                                <div className="w-full h-full relative">
+                                  {item.image && item.image !== PLACEHOLDER_IMG ? (
+                                    <Image
+                                      src={item.image}
+                                      alt={item.name}
+                                      fill
+                                      sizes="80px"
+                                      className="object-cover"
+                                      {...blurProps()}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                      <Package size={24} className="text-gray-300" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Product Details */}
+                              <div className="flex-1 min-w-0">
+                                <h4 className={`font-bold text-sm mb-1 line-clamp-2 ${isValidProduct ? 'text-gray-900 hover:text-orange-500 transition-colors cursor-pointer' : 'text-gray-600'}`}>
+                                  {item.id ? (
+                                    <SafeProductLink productId={item.id} className="block">
+                                      {item.name}
+                                    </SafeProductLink>
+                                  ) : (
+                                    <span>{item.name}</span>
+                                  )}
+                                </h4>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500">Кількість:</span>
+                                    <span className="text-sm font-semibold text-gray-700">{item.quantity} шт.</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-black text-emerald-600 text-sm">
+                                      {(item.price * item.quantity).toLocaleString("uk-UA")} грн
+                                    </span>
+                                    {!isValidProduct && (
+                                      <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">
+                                        Недоступно
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Order Total */}
+                      <div className="mt-6 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-gray-500">Сума замовлення</p>
+                            <p className="text-2xl font-black text-gray-900 mt-1">
+                              {order.total.toLocaleString("uk-UA")} грн
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-400 mb-2">Оплата:</p>
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg border border-amber-200">
+                              <CreditCard size={12} />
+                              Наложений платіж
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tracking Number Display */}
                       {order.trackingNumber && (
-                        <>
-                          <Link
-                            href={`/?ttn=${encodeURIComponent(order.trackingNumber)}#tracking`}
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100"
-                          >
-                            <Truck size={13} />
-                            Відстежити ТТН
-                          </Link>
+                        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                          <p className="text-xs text-gray-600 font-semibold mb-1">Номер ТТН:</p>
+                          <div className="flex items-center gap-2">
+                            <code className="text-sm font-bold text-blue-700">{order.trackingNumber}</code>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await navigator.clipboard?.writeText(order.trackingNumber!);
+                                setCopiedTTN(order.trackingNumber!);
+                                setTimeout(() => setCopiedTTN(null), 2000);
+                              }}
+                              className="text-blue-600 hover:text-blue-700 transition-colors"
+                            >
+                              {copiedTTN === order.trackingNumber ? (
+                                <CheckCircle size={14} className="text-green-600" />
+                              ) : (
+                                <Copy size={14} />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="mt-6 flex flex-wrap gap-2">
+                        {/* Show Track Order button for active orders (not delivered/cancelled) */}
+                        {(order.status !== "Доставлено" && order.status !== "Скасовано") ? (
                           <button
                             type="button"
-                            onClick={async () => {
-                              await navigator.clipboard?.writeText(order.trackingNumber!);
-                              setCopiedTTN(order.trackingNumber!);
-                              setTimeout(() => setCopiedTTN(null), 2000);
+                            onClick={() => {
+                              setTrackingTtn(order.trackingNumber || null);
+                              setShowTracking(true);
+                              // Scroll to tracking section
+                              setTimeout(() => {
+                                const element = document.querySelector('[data-tracking-section]');
+                                if (element) {
+                                  element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }
+                              }, 100);
                             }}
-                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${
-                              copiedTTN === order.trackingNumber
-                                ? "text-green-600 bg-green-50 border-green-100"
-                                : "text-gray-500 hover:text-gray-700 bg-gray-50 border-gray-100"
-                            }`}
-                            title={`Скопіювати ТТН: ${order.trackingNumber}`}
+                            className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm border border-gray-300"
                           >
-                            {copiedTTN === order.trackingNumber ? (
-                              <CheckCircle size={13} />
-                            ) : (
-                              <Copy size={13} />
-                            )}
-                            {copiedTTN === order.trackingNumber ? "Скопійовано!" : order.trackingNumber}
+                            <Truck size={14} />
+                            Відстежити замовлення
                           </button>
-                        </>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          order.items.forEach((item, idx) => {
-                            const id = item.id ?? -(Number(order.id) * 1000 + idx);
-                            addItem({
-                              id,
-                              name: item.name,
-                              price: item.price,
-                              image: item.image ?? PLACEHOLDER_IMG,
-                              size: null,
-                            });
-                            if (item.quantity > 1) updateQuantity(id, item.quantity);
-                          });
-                          router.push("/checkout");
-                        }}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
-                      >
-                        <RotateCcw size={14} />
-                        Повторити замовлення
-                      </button>
+                        ) : (
+                          /* Show Repeat Order button only for completed orders */
+                          <button
+                            type="button"
+                            onClick={() => {
+                              order.items.forEach((item, idx) => {
+                                const id = item.id ?? -(Number(order.id) * 1000 + idx);
+                                addItem({
+                                  id,
+                                  name: item.name,
+                                  price: item.price,
+                                  image: item.image ?? PLACEHOLDER_IMG,
+                                  size: null,
+                                });
+                                if (item.quantity > 1) updateQuantity(id, item.quantity);
+                              });
+                              router.push("/checkout");
+                            }}
+                            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm shadow-sm"
+                          >
+                            <RotateCcw size={14} />
+                            Повторити
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -996,11 +1170,40 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
             Зателефонуйте
           </a>
         </p>
-      </div>
+        </div>
 
-      {/* Nova Poshta Tracking */}
-      <ShopNovaPoshta />
-      </div>
+        {/* Tracking Section - Hidden by default, shown with animation */}
+        <motion.div
+          layout
+          initial={{ opacity: 0, height: 0, y: -30 }}
+          animate={{ 
+            opacity: showTracking ? 1 : 0, 
+            height: showTracking ? "auto" : 0,
+            y: showTracking ? 0 : -30 
+          }}
+          transition={{ 
+            opacity: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+            height: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] },
+            y: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }
+          }}
+          className="border-t border-gray-200 pt-8 overflow-hidden"
+          data-tracking-section
+        >
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-black text-gray-900">Відстеження посилки</h2>
+              <button
+                type="button"
+                onClick={() => setShowTracking(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <ShopNovaPoshta initialTtn={trackingTtn || undefined} />
+          </div>
+        </motion.div>
+      </motion.div>
       <ShopFooter />
     </div>
   );

@@ -42,17 +42,8 @@ export const checkoutSchema = z.object({
     .trim()
     .min(2, "Вкажіть відділення або адресу поштомату"),
 
-  /** Optional free-text comment to the order */
-  comment: z.string().trim().max(500, "Коментар занадто довгий").optional(),
-
-  /** Optional customer email for order confirmation */
-  email: z.string().trim().email("Невірний формат email").or(z.literal("")),
-
   /** Payment method: online via WayForPay or COD (накладений платіж) */
   paymentMethod: z.enum(PAYMENT_METHODS),
-
-  /** Optional promo code */
-  promoCode: z.string().trim().max(32).optional().or(z.literal("")),
 });
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>;

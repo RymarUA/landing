@@ -52,6 +52,7 @@ export interface CatalogProduct {
   sizes: string[];        // properties з name="Розмір" по всіх активних варіаціях
   description: string;
   image: string;          // перше фото варіації або продукту
+  images?: string[];     // додаткові фото товару
   instagramPermalink: string | null;
 
   // Sitniks-specific (для сторінки товару)
@@ -141,6 +142,44 @@ function getFirstImage(product: SitniksProduct, variation?: SitniksVariation): s
   return "/images/placeholder.svg";
 }
 
+function getAllImages(product: SitniksProduct, variation?: SitniksVariation): string[] {
+  const images: string[] = [];
+  
+  // Add variation images first (if they exist)
+  if (variation?.attachments?.length) {
+    for (const attachment of variation.attachments) {
+      if (attachment.url && !images.includes(attachment.url)) {
+        images.push(attachment.url);
+      }
+    }
+  }
+  
+  // Add product images
+  if (product.attachments?.length) {
+    for (const attachment of product.attachments) {
+      if (attachment.url && !images.includes(attachment.url)) {
+        images.push(attachment.url);
+      }
+    }
+  }
+  
+  // Add images from variations (for products with multiple color/size variations)
+  if (product.variations?.length) {
+    for (const v of product.variations) {
+      if (!v.isActive) continue;
+      if (v.attachments?.length) {
+        for (const attachment of v.attachments) {
+          if (attachment.url && !images.includes(attachment.url)) {
+            images.push(attachment.url);
+          }
+        }
+      }
+    }
+  }
+  
+  return images.length > 0 ? images : ["/images/placeholder.svg"];
+}
+
 function getSizes(product: SitniksProduct): string[] {
   const sizes = new Set<string>();
   for (const v of product.variations ?? []) {
@@ -224,6 +263,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     sizes: getSizes(p),
     description: p.description ?? "",
     image: getFirstImage(p, firstVariation),
+    images: getAllImages(p, firstVariation),
     instagramPermalink: null, // Not available from Sitniks API
     variationId: firstVariation?.id,
     allVariations: activeVariations.map((v) => ({
@@ -263,6 +303,7 @@ function mapFallbackProductToCatalogProduct(p: Awaited<ReturnType<typeof getAllP
     sizes: p.sizes ?? [],
     description: p.description ?? "",
     image: p.image,
+    images: p.images ? [...p.images] : [p.image], // Use single image as array if no multiple images
     instagramPermalink: null,
   };
 }

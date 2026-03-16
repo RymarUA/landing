@@ -1,11 +1,11 @@
 "use client";
 
-import { Search, Heart, MessageCircle, X, HelpCircle } from "lucide-react";
+import { Search, Heart, MessageCircle, X, HelpCircle, Package } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { siteConfig } from "@/lib/site-config";
 import { useWishlist } from "@/components/wishlist-context";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
@@ -46,6 +46,7 @@ export function TemuSearchBar({
   hasAnnouncement = false,
 }: TemuSearchBarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -215,11 +216,13 @@ export function TemuSearchBar({
       // Update position for portal
       if (searchRef.current) {
         const rect = searchRef.current.getBoundingClientRect();
-        setSuggestionsPosition({
+        const newPosition = {
           top: rect.bottom + window.scrollY + 8,
           left: rect.left + window.scrollX,
           width: rect.width
-        });
+        };
+        console.log('Suggestions position:', newPosition);
+        setSuggestionsPosition(newPosition);
       }
       
       // Restore scroll immediately after DOM update
@@ -253,32 +256,18 @@ export function TemuSearchBar({
     }
   };
 
-  const handleSuggestionClick = (productName: string) => {
-    setSearchQuery(productName);
+  const handleSuggestionClick = (product: CatalogProduct) => {
     setShowSuggestions(false);
     
-    // Store current scroll position
-    const scrollY = window.scrollY;
-    
-    // Use only query parameters, no hash
-    const url = new URL(window.location.href);
-    url.searchParams.set('q', productName);
-    url.hash = ''; // Clear hash completely
-    window.history.pushState({}, '', url);
-    
-    // Restore scroll position immediately
-    window.scrollTo(0, scrollY);
-    
-    // Trigger catalog update with custom event
-    window.dispatchEvent(new CustomEvent('searchupdate', { detail: { query: productName } }));
+    // Navigate to product page using Next.js router
+    router.push(`/product/${product.id}`);
   };
 
   return (
     <div 
-      className={`sticky left-0 right-0 z-[100] text-white ${hasAnnouncement ? 'top-10' : 'top-0'}`}
-      style={{ scrollMargin: 0 }}
+      className="text-white"
     >
-      <div className="border-b border-emerald-900/10 bg-emerald-900/95 backdrop-blur-md">
+      <div className="border-b border-emerald-900/10">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-1.5 flex items-center gap-2 sm:gap-3">
           {/* Logo */}
           <Link
@@ -300,7 +289,8 @@ export function TemuSearchBar({
           </Link>
 
           {/* Search */}
-          <form onSubmit={handleSearch} className="flex-1 max-w-2xl" ref={searchRef}>
+          <div className="flex-1 max-w-2xl relative" style={{ zIndex: 1001 }}>
+            <form onSubmit={handleSearch} className="relative" ref={searchRef}>
             <div className="relative">
             <input
               type="search"
@@ -330,7 +320,8 @@ export function TemuSearchBar({
             />
             <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
           </div>
-        </form>
+          </form>
+          </div>
 
           
           {/* Support Button with Dropdown */}
@@ -369,6 +360,16 @@ export function TemuSearchBar({
               </span>
             )}
           </Link>
+
+          {/* Nova Poshta Tracking */}
+          <Link
+            href="/tracking"
+            className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+            aria-label="Відстежити посилку Новою Поштою"
+          >
+            <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden md:inline">Відстежити посилку</span>
+          </Link>
         </div>
       </div>
 
@@ -380,23 +381,35 @@ export function TemuSearchBar({
         />
       )}
       
-      {/* Search Suggestions Portal - render outside DOM to avoid z-index issues */}
-      {showSuggestions && suggestions.length > 0 && typeof window !== 'undefined' && createPortal(
+      {/* Search Suggestions - render at component level with highest z-index */}
+      {showSuggestions && suggestions.length > 0 && (
         <div 
           className="fixed bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden max-h-[400px] overflow-y-auto"
           style={{
             top: `${suggestionsPosition.top}px`,
             left: `${suggestionsPosition.left}px`,
             width: `${suggestionsPosition.width}px`,
-            zIndex: 9999
+            zIndex: 9999,
+            pointerEvents: 'auto'
+          }}
+          onClick={(e) => {
+            console.log('Container clicked!', e.target);
           }}
         >
           {suggestions.map((product) => (
-            <button
+            <div
               key={product.id}
-              type="button"
-              onClick={() => handleSuggestionClick(product.name)}
-              className="w-full flex items-center gap-3 p-3 hover:bg-emerald-50 transition-colors text-left border-b border-gray-50 last:border-b-0"
+              role="button"
+              tabIndex={0}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                console.log('MouseDown on product!', product.id);
+                setShowSuggestions(false);
+                setTimeout(() => {
+                  router.push(`/product/${product.id}`);
+                }, 0);
+              }}
+              className="w-full flex items-center gap-3 p-3 hover:bg-emerald-50 transition-colors text-left border-b border-gray-50 last:border-b-0 cursor-pointer"
             >
               <div className="relative w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
                 <Image
@@ -423,10 +436,9 @@ export function TemuSearchBar({
                   </p>
                 )}
               </div>
-            </button>
+            </div>
           ))}
-        </div>,
-        document.body
+        </div>
       )}
       
       {/* Support Dropdown Portal - render outside DOM to avoid z-index issues */}

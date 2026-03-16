@@ -145,7 +145,7 @@ export default async function ProductPage({
           {/* Left Column: Image Gallery (lg:col-span-6) */}
           <div className="lg:col-span-6">
             <div className="bg-stone-50 rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-sm overflow-hidden max-h-[550px]">
-              <ProductImageLightbox src={product.image} alt={product.name}>
+              <ProductImageLightbox src={product.image} alt={product.name} images={product.images}>
                 {product.badge && (
                   <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-orange-500 text-white text-xs sm:text-sm font-black px-3 py-1.5 rounded-full flex items-center gap-1 sm:gap-1.5 shadow-lg ring-2 ring-white/50 z-10">
                     {product.isHit && <Flame size={12} className="sm:w-4 sm:h-4 flex-shrink-0" />}

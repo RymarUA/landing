@@ -4,6 +4,22 @@ import dynamic from "next/dynamic";
 import { getCatalogProducts } from "@/lib/instagram-catalog";
 import { ShopFooter } from "@/components/shop-footer";
 
+const PromoBannerSlider = dynamic(
+  () => import("@/components/promo-banner-slider").then(mod => ({ default: mod.PromoBannerSlider })),
+  { 
+    loading: () => (
+      <div className="relative w-full overflow-hidden rounded-2xl shadow-lg mb-6">
+        <div className="relative bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-5 md:py-6">
+          <div className="flex items-center justify-center gap-2.5 text-white">
+            <div className="w-6 h-6 bg-white/20 rounded animate-pulse"></div>
+            <div className="h-6 bg-white/20 rounded w-48 animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+);
+
 const FeaturedProducts = dynamic(
   () => import("@/components/featured-products").then(mod => ({ default: mod.FeaturedProducts })),
   { 
@@ -47,11 +63,27 @@ export default async function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 bg-white flex flex-col">
+        {/* Promo Banner */}
+        <div className="mx-auto max-w-7xl px-2 sm:px-3 md:px-4 mt-4 sm:mt-6">
+          <Suspense fallback={
+            <div className="relative w-full overflow-hidden rounded-2xl shadow-lg mb-6">
+              <div className="relative bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-5 md:py-6">
+                <div className="flex items-center justify-center gap-2.5 text-white">
+                  <div className="w-6 h-6 bg-white/20 rounded animate-pulse"></div>
+                  <div className="h-6 bg-white/20 rounded w-48 animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          }>
+            <PromoBannerSlider />
+          </Suspense>
+        </div>
+
         {/* Featured Sections */}
         <FeaturedProducts products={products} type="hits" />
         
         {/* Main Catalog */}
-        <div id="catalog">
+        <div data-catalog-section>
           <Suspense fallback={<CatalogFallback />}>
             <EnhancedShopCatalog products={products} />
           </Suspense>

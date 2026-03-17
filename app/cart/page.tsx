@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ShopFooter } from "@/components/shop-footer";
+import { useRouter } from "next/navigation";
 
 export default function CartPage() {
   const {
@@ -19,6 +20,35 @@ export default function CartPage() {
     totalSavings,
     hydrated,
   } = useCart();
+  const router = useRouter();
+
+  const handleGoToCatalog = (event?: React.MouseEvent) => {
+    event?.preventDefault();
+    
+    // Сначала переходим на главную страницу
+    router.push("/");
+    
+    // Затем добавляем хеш и прокручиваем
+    setTimeout(() => {
+      window.location.hash = "catalog";
+      
+      // Прокручиваем после установки хеша
+      setTimeout(() => {
+        const catalogElement = document.getElementById("catalog");
+        if (!catalogElement) return;
+
+        const headerElement = document.getElementById("site-header");
+        const headerHeight = headerElement?.getBoundingClientRect().height ?? 0;
+        const additionalGap = 4;
+
+        const targetTop = catalogElement.getBoundingClientRect().top + window.scrollY - headerHeight - additionalGap;
+        window.scrollTo({
+          top: Math.max(targetTop, 0),
+          behavior: "smooth",
+        });
+      }, 200);
+    }, 100);
+  };
 
   if (!hydrated) {
     return (
@@ -60,12 +90,12 @@ export default function CartPage() {
             <ShoppingCart size={64} className="text-gray-200 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-gray-500 mb-2">Кошик порожній</h2>
             <p className="text-gray-400 mb-6">Додайте товари з каталогу</p>
-            <Link
-              href="/#catalog"
+            <button
+              onClick={handleGoToCatalog}
               className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-2xl transition-colors"
             >
               Перейти до каталогу
-            </Link>
+            </button>
           </div>
         ) : (
           <div className="grid lg:grid-cols-3 gap-6">
@@ -178,12 +208,12 @@ export default function CartPage() {
                   Оформити замовлення
                 </Link>
 
-                <Link
-                  href="/#catalog"
+                <button
+                  onClick={handleGoToCatalog}
                   className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-2xl transition-colors"
                 >
                   Продовжити покупки
-                </Link>
+                </button>
               </div>
             </div>
           </div>

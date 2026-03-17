@@ -4,6 +4,7 @@
 import { useRef, useEffect } from "react";
 import { Flame, ChevronRight, ChevronLeft } from "lucide-react";
 import { motion } from "framer-motion";
+import { SimpleProductCard } from "@/components/simple-product-card";
 import { ModernProductCard } from "@/components/modern-product-card";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { useCart } from "@/components/cart-context";
@@ -146,12 +147,19 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
                 transition={{ delay: index * 0.1 }}
                 className="flex-shrink-0 w-[140px] sm:w-[160px] md:w-[180px]"
               >
-                <ModernProductCard
-                  product={product}
-                  onAddToCart={handleAddToCart}
-                  priority={index < 4}
-                  compact={true}
-                />
+                {type === "hits" ? (
+                  <SimpleProductCard
+                    product={product}
+                    priority={index < 4}
+                  />
+                ) : (
+                  <ModernProductCard
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    priority={index < 4}
+                    compact={true}
+                  />
+                )}
               </motion.div>
             ))}
           </div>

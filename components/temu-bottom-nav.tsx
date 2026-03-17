@@ -2,12 +2,22 @@
 
 import { Home, Grid3x3, User, ShoppingBag } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "./cart-context";
 
+interface NavItem {
+  icon: any;
+  label: string;
+  href: string;
+  isActive: boolean;
+  ariaLabel: string;
+  onClick?: (e: React.MouseEvent) => void;
+}
+
 export function TemuBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [hash, setHash] = useState("");
   const { totalCount } = useCart();
 
@@ -18,13 +28,60 @@ export function TemuBottomNav() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
+  const scrollCatalogIntoView = () => {
+    const catalogElement = document.getElementById("catalog");
+    if (!catalogElement) return false;
+
+    const headerElement = document.getElementById("site-header");
+    const headerHeight = headerElement?.getBoundingClientRect().height ?? 0;
+    const additionalGap = 4; // визуальный отступ между заголовком и категорией
+
+    const targetTop = catalogElement.getBoundingClientRect().top + window.scrollY - headerHeight - additionalGap;
+    window.scrollTo({
+      top: Math.max(targetTop, 0),
+      behavior: "smooth",
+    });
+
+    const url = new URL(window.location.href);
+    url.hash = "catalog";
+    window.history.replaceState({}, "", url.toString());
+
+    return true;
+  };
+
+  const attemptCatalogScroll = () => {
+    let attempts = 0;
+    const maxAttempts = 12;
+
+    const tryScroll = () => {
+      const success = scrollCatalogIntoView();
+      if (!success && attempts < maxAttempts) {
+        attempts += 1;
+        setTimeout(tryScroll, 150);
+      }
+    };
+
+    tryScroll();
+  };
+
+  const handleCatalogClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    attemptCatalogScroll();
+  };
+
+  useEffect(() => {
+    if (!hash.includes("catalog")) return;
+    const timer = setTimeout(attemptCatalogScroll, 80);
+    return () => clearTimeout(timer);
+  }, [hash]);
+
   const shouldShow = pathname === "/";
   
   if (!shouldShow) {
     return null;
   }
 
-  const navItems = [
+  const navItems: NavItem[] = [
     {
       icon: Home,
       label: "Головна",
@@ -38,6 +95,7 @@ export function TemuBottomNav() {
       href: "/#catalog",
       isActive: pathname === "/" && hash.includes("catalog"),
       ariaLabel: "Переглянути каталог",
+      onClick: handleCatalogClick,
     },
     {
       icon: ShoppingBag,
@@ -58,33 +116,57 @@ export function TemuBottomNav() {
   return (
     <div 
       data-bottom-nav 
-      className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 lg:bg-emerald-900/85 border-t border-emerald-700/40 backdrop-blur-lg z-[100] pb-[env(safe-area-inset-bottom)] shadow-2xl lg:shadow-xl lg:hidden"
+      className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 border-t border-emerald-700/40 backdrop-blur-lg z-[100] pb-[env(safe-area-inset-bottom)] shadow-2xl"
     >
       <nav className="flex justify-around items-center py-1.5 px-2" aria-label="Нижня навігація">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`relative flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all min-w-[68px] ${
-              item.isActive
-                ? "text-[#D4AF37] bg-white/10"
-                : "text-white/70 hover:text-white hover:bg-white/5"
-            }`}
-            aria-label={item.ariaLabel}
-            aria-current={item.isActive ? "page" : undefined}
-            prefetch={false}
-          >
-            <div className="relative">
-              <item.icon size={20} className="mb-0.5" />
-              {item.label === "Кошик" && totalCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5">
-                  {totalCount > 99 ? "99+" : totalCount}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] font-semibold">{item.label}</span>
-          </Link>
-        ))}
+        {navItems.map((item) => {
+          if (item.onClick) {
+            // Для каталога используем кастомный обработчик
+            return (
+              <button
+                key={item.href}
+                onClick={item.onClick}
+                className={`relative flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all min-w-[68px] ${
+                  item.isActive
+                    ? "text-[#D4AF37] bg-white/10"
+                    : "text-white/70 hover:text-white hover:bg-white/5"
+                }`}
+                aria-label={item.ariaLabel}
+                aria-current={item.isActive ? "page" : undefined}
+              >
+                <div className="relative">
+                  <item.icon size={20} className="mb-0.5" />
+                </div>
+                <span className="text-[10px] font-semibold">{item.label}</span>
+              </button>
+            );
+          }
+          
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`relative flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all min-w-[68px] ${
+                item.isActive
+                  ? "text-[#D4AF37] bg-white/10"
+                  : "text-white/70 hover:text-white hover:bg-white/5"
+              }`}
+              aria-label={item.ariaLabel}
+              aria-current={item.isActive ? "page" : undefined}
+              prefetch={false}
+            >
+              <div className="relative">
+                <item.icon size={20} className="mb-0.5" />
+                {item.label === "Кошик" && totalCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5">
+                    {totalCount > 99 ? "99+" : totalCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-semibold">{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
     </div>
   );

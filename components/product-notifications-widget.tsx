@@ -40,11 +40,6 @@ export function ProductNotificationsWidget() {
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
   const { getAlerts } = useProductNotifications();
 
-  useEffect(() => {
-    console.log("[ProductNotificationsWidget] Loading alerts...");
-    loadAlerts();
-  }, [loadAlerts]);
-
   const loadAlerts = useCallback(async () => {
     setLoading(true);
     console.log("[ProductNotificationsWidget] Fetching alerts...");
@@ -57,6 +52,11 @@ export function ProductNotificationsWidget() {
     }
     setLoading(false);
   }, [getAlerts]);
+
+  useEffect(() => {
+    console.log("[ProductNotificationsWidget] Loading alerts...");
+    loadAlerts();
+  }, [loadAlerts]);
 
   const dismissAlert = (id: number) => {
     setDismissed(prev => new Set([...prev, id]));

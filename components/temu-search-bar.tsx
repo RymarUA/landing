@@ -92,8 +92,14 @@ export function TemuSearchBar({
       if (catalogRef.current && !catalogRef.current.contains(event.target as Node)) {
         setShowCatalog(false);
       }
+      // For mobile menu, check if click is outside the button itself
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
-        setShowMobileMenu(false);
+        // Don't close if clicking inside the portal dropdown
+        const target = event.target as Element;
+        const isInsideMobileDropdown = target.closest('[data-mobile-menu-dropdown]');
+        if (!isInsideMobileDropdown) {
+          setShowMobileMenu(false);
+        }
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -469,7 +475,7 @@ export function TemuSearchBar({
             top: `${suggestionsPosition.top}px`,
             left: `${suggestionsPosition.left}px`,
             width: `${suggestionsPosition.width}px`,
-            zIndex: 9999,
+            zIndex: 10000,
             pointerEvents: 'auto'
           }}
           onClick={(e) => {
@@ -524,10 +530,11 @@ export function TemuSearchBar({
       {/* Support Dropdown Portal - render outside DOM to avoid z-index issues */}
       {showSupport && typeof window !== 'undefined' && createPortal(
         <div 
-          className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[150] min-w-[200px]"
+          className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[10000] min-w-[200px]"
           style={{
             top: `${supportPosition.top}px`,
-            left: `${supportPosition.left}px`
+            left: `${supportPosition.left}px`,
+            pointerEvents: 'auto'
           }}
         >
           {siteConfig.telegramUsername && (
@@ -589,10 +596,12 @@ export function TemuSearchBar({
       {/* Mobile Menu Dropdown Portal - render outside DOM to avoid z-index issues */}
       {showMobileMenu && typeof window !== 'undefined' && createPortal(
         <div 
-          className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[150] min-w-[200px] right-4"
+          data-mobile-menu-dropdown
+          className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[10000] min-w-[200px]"
           style={{
             top: `${mobileMenuPosition.top}px`,
-            right: `${mobileMenuPosition.right}px`
+            right: `${mobileMenuPosition.right}px`,
+            pointerEvents: 'auto'
           }}
         >
           {/* Catalog Dropdown - only when not on home page */}
@@ -612,18 +621,18 @@ export function TemuSearchBar({
           )}
 
           {/* Support Button */}
-          <button
-            onClick={() => {
-              setShowSupport(!showSupport);
-              setShowMobileMenu(false);
-            }}
+          <a
+            href={`https://t.me/${siteConfig.telegramUsername || 'health_east'}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 text-left border-t border-gray-100"
+            onClick={() => setShowMobileMenu(false)}
           >
             <div className="text-gray-700">
               <MessageCircle size={18} />
             </div>
             <span className="text-sm font-semibold">Підтримка</span>
-          </button>
+          </a>
 
           {/* FAQ Link */}
           <Link
@@ -674,10 +683,11 @@ export function TemuSearchBar({
       {/* Catalog Dropdown Portal - render outside DOM to avoid z-index issues */}
       {showCatalog && typeof window !== 'undefined' && createPortal(
         <div 
-          className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[150] min-w-[220px] max-h-[400px] overflow-y-auto"
+          className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[10000] min-w-[220px] max-h-[400px] overflow-y-auto"
           style={{
             top: `${catalogPosition.top}px`,
-            left: `${catalogPosition.left}px`
+            left: `${catalogPosition.left}px`,
+            pointerEvents: 'auto'
           }}
         >
           {catalogCategories.length === 0 ? (

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     // Временно для разработки - проверка по email из dev-login
     // В продакшене здесь должна быть проверка JWT токена и роли в базе данных
-    const adminEmails = ["dev@test.com"]; // Временно для разработки
+    const adminEmails = ["dev@test.com","kateandrosov@gmail.com","rimarevskiy@gmail.com "]; // Временно для разработки
     
     // Простая проверка для dev
     if (adminEmails.length > 0) {

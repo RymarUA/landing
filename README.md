@@ -13,14 +13,26 @@
 - Marketing pages in `app/blog/`, `app/pricing/`, `app/contact/`
 - All UI components in `components/`
 - Tailwind CSS configuration
-- TypeScript configuration
+- TypeScript
 
-### 🎯 What to BUILD:
+## 📚 Documentation
 
-- New pages specific to user needs
-- Custom components using existing ones
-- Business logic and features
-- API integrations
+### 🎯 Analytics & CRM
+- [📊 Sitniks Analytics Complete Guide](./docs/SITNIKS_ANALYTICS_COMPLETE_GUIDE.md) - Полное руководство по аналитике
+- [🚀 Production Readiness Checklist](./docs/PRODUCTION_READINESS_CHECKLIST.md) - Чек-лист для продакшена
+- [🔧 Troubleshooting Guide](./docs/TROUBLESHOOTING_GUIDE.md) - Решение проблем
+- [📡 API Reference](./docs/API_REFERENCE.md) - Полная документация API
+
+### 📱 Social & Marketing
+- [Facebook & Instagram Catalog Setup](./docs/FACEBOOK_INSTAGRAM_CATALOG.md)
+- [Email Auth Setup](./docs/EMAIL_AUTH_SETUP.md)
+- [SMS Setup](./docs/SMS_SETUP.md)
+
+### 🔐 Authentication
+- [Sitniks Auth Integration](./docs/SITNIKS_AUTH_INTEGRATION.md)
+
+### 📋 Project
+- [Project Usage](./docs/PROJECT_USAGE.md)
 
 ### ❌ Common MISTAKES to AVOID:
 

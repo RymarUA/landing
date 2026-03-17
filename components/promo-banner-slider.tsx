@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Gift, Truck, Percent } from "lucide-react";
+import { Gift, Truck, Percent } from "lucide-react";
 
 interface PromoBanner {
   id: number;
@@ -46,16 +46,6 @@ export function PromoBannerSlider() {
     return () => clearInterval(timer);
   }, []);
 
-  const handlePrev = () => {
-    setDirection(-1);
-    setCurrentIndex((prev) => (prev - 1 + PROMO_BANNERS.length) % PROMO_BANNERS.length);
-  };
-
-  const handleNext = () => {
-    setDirection(1);
-    setCurrentIndex((prev) => (prev + 1) % PROMO_BANNERS.length);
-  };
-
   const currentBanner = PROMO_BANNERS[currentIndex];
   const Icon = currentBanner.icon;
 
@@ -95,22 +85,6 @@ export function PromoBannerSlider() {
             <p className="text-base md:text-lg font-bold text-center">{currentBanner.text}</p>
           </motion.div>
         </AnimatePresence>
-
-        {/* Navigation Buttons */}
-        <button
-          onClick={handlePrev}
-          className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm flex items-center justify-center transition-colors"
-          aria-label="Попередній банер"
-        >
-          <ChevronLeft size={18} className="text-white" />
-        </button>
-        <button
-          onClick={handleNext}
-          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm flex items-center justify-center transition-colors"
-          aria-label="Наступний банер"
-        >
-          <ChevronRight size={18} className="text-white" />
-        </button>
 
         {/* Dots Indicator */}
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">

@@ -91,8 +91,8 @@ export function WishlistPageClient({ allProducts }: Props) {
         {items.length === 0 ? (
           /* ── Empty state ── */
           <div className="flex flex-col items-center justify-center py-24 gap-5 text-center">
-            <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center">
-              <PackageOpen size={36} className="text-orange-300" />
+            <div className="w-20 h-20 bg-[#065F46]/10 rounded-full flex items-center justify-center">
+              <PackageOpen size={36} className="text-[#065F46]" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-800 mb-1">Список бажань порожній</h2>
@@ -102,7 +102,7 @@ export function WishlistPageClient({ allProducts }: Props) {
             </div>
             <Link
               href="/#catalog"
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3 rounded-2xl transition-colors"
+              className="bg-[#065F46] hover:bg-[#054E3A] text-white font-bold px-6 py-3 rounded-2xl transition-colors"
             >
               Переглянути каталог
             </Link>

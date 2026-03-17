@@ -164,7 +164,7 @@ const generatePromoCode = (tier: PromoTier, type: 'tier' | 'personalized' | 'ref
 };
 
 // Generate personalized promo codes
-const generatePersonalizedPromo = (_type: PersonalizedPromo, _customData?: any): PromoCode => {
+const generatePersonalizedPromo = (type: PersonalizedPromo, _customData?: any): PromoCode => {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // 14 days
   
@@ -662,7 +662,16 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       }
     })();
     
-    return () => { abortController.abort(); };
+    return () => { 
+      try {
+        if (!abortController.signal.aborted) {
+          abortController.abort(); 
+        }
+      } catch (error) {
+        // Ignore abort errors during cleanup
+        console.debug('[Profile] Abort controller cleanup error:', error);
+      }
+    };
   }, [loadOrders, loadSitniksCustomer]);
 
   /* ── Resend countdown ── */

@@ -21,7 +21,7 @@
  */
 
 import Script from "next/script";
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useWindow } from "@/hooks/use-isomorphic";
 import { useLocalStorage } from "@/hooks/use-isomorphic";
 
@@ -381,8 +381,27 @@ interface ClientErrorData {
 }
 
 /** Log client-side JavaScript errors */
-export async function logClientError(errorData: ClientErrorData): Promise<void> {
+export async function logClientError(errorData: {
+  label?: string;
+  message?: string;
+  url?: string;
+  timestamp?: string;
+  stack?: string;
+}) {
   try {
+    // Validate input parameter
+    if (!errorData || typeof errorData !== 'object') {
+      console.warn('[Analytics] Invalid error data received, skipping');
+      return;
+    }
+    
+    // Check if errorData is completely empty
+    const keys = Object.keys(errorData);
+    if (keys.length === 0) {
+      console.warn('[Analytics] Empty error object received, skipping');
+      return;
+    }
+    
     // Validate error data before logging
     if (!errorData) {
       return;

@@ -197,10 +197,10 @@ export async function getSitniksCustomer(id: number): Promise<SitniksCustomer | 
     }
     
     return customer;
-  } catch (_error) {
-      console.error("[sitniks-customers] Get failed:", _error);
-      return null;
-    }
+  } catch (error) {
+    console.error("[sitniks-customers] Get failed:", error);
+    return null;
+  }
 }
 
 /**
@@ -396,6 +396,7 @@ export async function getSitniksCustomerStats(
     };
   } catch (error) {
     console.error("[sitniks-customers] Stats failed:", error);
+    // Return default stats when API fails
     return {
       ordersCount: 0,
       totalSpent: 0,

@@ -368,38 +368,33 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
   const SETTINGS_SKU = "SITE_SETTINGS";
   
   try {
-    // Отримуємо всі товари і шукаємо потрібний SKU
-    const response = await sitniksSafe<{ data: SitniksProduct[]; total: number }>(
+    // Спочатку пробуємо знайти товар за SKU через фільтр
+    const skuResponse = await sitniksSafe<{ data: SitniksProduct[]; total: number }>(
       "GET",
-      `/open-api/products`
+      `/open-api/products?query=${encodeURIComponent(SETTINGS_SKU)}&limit=10`
     );
     
-    if (!response?.data) {
-      console.warn("[sitniks] Failed to fetch products for settings");
-      return null;
+    let product: SitniksProduct | undefined;
+    
+    if (skuResponse?.data?.length) {
+      // Знайдено товар за SKU
+      product = skuResponse.data.find(p => p.sku === SETTINGS_SKU);
     }
     
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[sitniks] Loaded ${response.data.length} products, searching for SKU="${SETTINGS_SKU}"`);
+    if (!product) {
+      // Якщо не знайдено за SKU, пробуємо за назвою
+      const nameResponse = await sitniksSafe<{ data: SitniksProduct[]; total: number }>(
+        "GET",
+        `/open-api/products?query=${encodeURIComponent("Налаштування сайту")}&limit=10`
+      );
       
-      // Детальний лог для дебагу
-      response.data.forEach((p, idx) => {
-        console.log(`[sitniks] Product ${idx}:`, {
-          id: p.id,
-          sku: p.sku,
-          title: p.title,
-          name: p.name,
-          hasProperties: p.properties?.length > 0
-        });
-      });
+      if (nameResponse?.data?.length) {
+        product = nameResponse.data.find(p => 
+          p.title === "Налаштування сайту" || 
+          p.name === "Налаштування сайту"
+        );
+      }
     }
-    
-    // Шукаємо товар з потрібним SKU або назвою "Налаштування сайту"
-    const product = response.data.find(p => 
-      p.sku === SETTINGS_SKU || 
-      p.title === "Налаштування сайту" || 
-      p.name === "Налаштування сайту"
-    );
     
     if (!product) {
       console.warn(`[sitniks] Site settings product with SKU="${SETTINGS_SKU}" or name="Налаштування сайту" not found`);

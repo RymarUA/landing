@@ -1,14 +1,13 @@
 // @ts-nocheck
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, PanInfo } from "framer-motion";
 import { SlidersHorizontal, Search, X, ArrowUpDown, ChevronDown } from "lucide-react";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { useCart } from "@/components/cart-context";
 import { Container } from "@/components/container";
 import { VirtualizedProductGrid } from "@/components/virtualized-product-grid";
-import { PromoBannerSlider } from "@/components/promo-banner-slider";
 import { trackAddToCart } from "@/components/analytics";
 import { getCategories, getStaticCategories } from "@/lib/categories-cache";
 import { SORT_OPTIONS, type SortKey } from "@/lib/catalog-config";
@@ -106,18 +105,9 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
     window.addEventListener("popstate", syncFromURL);
     window.addEventListener("hashchange", syncFromURL);
     window.addEventListener("searchupdate", handleSearchUpdate as EventListener);
-    
-    let lastUrl = window.location.href;
-    const urlCheckInterval = setInterval(() => {
-      if (window.location.href !== lastUrl) {
-        lastUrl = window.location.href;
-        syncFromURL();
-      }
-    }, 100);
 
     return () => { 
       isMounted = false;
-      clearInterval(urlCheckInterval);
       window.removeEventListener("popstate", syncFromURL);
       window.removeEventListener("hashchange", syncFromURL);
       window.removeEventListener("searchupdate", handleSearchUpdate as EventListener);
@@ -156,7 +146,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
     }
   }, [active, handleCategoryChange, availableCategories]);
 
-  const filtered = products.filter((p) => {
+  const filtered = useMemo(() => products.filter((p) => {
     if (active === "Хіти продажів") {
       if (!p.isHit) return false;
     } else if (active === "Безкоштовна доставка") {
@@ -178,9 +168,9 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
     if (maxPrice && p.price > Number(maxPrice)) return false;
     if (onlyInStock && p.stock === 0) return false;
     return true;
-  });
+  }), [products, active, searchQuery, minPrice, maxPrice, onlyInStock]);
 
-  const sorted = [...filtered].sort((a, b) => {
+  const sorted = useMemo(() => [...filtered].sort((a, b) => {
     switch (sortKey) {
       case "price_asc": return a.price - b.price;
       case "price_desc": return b.price - a.price;
@@ -188,7 +178,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
       case "newest": return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
       default: return 0;
     }
-  });
+  }), [filtered, sortKey]);
 
   const handleAddToCart = useCallback((product: CatalogProduct) => {
     addItem({
@@ -242,7 +232,6 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
 
   return (
     <motion.section 
-      id="catalog" 
       className="bg-white py-2 sm:py-3"
       onPanEnd={handleSwipe}
       drag="x"
@@ -251,14 +240,9 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
       dragSnapToOrigin={true}
     >
       <Container>
-        {/* Promo Banner */}
-        <div className="mb-1.5 sm:mb-2">
-          <PromoBannerSlider />
-        </div>
-
         {/* Заголовок */}
         <div className="mb-1.5 sm:mb-2">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 mb-0.5 sm:mb-1">
+          <h2 id="catalog" className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 mb-0.5 sm:mb-1">
             {active === "Всі" ? "Всі товари" : active}
           </h2>
           <p className="text-gray-500 text-[11px] sm:text-sm">

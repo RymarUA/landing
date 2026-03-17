@@ -36,16 +36,27 @@ export async function GET(req: NextRequest) {
 
   try {
     // Get customer data from Sitniks
-    const [customer, stats] = await Promise.all([
-      getSitniksCustomer(payload.sitniksCustomerId),
-      getSitniksCustomerStats(payload.sitniksCustomerId)
-    ]);
-
+    const customer = await getSitniksCustomer(payload.sitniksCustomerId);
+    
     if (!customer) {
       return NextResponse.json({ 
         error: "Customer not found in Sitniks",
         customer: null 
       }, { status: 200 });
+    }
+
+    // Try to get stats, but don't fail if they're not available
+    let stats = null;
+    try {
+      stats = await getSitniksCustomerStats(payload.sitniksCustomerId);
+    } catch (statsError) {
+      console.warn("[profile/customer] Stats not available:", statsError);
+      // Use default stats
+      stats = {
+        ordersCount: customer.ordersCount || 0,
+        totalSpent: customer.totalSpent || 0,
+        averageOrderValue: 0,
+      };
     }
 
     // Combine customer data with statistics

@@ -8,10 +8,6 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function CartWidget() {
-  const [scrollY, setScrollY] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(0);
-  const [footerHeight, setFooterHeight] = useState(0);
-  const [bottomNavHeight, setBottomNavHeight] = useState(0);
   const {
     items,
     removeItem,
@@ -31,79 +27,6 @@ export function CartWidget() {
 
   // const isProductPage = pathname?.startsWith("/product/");
 
-  // Simple tracking for collision detection
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-      // Update footer height on scroll
-      const footer = document.querySelector('footer');
-      if (footer) {
-        setFooterHeight(footer.offsetHeight);
-      }
-    };
-    
-    const handleResize = () => {
-      setViewportHeight(window.innerHeight);
-      // Update elements on resize
-      const footer = document.querySelector('footer');
-      if (footer) {
-        setFooterHeight(footer.offsetHeight);
-      }
-      const bottomNav = document.querySelector('[data-bottom-nav]');
-      if (bottomNav) {
-        setBottomNavHeight(bottomNav.offsetHeight);
-      }
-    };
-    
-    handleScroll();
-    handleResize();
-    
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  // Fixed positioning with simple collision detection
-  const getAdaptiveBottom = () => {
-    const cartButtonHeight = 64; // h-16 = 4rem = 64px
-    const safetyMargin = 20; // Extra space between cart and elements
-    const fixedBottom = 80; // Fixed position from bottom
-    
-    let calculatedBottom = fixedBottom;
-    
-    // Simple collision detection with footer
-    if (footerHeight > 0) {
-      const documentHeight = document.documentElement.scrollHeight;
-      const footerTop = documentHeight - footerHeight - scrollY;
-      const cartButtonTop = viewportHeight - calculatedBottom - cartButtonHeight;
-      
-      // If cart button would overlap with footer, lift it up just enough
-      if (cartButtonTop > footerTop - safetyMargin) {
-        const overlap = cartButtonTop - (footerTop - safetyMargin);
-        calculatedBottom += overlap + safetyMargin;
-      }
-    }
-    
-    // Simple collision detection with bottom navigation (mobile only)
-    if (bottomNavHeight > 0 && viewportHeight < 1024) {
-      calculatedBottom = Math.max(calculatedBottom, bottomNavHeight + safetyMargin);
-    }
-    
-    return calculatedBottom;
-  };
-
-  // Calculate adaptive bottom position for toast
-  const getToastBottom = () => {
-    const buttonBottom = getAdaptiveBottom();
-    const toastOffset = 72; // closer to the cart button
-    const minBottom = viewportHeight < 768 ? 120 : 150;
-    return Math.max(buttonBottom + toastOffset, minBottom);
-  };
-
   useEffect(() => {
     if (!hydrated) return;
     if (totalCount > prevCount.current) {
@@ -119,32 +42,26 @@ export function CartWidget() {
 
   return (
     <>
-      {/* ── Adaptive positioning container ── */}
-      <div className="fixed inset-0 pointer-events-none z-[110]">
-        {/* ── Adaptive floating button: position changes based on scroll ── */}
-        <motion.button
-          onClick={toggleCart}
-          className={`absolute right-6 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center pointer-events-auto
-            bg-gradient-to-br from-emerald-600 to-emerald-700 text-white`}
-          style={{
-            bottom: `${getAdaptiveBottom()}px`,
-            transition: 'bottom 0.3s ease-out'
-          }}
-          aria-label="Відкрити кошик"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          animate={animate ? { 
-            scale: [1, 1.2, 1.1, 1.2, 1], 
-            boxShadow: [
-              "0 0 0 0 rgba(16, 185, 129, 0.4)",
-              "0 0 0 8px rgba(16, 185, 129, 0.2)",
-              "0 0 0 16px rgba(16, 185, 129, 0.1)",
-              "0 0 0 8px rgba(16, 185, 129, 0.2)",
-              "0 0 0 0 rgba(16, 185, 129, 0)"
-            ]
-          } : { scale: 1, boxShadow: "0 0 0 0 rgba(16, 185, 129, 0)" }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-        >
+      {/* Fixed cart button */}
+      <motion.button
+        onClick={toggleCart}
+        className={`fixed right-6 bottom-24 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-[110]
+          bg-gradient-to-br from-emerald-600 to-emerald-700 text-white`}
+        aria-label="Відкрити кошик"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        animate={animate ? { 
+          scale: [1, 1.2, 1.1, 1.2, 1], 
+          boxShadow: [
+            "0 0 0 0 rgba(16, 185, 129, 0.4)",
+            "0 0 0 8px rgba(16, 185, 129, 0.2)",
+            "0 0 0 16px rgba(16, 185, 129, 0.1)",
+            "0 0 0 8px rgba(16, 185, 129, 0.2)",
+            "0 0 0 0 rgba(16, 185, 129, 0)"
+          ]
+        } : { scale: 1, boxShadow: "0 0 0 0 rgba(16, 185, 129, 0)" }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         <ShoppingCart size={26} />
         <AnimatePresence>
           {showBadge && (
@@ -334,11 +251,7 @@ export function CartWidget() {
             duration: 0.15,
             ease: [0.25, 0.46, 0.45, 0.94]
           }}
-          className="fixed left-4 right-4 sm:left-auto sm:right-28 z-[60] max-w-sm"
-          style={{
-            bottom: `${getToastBottom()}px`,
-            transition: 'bottom 0.3s ease-out'
-          }}
+          className="fixed left-4 right-4 sm:left-auto sm:right-28 z-[60] max-w-sm bottom-32"
         >
           <motion.div 
             initial={{ scale: 0.98, opacity: 0.9 }}
@@ -383,7 +296,6 @@ export function CartWidget() {
           </motion.div>
         </motion.div>
       )}
-      </div>
     </>
   );
 }

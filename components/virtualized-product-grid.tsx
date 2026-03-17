@@ -1,8 +1,8 @@
 // @ts-nocheck
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import type { CatalogProduct as Product } from "@/lib/instagram-catalog";
 import { ModernProductCard } from "@/components/modern-product-card";
 
@@ -27,8 +27,47 @@ export function VirtualizedProductGrid({
   const [isLoading, setIsLoading] = useState(false);
   const observerRef = useRef<IntersectionObserver>();
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const animatedCardsRef = useRef<Set<Product["id"]>>(new Set());
+  const shouldReduceMotion = useReducedMotion();
 
-  const visibleProducts = products.slice(0, visibleCount);
+  const visibleProducts = useMemo(
+    () => products.slice(0, visibleCount),
+    [products, visibleCount]
+  );
+
+  const getCardAnimation = useCallback(
+    (productId: Product["id"], orderIndex: number) => {
+      if (shouldReduceMotion) {
+        return {
+          initial: false,
+          animate: { opacity: 1, y: 0, scale: 1 },
+        };
+      }
+
+      if (animatedCardsRef.current.has(productId)) {
+        return {
+          initial: false,
+          animate: { opacity: 1, y: 0, scale: 1 },
+          transition: { duration: 0.2 },
+        };
+      }
+
+      return {
+        initial: { opacity: 0, y: 24, scale: 0.96 },
+        whileInView: { opacity: 1, y: 0, scale: 1 },
+        viewport: { once: true, amount: 0.2, margin: "0px 0px -80px 0px" },
+        transition: {
+          duration: 0.45,
+          ease: [0.22, 1, 0.36, 1],
+          delay: Math.min(orderIndex, 8) * 0.025,
+        },
+        onViewportEnter: () => {
+          animatedCardsRef.current.add(productId);
+        },
+      };
+    },
+    [shouldReduceMotion]
+  );
 
   // Intersection Observer для lazy loading
   useEffect(() => {
@@ -63,26 +102,21 @@ export function VirtualizedProductGrid({
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5">
-        <AnimatePresence mode="popLayout">
-          {visibleProducts.map((product, index) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="h-full"
-            >
-              <ModernProductCard
-                product={product}
-                onAddToCart={onAddToCart}
-                searchQuery={searchQuery}
-                priority={index < 2} // Перші 2 зображення з високим пріоритетом
-                compact={false}
-              />
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        {visibleProducts.map((product, index) => (
+          <motion.div
+            key={product.id}
+            className="h-full"
+            {...getCardAnimation(product.id, index)}
+          >
+            <ModernProductCard
+              product={product}
+              onAddToCart={onAddToCart}
+              searchQuery={searchQuery}
+              priority={index < 2} // Перші 2 зображення з високим пріоритетом
+              compact={false}
+            />
+          </motion.div>
+        ))}
       </div>
 
       {/* Елемент для відстеження прокрутки */}

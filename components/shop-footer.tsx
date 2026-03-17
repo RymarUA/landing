@@ -3,10 +3,20 @@
 import { Instagram, Phone } from "lucide-react";
 import { TikTokIcon } from "./icons/tiktok-icon";
 import { siteConfig } from "@/lib/site-config";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 export function ShopFooter() {
+  const pathname = usePathname();
+  const needsBottomNavSpacer = pathname === "/";
+
   return (
-    <footer className="bg-emerald-900 text-white py-6 sm:py-8 px-3 sm:px-4 mt-auto">
+    <footer
+      className={cn(
+        "bg-emerald-900 text-white py-6 sm:py-8 px-3 sm:px-4 mt-auto",
+        needsBottomNavSpacer && "pb-[calc(80px+env(safe-area-inset-bottom))]"
+      )}
+    >
       <div className="max-w-6xl mx-auto">
         {/* 4 колонки */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-4 sm:mb-6">

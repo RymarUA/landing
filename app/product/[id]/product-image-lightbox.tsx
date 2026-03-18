@@ -1,8 +1,10 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
+import type { PanInfo } from "framer-motion";
 import { X } from "lucide-react";
 
 interface Props {
@@ -10,16 +12,25 @@ interface Props {
   alt: string;
   images?: string[]; // Additional images for gallery
   children?: React.ReactNode;
+  priority?: boolean;
 }
 
-export function ProductImageLightbox({ src, alt, images = [], children }: Props) {
+export function ProductImageLightbox({ src, alt, images = [], children, priority = false }: Props) {
   const [open, setOpen] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  
-  // Combine main image with additional images, removing duplicates
-  const allImages = [src, ...images.filter(img => img !== src)];
-  
-  const currentImage = allImages[currentImageIndex];
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
+
+  const allImages = useMemo(() => {
+    const sanitized = [src, ...(images ?? [])].filter(Boolean);
+    if (sanitized.length === 0) return [];
+    if (sanitized.length === 1) {
+      return [...sanitized, sanitized[0]];
+    }
+    return sanitized;
+  }, [src, images]);
+
+  const showControls = allImages.length > 1;
+  const currentImage = allImages[currentIndex];
 
   useEffect(() => {
     if (!open) return;
@@ -33,28 +44,49 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
     return () => document.removeEventListener("keydown", handler, true);
   }, [open]);
 
-  const handleThumbnailClick = (index: number) => {
-    setCurrentImageIndex(index);
+  const changeSlide = (delta: number) => {
+    if (!showControls && delta !== 0) return;
+    setDirection(delta);
+    setCurrentIndex((prev) => {
+      const next = (prev + delta + allImages.length) % allImages.length;
+      return next;
+    });
   };
 
-  const handleNext = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+  const handleNext = () => changeSlide(1);
+  const handlePrevious = () => changeSlide(-1);
+
+  const handleSelectIndex = (index: number) => {
+    if (index === currentIndex) return;
+    setDirection(index > currentIndex ? 1 : -1);
+    setCurrentIndex(index);
   };
 
-  const handlePrevious = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+  const handleDragEnd = (
+    _: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
+    if (!showControls) return;
+    const swipeThreshold = 60;
+    const velocityThreshold = 400;
+    if (
+      Math.abs(info.offset.x) > swipeThreshold ||
+      Math.abs(info.velocity.x) > velocityThreshold
+    ) {
+      if (info.offset.x < 0) {
+        handleNext();
+      } else {
+        handlePrevious();
+      }
+    }
   };
-
-  // Only show thumbnails if there are multiple images
-  const showThumbnails = allImages.length > 1;
 
   return (
     <>
       <div className="space-y-4">
         {/* Main Image Container */}
-        <div className="relative">
-          {/* Navigation arrows for multiple images - positioned outside the main button */}
-          {showThumbnails && (
+        <div className="group relative">
+          {showControls && (
             <>
               <button
                 type="button"
@@ -62,7 +94,7 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
                   e.stopPropagation();
                   handlePrevious();
                 }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors z-10"
+                className="hidden lg:flex absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-lg transition-all duration-200 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 z-20"
                 aria-label="Попереднє зображення"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,7 +107,7 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
                   e.stopPropagation();
                   handleNext();
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors z-10"
+                className="hidden lg:flex absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-lg transition-all duration-200 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 z-20"
                 aria-label="Наступне зображення"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,38 +116,61 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
               </button>
             </>
           )}
-          
-          {/* Main Image Button */}
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="relative h-96 md:h-auto min-h-[480px] w-full block cursor-zoom-in text-left"
-            aria-label="Збільшити зображення"
-          >
-            <Image
-              src={currentImage}
-              alt={alt}
-              fill
-              sizes="(max-width: 768px) 100vw, 50vw"
-              className="object-contain"
-              priority
-            />
-            {children}
-          </button>
+
+          <div className="relative aspect-square w-full sm:rounded-2xl rounded-xl bg-stone-50">
+            <motion.button
+              key={currentImage + currentIndex}
+              type="button"
+              onClick={() => setOpen(true)}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={handleDragEnd}
+              className="relative block h-full w-full cursor-zoom-in text-left overflow-hidden"
+              aria-label="Збільшити зображення"
+            >
+              <Image
+                src={currentImage}
+                alt={alt}
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-contain"
+                priority={priority}
+              />
+              {children}
+            </motion.button>
+          </div>
         </div>
 
-        {/* Thumbnail Gallery */}
-        {showThumbnails && (
-          <div className="flex gap-2 overflow-x-auto pb-2">
+        {showControls && (
+          <div className="flex justify-center gap-2">
+            {allImages.map((_, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleSelectIndex(index)}
+                aria-label={`Перейти до зображення ${index + 1}`}
+                className={`h-2.5 w-2.5 rounded-full transition-all ${
+                  index === currentIndex
+                    ? "bg-stone-900 scale-110"
+                    : "bg-stone-300 hover:bg-stone-400"
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
+        {showControls && (
+          <div className="flex gap-3 overflow-x-auto pb-2">
             {allImages.map((image, index) => (
               <button
                 key={index}
                 type="button"
-                onClick={() => handleThumbnailClick(index)}
-                className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                  index === currentImageIndex
-                    ? "border-orange-500 ring-2 ring-orange-200"
-                    : "border-gray-200 hover:border-gray-300"
+                onClick={() => handleSelectIndex(index)}
+                className={`relative flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all ${
+                  index === currentIndex
+                    ? "border-orange-500 shadow-[0_8px_20px_rgba(249,115,22,0.25)]"
+                    : "border-transparent hover:border-stone-200"
                 }`}
                 aria-label={`Перейти до зображення ${index + 1}`}
               >
@@ -123,7 +178,7 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
                   src={image}
                   alt={`${alt} - зображення ${index + 1}`}
                   fill
-                  sizes="64px"
+                  sizes="80px"
                   className="object-cover"
                 />
               </button>
@@ -152,7 +207,7 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
           </button>
           
           {/* Lightbox Navigation */}
-          {showThumbnails && (
+          {showControls && (
             <>
               <button
                 type="button"
@@ -184,24 +239,34 @@ export function ProductImageLightbox({ src, alt, images = [], children }: Props)
           )}
 
           <div className="relative w-full h-full max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            <Image
-              src={currentImage}
-              alt={alt}
-              fill
-              sizes="100vw"
-              className="object-contain"
-            />
-            
-            {/* Lightbox Thumbnails */}
-            {showThumbnails && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/50 rounded-lg p-2">
+            <div className="relative w-full h-full">
+              <motion.div
+                key={currentImage + currentIndex}
+                className="absolute inset-0"
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.15}
+                onDragEnd={handleDragEnd}
+              >
+                <Image
+                  src={currentImage}
+                  alt={alt}
+                  fill
+                  sizes="100vw"
+                  className="object-contain"
+                />
+              </motion.div>
+            </div>
+
+            {showControls && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/40 rounded-2xl p-2">
                 {allImages.map((image, index) => (
                   <button
                     key={index}
                     type="button"
-                    onClick={() => handleThumbnailClick(index)}
-                    className={`relative flex-shrink-0 w-12 h-12 rounded overflow-hidden border-2 transition-all ${
-                      index === currentImageIndex
+                    onClick={() => handleSelectIndex(index)}
+                    className={`relative flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden border-2 transition-all ${
+                      index === currentIndex
                         ? "border-white"
                         : "border-transparent hover:border-white/50"
                     }`}

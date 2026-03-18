@@ -46,7 +46,7 @@ export function DiscountPopup() {
       />
 
       <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-        <div className="h-1.5 bg-gradient-to-r from-emerald-700 via-[#D4AF37] to-emerald-50" />
+        <div className="h-1.5 bg-gradient-to-r from-[#2E7D32] via-[#F9A825] to-[#2E7D32]/20" />
 
         <button
           onClick={dismiss}
@@ -57,7 +57,7 @@ export function DiscountPopup() {
         </button>
 
         <div className="p-7 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-emerald-700 to-[#D4AF37] mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-[#2E7D32] to-[#F9A825] mb-4">
             <Sparkles size={32} className="text-white" />
           </div>
           <h3 className="text-xl font-heading text-gray-900 mb-2">
@@ -68,14 +68,14 @@ export function DiscountPopup() {
           </p>
 
           <div className="flex items-center justify-center gap-2 bg-amber-50 border-2 border-dashed border-[#D4AF37] rounded-2xl px-6 py-4 mb-6">
-            <Tag size={18} className="text-emerald-700" />
-            <span className="text-2xl font-black tracking-widest text-emerald-700">{PROMO_CODE}</span>
+            <Tag size={18} className="text-[#2E7D32]" />
+            <span className="text-2xl font-black tracking-widest text-[#2E7D32]">{PROMO_CODE}</span>
           </div>
 
           <Link
             href="/#catalog"
             onClick={dismiss}
-            className="w-full inline-flex items-center justify-center bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-2xl transition-colors"
+            className="w-full inline-flex items-center justify-center bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-bold py-3 rounded-2xl transition-colors"
             aria-label="Перейти до каталогу та використати промокод"
           >
             Перейти до каталогу

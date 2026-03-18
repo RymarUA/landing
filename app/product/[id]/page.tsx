@@ -94,6 +94,16 @@ export default async function ProductPage({
     }
   }
 
+  const galleryImages = (() => {
+    const source = Array.isArray(product.images) && product.images.length > 0
+      ? product.images
+      : [product.image];
+    const unique = Array.from(new Set(source.filter(Boolean)));
+    if (unique.length === 0) unique.push(product.image);
+    if (unique.length === 1) unique.push(unique[0]);
+    return unique;
+  })();
+
   const productSchema = generateProductSchema({
     id: product.id,
     name: product.name,
@@ -144,30 +154,21 @@ export default async function ProductPage({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
           {/* Left Column: Image Gallery (lg:col-span-6) */}
           <div className="lg:col-span-6">
-            <div className="bg-stone-50 rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-sm overflow-hidden max-h-[550px]">
-              <ProductImageLightbox src={product.image} alt={product.name} images={product.images}>
-                {product.badge && (
-                  <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-orange-500 text-white text-xs sm:text-sm font-black px-3 py-1.5 rounded-full flex items-center gap-1 sm:gap-1.5 shadow-lg ring-2 ring-white/50 z-10">
-                    {product.isHit && <Flame size={12} className="sm:w-4 sm:h-4 flex-shrink-0" />}
-                    {product.isNew && <Sparkles size={12} className="sm:w-4 sm:h-4 flex-shrink-0" />}
-                    <span className="flex-shrink-0">{product.badge}</span>
-                  </span>
-                )}
-                {discount && (
-                  <span className="absolute top-12 left-1.5 sm:top-14 sm:left-2 bg-[#FF4444] text-white text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded shadow-lg z-10">
-                    -{discount}%
-                  </span>
-                )}
-                {product.stock <= 5 && product.stock > 0 && (
-                  <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 lg:bottom-4 lg:left-4 lg:right-4 z-10">
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl px-2 py-1.5 sm:px-3 sm:py-2 text-amber-700 text-[10px] sm:text-xs lg:text-sm font-semibold flex items-center gap-1.5 sm:gap-2">
-                      <Flame size={12} className="sm:w-[14px] sm:h-[14px]" />
-                      <span>Залишилось {product.stock} шт.</span>
-                    </div>
+            <ProductImageLightbox src={product.image} alt={product.name} images={galleryImages}>
+                            {discount && (
+                <span className="absolute top-1 left-1.5 sm:top-1.5 sm:left-2 bg-[#FF4444] text-white text-[11px] sm:text-[12px] font-black px-2 py-1 rounded shadow-lg z-10">
+                  -{discount}%
+                </span>
+              )}
+              {product.stock <= 5 && product.stock > 0 && (
+                <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 lg:bottom-4 lg:left-4 lg:right-4 z-10">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl px-2 py-1.5 sm:px-3 sm:py-2 text-amber-700 text-[10px] sm:text-xs lg:text-sm font-semibold flex items-center gap-1.5 sm:gap-2">
+                    <Flame size={12} className="sm:w-[14px] sm:h-[14px]" />
+                    <span>Залишилось {product.stock} шт.</span>
                   </div>
-                )}
-              </ProductImageLightbox>
-            </div>
+                </div>
+              )}
+            </ProductImageLightbox>
           </div>
 
           {/* Right Column: Product Info (lg:col-span-6) */}
@@ -290,7 +291,7 @@ export default async function ProductPage({
           <div className="mt-6 sm:mt-8 lg:mt-10">
             <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-stone-900 mb-3 sm:mb-4 lg:mb-6">Схожі товари</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-              {related.map((rp) => (
+              {related.map((rp, index) => (
                 <Link
                   key={rp.id}
                   href={`/product/${rp.id}`}
@@ -303,6 +304,7 @@ export default async function ProductPage({
                       fill
                       sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      priority={index < 2}
                       {...blurProps()}
                     />
                   </div>

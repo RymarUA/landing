@@ -37,7 +37,28 @@ export async function POST(req: NextRequest) {
 
   const { productId, productName, category, price, source } = body;
 
+  // Log received data for debugging
+  console.debug("[track-view] Received data:", { productId, productName, category, price, source });
+
+  // Validate data types
+  if (typeof productId !== 'number' || typeof productName !== 'string' || 
+      typeof category !== 'string' || typeof price !== 'number') {
+    console.error("[track-view] Invalid data types:", {
+      productId: { value: productId, type: typeof productId },
+      productName: { value: productName, type: typeof productName },
+      category: { value: category, type: typeof category },
+      price: { value: price, type: typeof price }
+    });
+    return NextResponse.json({ error: "Invalid data types" }, { status: 400 });
+  }
+
   if (!productId || !productName || !category || price === undefined) {
+    console.error("[track-view] Missing required fields:", {
+      productId: productId ?? 'MISSING',
+      productName: productName ?? 'MISSING', 
+      category: category ?? 'MISSING',
+      price: price ?? 'MISSING'
+    });
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 

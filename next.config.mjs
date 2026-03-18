@@ -6,17 +6,17 @@ const nextConfig = {
   // Note: output: "standalone" removed - using regular next start for PM2
   // Standalone mode doesn't work with MDX in Next.js 15.5.12
 
-  // Turbopack configuration
-  turbopack: {
-    root: process.cwd(),
-    // Configure MDX loader for Turbopack
-    rules: {
-      "*.mdx": {
-        loaders: ["@mdx-js/loader"],
-        as: "*.js",
-      },
-    },
-  },
+  // Turbopack configuration - temporarily disabled to fix bootstrap script issue
+  // turbopack: {
+  //   root: process.cwd(),
+  //   // Configure MDX loader for Turbopack
+  //   rules: {
+  //     "*.mdx": {
+  //       loaders: ["@mdx-js/loader"],
+  //       as: "*.js",
+  //     },
+  //   },
+  // },
 
   // Experimental features
   experimental: {
@@ -27,12 +27,14 @@ const nextConfig = {
       "lucide-react",
       "react-icons",
       "@tabler/icons-react",
-      "framer-motion",
       "react-hook-form",
       "@radix-ui/react-label",
       "@radix-ui/react-slot",
     ],
   },
+
+  // Explicitly set workspace root to avoid Next.js multi-lockfile warning
+  outputFileTracingRoot: process.cwd(),
 
   // Enable React Strict Mode for better error detection and performance
   reactStrictMode: true,
@@ -73,7 +75,7 @@ const nextConfig = {
     ],
     // Use sharp for better performance
     loader: "default",
-    dangerouslyAllowSVG: false,
+    dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 

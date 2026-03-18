@@ -14,7 +14,29 @@
  *   TWILIO_PHONE_NUMBER - Twilio phone number
  */
 
+import { normalizePhone } from "./phone-utils";
+
 const SEND_TIMEOUT_MS = 10000;
+const TURBOSMS_DEFAULT_SENDER = "TurboSMS";
+const TURBOSMS_SUCCESS_CODES = new Set([0, 200, 801]);
+
+function resolveTurboSmsSender(raw?: string | null): { sender: string; warning?: string } {
+  if (!raw) {
+    return { sender: TURBOSMS_DEFAULT_SENDER, warning: "TURBOSMS_SENDER not set; using default TurboSMS sender" };
+  }
+
+  const sanitized = raw.replace(/[^A-Za-z0-9.]/g, "").slice(0, 11);
+
+  if (sanitized.length < 3) {
+    return { sender: TURBOSMS_DEFAULT_SENDER, warning: `TURBOSMS_SENDER "${raw}" is invalid (must be 3-11 latin letters/digits); using default` };
+  }
+
+  if (sanitized !== raw) {
+    return { sender: sanitized, warning: `TURBOSMS_SENDER "${raw}" contained unsupported chars; using sanitized "${sanitized}"` };
+  }
+
+  return { sender: sanitized };
+}
 
 type SmsProvider = 'turbosms' | 'twilio';
 
@@ -43,15 +65,25 @@ export async function sendSms(phone: string, message: string): Promise<SmsResult
  */
 async function sendTurboSms(phone: string, message: string): Promise<SmsResult> {
   const token = process.env.TURBOSMS_TOKEN;
-  const sender = process.env.TURBOSMS_SENDER;
+  const { sender, warning: senderWarning } = resolveTurboSmsSender(process.env.TURBOSMS_SENDER);
 
-  if (!token || !sender) {
-    console.warn("[sms] TURBOSMS_TOKEN or TURBOSMS_SENDER not set");
+  if (!token) {
+    console.warn("[sms] TURBOSMS_TOKEN not set");
     return { success: false, error: "SMS provider not configured" };
   }
 
-  // Normalize phone for TurboSMS (remove +, keep only digits)
-  const normalizedPhone = phone.replace(/\D/g, '');
+  if (senderWarning) {
+    console.warn(`[sms] ${senderWarning}`);
+  }
+
+  // Normalize phone for TurboSMS (expects +380XXXXXXXXX in recipients array)
+  let normalizedPhone: string;
+  try {
+    normalizedPhone = normalizePhone(phone);
+  } catch {
+    const digitsOnly = phone.replace(/\D/g, "");
+    normalizedPhone = digitsOnly.startsWith("+") ? digitsOnly : `+${digitsOnly}`;
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
@@ -64,9 +96,9 @@ async function sendTurboSms(phone: string, message: string): Promise<SmsResult> 
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({
+        recipients: [normalizedPhone],
         sms: {
-          sender: sender,
-          destination: normalizedPhone,
+          sender,
           text: message,
         },
       }),
@@ -82,16 +114,26 @@ async function sendTurboSms(phone: string, message: string): Promise<SmsResult> 
     }
 
     const data = await response.json();
-    
-    if (data.response_code === '200' || data.response_code === 200) {
-      return { 
-        success: true, 
-        messageId: data.result?.[0]?.message_id || 'unknown'
+
+    const numericCode = typeof data.response_code === "string" ? Number(data.response_code) : data.response_code;
+    const statusText = typeof data.response_status === "string" ? data.response_status : "";
+    const isSuccess = (numericCode !== undefined && TURBOSMS_SUCCESS_CODES.has(numericCode)) || statusText.startsWith("SUCCESS");
+
+    if (isSuccess) {
+      const messageId = data.response_result?.[0]?.message_id
+        || data.result?.[0]?.message_id
+        || data.response_result?.message_id
+        || data.result?.message_id
+        || 'unknown';
+
+      return {
+        success: true,
+        messageId,
       };
-    } else {
-      console.error('[sms] TurboSMS error response', data);
-      return { success: false, error: data.response_status || 'SMS send failed' };
     }
+
+    console.error('[sms] TurboSMS error response', data);
+    return { success: false, error: data.response_status || 'SMS send failed' };
   } catch (err) {
     clearTimeout(timeout);
     console.error('[sms] TurboSMS request failed', err);

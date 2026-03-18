@@ -30,7 +30,7 @@ import { createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolida
 import { normalizePhone } from "@/lib/phone-utils";
 import { getCatalogProductById } from "@/lib/instagram-catalog";
 import { logger } from "@/lib/logger";
-import { buildWfpPaymentUrl, getWfpConfig } from "@/lib/wayforpay";
+import { buildWfpFormParams, getWfpConfig, sanitizeProductName } from "@/lib/wayforpay";
 import { getCurrentUser } from "@/lib/auth-helpers";
 
 // ── Отримай ці ID з Sitniks: Налаштування → Нова Пошта → ID інтеграції
@@ -39,12 +39,17 @@ const NP_INTEGRATION_ID = Number(process.env.SITNIKS_NP_INTEGRATION_ID ?? 0);
 const SALES_CHANNEL_ID  = Number(process.env.SITNIKS_SALES_CHANNEL_ID ?? 0);
 // ── Статус "Новий" (Налаштування → Статуси замовлень → ID)
 const NEW_ORDER_STATUS  = process.env.SITNIKS_NEW_STATUS_ID ? Number(process.env.SITNIKS_NEW_STATUS_ID) : 0;
+// ── Статус "Очікує оплати" для онлайн-замовлень
+const PENDING_PAYMENT_STATUS = process.env.SITNIKS_PENDING_PAYMENT_STATUS_ID ? Number(process.env.SITNIKS_PENDING_PAYMENT_STATUS_ID) : 0;
+// ── Статус "Оплачено"
+const PAID_STATUS = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
 
 console.log("[/api/checkout] Environment variables loaded:");
 console.log("  NP_INTEGRATION_ID:", NP_INTEGRATION_ID);
 console.log("  SALES_CHANNEL_ID:", SALES_CHANNEL_ID);
 console.log("  NEW_ORDER_STATUS:", NEW_ORDER_STATUS);
-console.log("  SITNIKS_NEW_STATUS_ID env:", process.env.SITNIKS_NEW_STATUS_ID);
+console.log("  PENDING_PAYMENT_STATUS:", PENDING_PAYMENT_STATUS);
+console.log("  PAID_STATUS:", PAID_STATUS);
 
 interface CheckoutItem {
   id?: number;
@@ -59,6 +64,7 @@ interface CheckoutItem {
 interface CheckoutBody {
   name: string;
   phone: string;
+  email?: string;
   city: string;
   department?: string;
   warehouse?: string;
@@ -68,6 +74,10 @@ interface CheckoutBody {
   comment?: string;
   discountAmount?: number;
   items: CheckoutItem[];
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  referrer?: string;
 }
 
 function validateBody(body: unknown): body is CheckoutBody {
@@ -81,6 +91,51 @@ function validateBody(body: unknown): body is CheckoutBody {
     hasDelivery &&
     Array.isArray(b.items) && b.items.length > 0
   );
+}
+
+function buildPaymentItemsForWayForPay(
+  items: Array<{ name: string; price: number; quantity: number }>,
+  discountAmount: number
+) {
+  if (!items.length) return [];
+
+  const normalized = items.map((item) => ({
+    name: item.name,
+    quantity: item.quantity,
+    lineTotalCents: Math.round(item.price * 100) * item.quantity,
+  }));
+
+  const totalCents = normalized.reduce((sum, item) => sum + item.lineTotalCents, 0);
+  if (totalCents === 0) {
+    return normalized.map((item) => ({ name: item.name, quantity: item.quantity, lineTotal: 0 }));
+  }
+
+  const maxDiscountCents = Math.min(Math.round(discountAmount * 100), totalCents);
+  let remainingDiscount = maxDiscountCents;
+  let remainingTotal = totalCents;
+
+  return normalized.map((item, index) => {
+    let discountShare = 0;
+    if (remainingDiscount > 0) {
+      if (index === normalized.length - 1) {
+        discountShare = remainingDiscount;
+      } else if (remainingTotal > 0) {
+        discountShare = Math.round((item.lineTotalCents / remainingTotal) * remainingDiscount);
+        discountShare = Math.min(discountShare, remainingDiscount);
+      }
+    }
+
+    remainingDiscount -= discountShare;
+    remainingTotal -= item.lineTotalCents;
+
+    const adjustedLineTotalCents = item.lineTotalCents - discountShare;
+
+    return {
+      name: item.name,
+      quantity: item.quantity,
+      lineTotal: adjustedLineTotalCents / 100,
+    };
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -153,13 +208,48 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const discountAmount = Math.max(0, Number(body.discountAmount) || 0);
-    const finalAmount = serverTotal - discountAmount;
+    const requestedDiscount = Math.max(0, Number(body.discountAmount) || 0);
+    const discountAmount = Math.min(requestedDiscount, serverTotal);
+
+    const paymentItems = buildPaymentItemsForWayForPay(resolvedItems, discountAmount);
+    const finalAmount = Number(
+      paymentItems.reduce((sum, item) => sum + item.lineTotal, 0).toFixed(2)
+    );
+
+    // Calculate total weight from products
+    let totalWeight = 0;
+    for (const item of resolvedItems) {
+      const catalogProduct = await getCatalogProductById(Number(item.variationId));
+      const itemWeight = catalogProduct?.weight ?? 0.5; // Default 0.5kg if not specified
+      totalWeight += itemWeight * item.quantity;
+    }
+    // Minimum weight 0.5kg for Nova Poshta
+    totalWeight = Math.max(0.5, totalWeight);
+
+    // Build manager comment with tracking info
+    let managerComment = `Замовлення з сайту. Оплата: ${(body.paymentMethod === "card" || body.paymentMethod === "online") ? "картка" : "накладений платіж"}`;
+    if (currentUser) {
+      managerComment += `. UserID: ${currentUser.userId}`;
+    }
+    if (body.utm_source || body.utm_medium || body.utm_campaign) {
+      const utmParts = [];
+      if (body.utm_source) utmParts.push(`source=${body.utm_source}`);
+      if (body.utm_medium) utmParts.push(`medium=${body.utm_medium}`);
+      if (body.utm_campaign) utmParts.push(`campaign=${body.utm_campaign}`);
+      managerComment += `. UTM: ${utmParts.join(", ")}`;
+    }
+    if (body.referrer) {
+      managerComment += `. Referrer: ${body.referrer}`;
+    }
+    if (discountAmount > 0) {
+      managerComment += `. Знижка: ${discountAmount} грн`;
+    }
 
     const dto: CreateOrderDto = {
       client: {
         fullname: body.name,
         phone: phone,
+        email: body.email,
       },
 
       products: resolvedItems.map((item) => ({
@@ -186,18 +276,22 @@ export async function POST(req: NextRequest) {
           paymentMethod: "Cash",
           // Після оплати карткою — контроль плати, при накладеному — постоплата
           productPaymentMethod: (body.paymentMethod === "card" || body.paymentMethod === "online") ? "payment-control" : "postpaid",
-          weight: 0.5, // дефолт, Sitniks може перерахувати
-          description: body.items.map((i) => i.name).join(", "),
+          weight: totalWeight,
+          description: resolvedItems.map((i) => `${i.name} x${i.quantity}`).join(", "),
         }
       } : {}),
 
-      // Не передаємо statusId, якщо він не встановлений
-      // ВРЕМЕННО ОТКЛЮЧЕНО: statusId вызывает ошибку status_must_be_valid
-      // ...(NEW_ORDER_STATUS > 0 ? { statusId: NEW_ORDER_STATUS } : {}),
+      // Використовуємо різні статуси для COD та онлайн-оплати
       ...(SALES_CHANNEL_ID > 0 ? { salesChannelId: SALES_CHANNEL_ID } : {}),
+      // Для онлайн-оплати: "Очікує оплати", для COD: "Новий"
+      ...((body.paymentMethod === "card" || body.paymentMethod === "online") && PENDING_PAYMENT_STATUS > 0
+        ? { statusId: PENDING_PAYMENT_STATUS }
+        : NEW_ORDER_STATUS > 0
+        ? { statusId: NEW_ORDER_STATUS }
+        : {}),
 
       clientComment: body.comment,
-      managerComment: `Замовлення з сайту. Оплата: ${(body.paymentMethod === "card" || body.paymentMethod === "online") ? "картка" : "накладений платіж"}${currentUser ? `. UserID: ${currentUser.userId}` : ""}`,
+      managerComment: managerComment,
 
       // Зберігаємо унікальний ID щоб уникнути дублікатів
       externalId: `web-${Date.now()}${currentUser ? `-user-${currentUser.userId}` : ""}`,
@@ -213,27 +307,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate WayForPay payment URL for online payments
-    let paymentUrl: string | undefined;
+    // Generate WayForPay payment form parameters for online payments
+    let paymentFormParams: Record<string, string> | undefined;
     if (body.paymentMethod === "online" || body.paymentMethod === "card") {
       try {
         const wfpConfig = getWfpConfig();
+        // Use unique reference for each payment attempt to avoid Duplicate Order ID
+        const paymentOrderReference = `${order.orderNumber}-${Date.now()}`;
         const paymentParams = {
           merchantAccount: wfpConfig.merchantAccount,
           merchantDomainName: wfpConfig.merchantDomainName,
-          orderReference: String(order.orderNumber),
+          orderReference: paymentOrderReference,
           orderDate: Math.floor(Date.now() / 1000),
           amount: finalAmount,
           currency: "UAH" as const,
-          productName: resolvedItems.map(item => item.name),
-          productPrice: resolvedItems.map(item => item.price),
-          productCount: resolvedItems.map(item => item.quantity),
+          // Each payment item represents a full line total (count = 1) to ensure
+          // sum(productPrice * productCount) === amount even with discounts
+          productName: paymentItems.map((item) => {
+            const label = item.quantity > 1 ? `${item.name} x${item.quantity}` : item.name;
+            return sanitizeProductName(label);
+          }),
+          productPrice: paymentItems.map((item) => Number(item.lineTotal.toFixed(2))),
+          productCount: paymentItems.map(() => 1),
           returnUrl: `${wfpConfig.siteUrl}/checkout/success?ref=${order.orderNumber}&method=online`,
           serviceUrl: `${wfpConfig.siteUrl}/api/webhooks/wayforpay`,
         };
-        paymentUrl = buildWfpPaymentUrl(paymentParams, wfpConfig.secretKey);
+        paymentFormParams = buildWfpFormParams(paymentParams, wfpConfig.secretKey);
       } catch (error) {
-        logger.error("[/api/checkout] Failed to generate WayForPay URL:", error);
+        logger.error("[/api/checkout] Failed to generate WayForPay form params:", error);
         return NextResponse.json(
           { error: "Не вдалося створити посилання для оплати. Спробуйте пізніше або оберіть накладений платіж." },
           { status: 500 }
@@ -245,7 +346,7 @@ export async function POST(req: NextRequest) {
       success: true,
       orderId: order.id,
       orderNumber: order.orderNumber,
-      paymentUrl,
+      paymentFormParams,
     });
 
   } catch (err) {

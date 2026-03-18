@@ -14,6 +14,7 @@ import { SORT_OPTIONS, type SortKey } from "@/lib/catalog-config";
 
 const INITIAL_VISIBLE = 12;
 const LOAD_MORE_STEP = 24;
+const CATALOG_SYNC_EVENT = "catalogparamschange";
 
 interface ShopCatalogProps {
   products: CatalogProduct[];
@@ -57,6 +58,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
       
       const scrollY = window.scrollY;
       const url = new URL(window.location.href);
+      let categorySynced = false;
       
       // Search query
       const searchParam = url.searchParams.get('q');
@@ -77,18 +79,25 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
         if (availableCategories.includes(cat)) {
           setActive(cat);
           setVisibleCount(INITIAL_VISIBLE);
+          categorySynced = true;
         }
       }
       
       // Category (hash)
       const hash = window.location.hash;
       const catMatch = hash.match(/category=([^&#]*)/);
-      if (catMatch) {
+      if (!categorySynced && catMatch) {
         const cat = decodeURIComponent(catMatch[1].trim());
         if (availableCategories.includes(cat)) {
           setActive(cat);
           setVisibleCount(INITIAL_VISIBLE);
+          categorySynced = true;
         }
+      }
+
+      if (!categorySynced) {
+        setActive("Всі");
+        setVisibleCount(INITIAL_VISIBLE);
       }
       
       window.scrollTo(0, scrollY);
@@ -104,12 +113,14 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
     syncFromURL();
     window.addEventListener("popstate", syncFromURL);
     window.addEventListener("hashchange", syncFromURL);
+    window.addEventListener(CATALOG_SYNC_EVENT, syncFromURL);
     window.addEventListener("searchupdate", handleSearchUpdate as EventListener);
 
     return () => { 
       isMounted = false;
       window.removeEventListener("popstate", syncFromURL);
       window.removeEventListener("hashchange", syncFromURL);
+      window.removeEventListener(CATALOG_SYNC_EVENT, syncFromURL);
       window.removeEventListener("searchupdate", handleSearchUpdate as EventListener);
     };
   }, [availableCategories]);
@@ -126,6 +137,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
       url.searchParams.set('category', category);
     }
     window.history.replaceState({}, '', url.toString());
+    window.dispatchEvent(new Event(CATALOG_SYNC_EVENT));
   }, []);
 
   // СВАЙП ПО КАТЕГОРІЯХ
@@ -224,9 +236,9 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
     url.searchParams.delete('sort');
     url.searchParams.delete('category');
     window.history.replaceState({}, '', url.toString());
+    window.dispatchEvent(new Event(CATALOG_SYNC_EVENT));
   };
 
-  const hasActiveFilters = searchQuery || minPrice || maxPrice || onlyInStock || sortKey !== "default" || active !== "Всі";
   const activeSortLabel = SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? "Сортування";
   const hasMore = visibleCount < sorted.length;
 
@@ -269,7 +281,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
                       key={opt.value}
                       onClick={() => handleSortChange(opt.value)}
                       className={`w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 text-[10px] sm:text-xs transition-colors hover:bg-gray-50 ${
-                        sortKey === opt.value ? "font-bold text-emerald-600 bg-emerald-50" : "text-gray-700"
+                        sortKey === opt.value ? "font-bold text-[#2E7D32] bg-[#2E7D32]/10" : "text-gray-700"
                       }`}
                     >
                       {opt.label}
@@ -283,7 +295,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
               onClick={() => setShowFilters((v) => !v)}
               className={`flex items-center gap-1 sm:gap-2 border rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold transition-colors ${
                 showFilters
-                  ? "bg-emerald-500 border-emerald-500 text-white"
+                  ? "bg-[#2E7D32] border-[#2E7D32] text-white"
                   : "bg-white border-gray-200 text-gray-700 hover:border-gray-300"
               }`}
             >
@@ -295,15 +307,6 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
             </button>
           </div>
 
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-emerald-600 hover:text-emerald-700 font-semibold transition-colors"
-            >
-              <X size={12} className="sm:w-[14px] sm:h-[14px]" />
-              Скинути
-            </button>
-          )}
         </div>
 
         {/* Filters Panel */}
@@ -318,7 +321,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
                   onChange={(e) => setMinPrice(e.target.value)}
                   placeholder="100"
                   min={0}
-                  className="w-20 sm:w-24 border border-gray-200 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="w-20 sm:w-24 border border-gray-200 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/50"
                 />
               </div>
               <div className="flex flex-col gap-1 sm:gap-1.5">
@@ -329,7 +332,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
                   onChange={(e) => setMaxPrice(e.target.value)}
                   placeholder="5000"
                   min={0}
-                  className="w-20 sm:w-24 border border-gray-200 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="w-20 sm:w-24 border border-gray-200 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/50"
                 />
               </div>
               <label className="flex items-center gap-1.5 sm:gap-2 cursor-pointer text-xs sm:text-sm font-semibold text-gray-700 select-none">
@@ -337,7 +340,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
                   type="checkbox"
                   checked={onlyInStock}
                   onChange={(e) => setOnlyInStock(e.target.checked)}
-                  className="accent-emerald-500 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded"
+                  className="accent-[#2E7D32] w-3.5 h-3.5 sm:w-4 sm:h-4 rounded"
                 />
                 Тільки в наявності
               </label>
@@ -353,7 +356,7 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
             <p className="text-xs sm:text-sm text-gray-400 mb-3 sm:mb-4">Спробуйте змінити фільтри</p>
             <button 
               onClick={clearFilters} 
-              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs sm:text-sm rounded-lg transition-colors"
+              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-bold text-xs sm:text-sm rounded-lg transition-colors"
             >
               Скинути фільтри
             </button>

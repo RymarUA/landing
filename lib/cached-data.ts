@@ -80,3 +80,43 @@ export async function getCachedFeaturedHits(limit = 10): Promise<FeaturedProduct
   const hits = await getCachedFeaturedHitsInternal();
   return limit < hits.length ? hits.slice(0, limit) : hits;
 }
+
+const getCachedFeaturedFreeShippingInternal = unstable_cache(
+  async () => {
+    const products = await getCatalogProducts();
+    return products
+      .filter((product) => product.freeShipping)
+      .slice(0, FEATURED_CACHE_LIMIT)
+      .map(mapToFeaturedProduct);
+  },
+  ["featured-free-shipping"],
+  {
+    revalidate: TWO_MINUTES,
+    tags: ["featured-free-shipping"],
+  },
+);
+
+export async function getCachedFeaturedFreeShipping(limit = 10): Promise<FeaturedProduct[]> {
+  const freeShipping = await getCachedFeaturedFreeShippingInternal();
+  return limit < freeShipping.length ? freeShipping.slice(0, limit) : freeShipping;
+}
+
+const getCachedFeaturedPromosInternal = unstable_cache(
+  async () => {
+    const products = await getCatalogProducts();
+    return products
+      .filter((product) => product.badge && (product.badge.toLowerCase().includes('промо') || product.badge.toLowerCase().includes('promo') || product.badge.toLowerCase().includes('sale') || product.badge.toLowerCase().includes('знижка')))
+      .slice(0, FEATURED_CACHE_LIMIT)
+      .map(mapToFeaturedProduct);
+  },
+  ["featured-promos"],
+  {
+    revalidate: TWO_MINUTES,
+    tags: ["featured-promos"],
+  },
+);
+
+export async function getCachedFeaturedPromos(limit = 10): Promise<FeaturedProduct[]> {
+  const promos = await getCachedFeaturedPromosInternal();
+  return limit < promos.length ? promos.slice(0, limit) : promos;
+}

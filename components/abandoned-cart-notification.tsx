@@ -12,15 +12,16 @@ import { motion, AnimatePresence } from "framer-motion";
  * Shows a notification when:
  * 1. User has items in cart
  * 2. User hasn't completed checkout
- * 3. User has been on site for at least 2 minutes
+ * 3. 3-5 minutes have passed since first item was added to cart
  * 4. User hasn't dismissed the notification in this session
  */
 
-const SHOW_DELAY_MS = 120000; // 2 minutes
+const SHOW_DELAY_MS = 240000; // 4 minutes (between 3-5 minutes)
 const STORAGE_KEY = "fhm_abandoned_cart_dismissed";
+const CART_TIMESTAMP_KEY = "fhm_cart_first_item_timestamp";
 
 export function AbandonedCartNotification() {
-  const { totalCount, totalPrice, hydrated, openCart, sessionStartTime } = useCart();
+  const { totalCount, totalPrice, hydrated, openCart } = useCart();
   const [showNotification, setShowNotification] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
 
@@ -37,21 +38,31 @@ export function AbandonedCartNotification() {
       return;
     }
 
-    // Calculate time since session started
-    const timeElapsed = Date.now() - sessionStartTime;
+    // Get timestamp when first item was added to cart
+    const cartTimestamp = localStorage.getItem(CART_TIMESTAMP_KEY);
+    if (!cartTimestamp) {
+      // Set timestamp when first item appears in cart
+      if (totalCount > 0) {
+        localStorage.setItem(CART_TIMESTAMP_KEY, Date.now().toString());
+      }
+      return;
+    }
+
+    // Calculate time since first item was added
+    const timeSinceFirstItem = Date.now() - parseInt(cartTimestamp);
     
-    if (timeElapsed >= SHOW_DELAY_MS) {
+    if (timeSinceFirstItem >= SHOW_DELAY_MS) {
       // Show immediately if enough time has passed
       setShowNotification(true);
     } else {
-      // Set timer to show after delay
+      // Set timer to show after remaining delay
       const timer = setTimeout(() => {
         setShowNotification(true);
-      }, SHOW_DELAY_MS - timeElapsed);
+      }, SHOW_DELAY_MS - timeSinceFirstItem);
 
       return () => clearTimeout(timer);
     }
-  }, [hydrated, totalCount, sessionStartTime]);
+  }, [hydrated, totalCount]);
 
   const handleDismiss = () => {
     setShowNotification(false);
@@ -77,7 +88,7 @@ export function AbandonedCartNotification() {
         transition={{ type: "spring", damping: 20, stiffness: 300 }}
         className="fixed bottom-20 sm:bottom-6 right-4 z-[120] max-w-sm"
       >
-        <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-2xl shadow-2xl p-4 relative">
+        <div className="bg-gradient-to-br from-[#2E7D32] to-[#1B5E20] text-white rounded-2xl shadow-2xl p-4 relative">
           {/* Close button */}
           <button
             onClick={handleDismiss}

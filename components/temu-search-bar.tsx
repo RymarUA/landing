@@ -1,6 +1,8 @@
 "use client";
 
-import { Search, Heart, MessageCircle, HelpCircle, Package, Grid3x3, ChevronDown, Truck, Activity, Bandage, Shield, Vibrate, Droplets, Shirt, Menu, Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import {
+  Search, Heart, MessageCircle, HelpCircle, Package, Grid3x3, ChevronDown, Truck, Activity, Bandage, Shield, Vibrate, Droplets, Shirt, Menu, Loader2, RefreshCw, AlertCircle 
+} from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -54,6 +56,10 @@ import { ViberIcon } from "@/components/icons/viber-icon";
 import { TikTokIcon } from "@/components/icons/tiktok-icon";
 import { CategoryIconsSlider } from "@/components/category-icons-slider";
 
+const CATALOG_SYNC_EVENT = "catalogparamschange";
+const DESKTOP_SUGGESTION_LIMIT = 6;
+const MOBILE_SUGGESTION_LIMIT = 4;
+
 export function TemuSearchBar() {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,6 +73,7 @@ export function TemuSearchBar() {
   const [supportPosition, setSupportPosition] = useState({ top: 0, left: 0 });
   const [catalogPosition, setCatalogPosition] = useState({ top: 0, left: 0 });
   const [mobileMenuPosition, setMobileMenuPosition] = useState({ top: 0, right: 0 });
+  const [isMounted, setIsMounted] = useState(false);
   const searchRef = useRef<HTMLFormElement>(null);
   const supportRef = useRef<HTMLDivElement>(null);
   const catalogRef = useRef<HTMLDivElement>(null);
@@ -76,6 +83,11 @@ export function TemuSearchBar() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState(false);
   const isMountedRef = useRef(true);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -179,6 +191,8 @@ export function TemuSearchBar() {
 
   // Sync category with URL query and hash
   useEffect(() => {
+    if (!isMounted) return;
+    
     const syncFromURL = () => {
       const url = new URL(window.location.href);
       
@@ -205,11 +219,23 @@ export function TemuSearchBar() {
       window.removeEventListener("hashchange", syncFromURL);
       window.removeEventListener("popstate", syncFromURL);
     };
-  }, []);
+  }, [isMounted]);
 
   const handleCategoryChange = (category: string) => {
+    const navigateToHomeCatalog = () => {
+      const target = category === "Всі"
+        ? "/#catalog"
+        : `/?category=${encodeURIComponent(category)}#catalog`;
+      window.location.href = target;
+    };
+
+    if (pathname !== "/") {
+      navigateToHomeCatalog();
+      return;
+    }
+
     setActiveCategory(category);
-    
+
     // Update URL without page reload
     const url = new URL(window.location.href);
     if (category === "Всі") {
@@ -219,21 +245,22 @@ export function TemuSearchBar() {
     }
     url.hash = 'catalog';
     window.history.replaceState({}, '', url.toString());
-    
+    window.dispatchEvent(new Event(CATALOG_SYNC_EVENT));
+
     // Scroll to catalog section with proper offset
     const catalogElement = document.getElementById('catalog');
     if (catalogElement) {
       const headerElement = document.getElementById("site-header");
       const headerHeight = headerElement?.getBoundingClientRect().height ?? 0;
       const additionalGap = 4;
-      
+
       const targetTop = catalogElement.getBoundingClientRect().top + window.scrollY - headerHeight - additionalGap;
       window.scrollTo({
         top: Math.max(targetTop, 0),
         behavior: "smooth",
       });
     }
-    
+
     // Close catalog dropdown if it's open
     setShowCatalog(false);
   };
@@ -262,41 +289,41 @@ export function TemuSearchBar() {
   const hasNoResults = !searchLoading && !searchError && hasQuery && searchProducts.length > 0 && suggestions.length === 0;
 
   const updateMobileMenuPosition = useCallback(() => {
-    if (typeof window === "undefined" || !mobileMenuRef.current) return;
+    if (!isMounted || typeof window === "undefined" || !mobileMenuRef.current) return;
     const rect = mobileMenuRef.current.getBoundingClientRect();
     setMobileMenuPosition({
       top: rect.bottom + 8,
       right: window.innerWidth - rect.right,
     });
-  }, []);
+  }, [isMounted]);
 
   const updateSupportPosition = useCallback(() => {
-    if (typeof window === "undefined" || !supportRef.current) return;
+    if (!isMounted || typeof window === "undefined" || !supportRef.current) return;
     const rect = supportRef.current.getBoundingClientRect();
     setSupportPosition({
       top: rect.bottom + 8,
       left: rect.right - 200,
     });
-  }, []);
+  }, [isMounted]);
 
   const updateCatalogPosition = useCallback(() => {
-    if (typeof window === "undefined" || !catalogRef.current) return;
+    if (!isMounted || typeof window === "undefined" || !catalogRef.current) return;
     const rect = catalogRef.current.getBoundingClientRect();
     setCatalogPosition({
       top: rect.bottom + 8,
       left: rect.left,
     });
-  }, []);
+  }, [isMounted]);
 
   const updateSuggestionsPosition = useCallback(() => {
-    if (typeof window === "undefined" || !searchRef.current) return;
+    if (!isMounted || typeof window === "undefined" || !searchRef.current) return;
     const rect = searchRef.current.getBoundingClientRect();
     setSuggestionsPosition({
       top: rect.bottom + 8,
       left: rect.left,
       width: rect.width,
     });
-  }, []);
+  }, [isMounted]);
 
   // Update mobile menu dropdown position
   useLayoutEffect(() => {
@@ -386,8 +413,9 @@ export function TemuSearchBar() {
   return (
     <div 
       className="text-white"
+      style={{ backgroundColor: '#2E7D32' }}
     >
-      <div className="border-b border-emerald-900/10">
+      <div className="border-b border-[#065F46]/10">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-1.5 flex items-center gap-2 sm:gap-3">
           {/* Logo */}
           <Link
@@ -395,14 +423,20 @@ export function TemuSearchBar() {
             className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0"
             aria-label="Повернутися на головну"
           >
-            <span className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border-2 border-[#D4AF37]/50 bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-md">
-              ЗС
-            </span>
+            <div className="relative h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 p-1 rounded-full bg-white/20">
+              <Image
+                src="/logo.png"
+                alt="Здоров'я Сходу"
+                fill
+                sizes="(max-width: 640px) 32px, 36px"
+                className="object-cover rounded-full"
+              />
+            </div>
             <div className="hidden sm:block leading-tight">
               <div className="font-heading text-sm md:text-base text-white font-bold">
                 Здоров&apos;я Сходу
               </div>
-              <div className="text-[10px] md:text-[11px] text-white/70 font-medium">
+              <div className="text-[10px] md:text-[11px] text-white/80 font-medium">
                 Ритуали турботи щодня
               </div>
             </div>
@@ -440,7 +474,7 @@ export function TemuSearchBar() {
             <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
             <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
               {searchLoading && (
-                <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" aria-label="Завантаження каталогу" />
+                <Loader2 className="w-4 h-4 text-[#2E7D32] animate-spin" aria-label="Завантаження каталогу" />
               )}
               {!searchLoading && searchError && (
                 <button
@@ -464,7 +498,7 @@ export function TemuSearchBar() {
               <div className="relative" ref={catalogRef}>
                 <button
                   onClick={() => setShowCatalog(!showCatalog)}
-                  className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+                  className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/30 bg-white/25 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white hover:bg-white/35 transition shadow-md"
                   aria-label="Каталог товарів"
                 >
                   <Grid3x3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -478,7 +512,7 @@ export function TemuSearchBar() {
             <div className="relative" ref={supportRef}>
               <button
                 onClick={() => setShowSupport(!showSupport)}
-                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/30 bg-white/25 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white hover:bg-white/35 transition shadow-md"
                 aria-label="Зв'язатися з нами"
               >
                 <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -489,7 +523,7 @@ export function TemuSearchBar() {
             {/* FAQ Link */}
             <Link
               href="/faq"
-              className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+              className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/30 bg-white/25 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white hover:bg-white/35 transition shadow-md"
               aria-label="Часті запитання"
             >
               <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -499,7 +533,7 @@ export function TemuSearchBar() {
             {/* Wishlist */}
             <Link
               href="/wishlist"
-              className="relative flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+              className="relative flex items-center gap-1 sm:gap-2 rounded-full border border-white/30 bg-white/25 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white hover:bg-white/35 transition shadow-md"
               aria-label="Переглянути список бажань"
             >
               <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -515,7 +549,7 @@ export function TemuSearchBar() {
             {pathname !== "/tracking" && (
               <Link
                 href="/tracking"
-                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/20 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/30 bg-white/25 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-white hover:bg-white/35 transition shadow-md"
                 aria-label="Відстежити посилку Новою Поштою"
               >
                 <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -528,7 +562,7 @@ export function TemuSearchBar() {
           <div className="sm:hidden relative" ref={mobileMenuRef}>
             <button
               onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-1.5 text-[10px] font-semibold text-white/90 hover:bg-white/20 transition shadow-sm"
+              className="flex items-center gap-1 rounded-full border border-white/30 bg-white/25 px-2 py-1.5 text-[10px] font-semibold text-white hover:bg-white/35 transition shadow-md"
               aria-label="Меню"
             >
               <Menu className="w-4 h-4" />
@@ -559,7 +593,7 @@ export function TemuSearchBar() {
         >
           {searchLoading && (
             <div className="p-4 flex items-center gap-3 text-sm text-gray-600">
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              <Loader2 className="w-4 h-4 animate-spin text-[#2E7D32]" />
               <span>Завантажуємо підказки…</span>
             </div>
           )}
@@ -571,7 +605,7 @@ export function TemuSearchBar() {
               </div>
               <button
                 onClick={handleRetrySearch}
-                className="text-emerald-600 font-semibold hover:text-emerald-700"
+                className="text-[#2E7D32] font-semibold hover:text-[#F9A825]"
               >
                 Спробувати ще
               </button>
@@ -594,7 +628,7 @@ export function TemuSearchBar() {
                   window.location.href = `/product/${product.id}`;
                 }, 0);
               }}
-              className="w-full flex items-center gap-3 p-3 hover:bg-emerald-50 transition-colors text-left border-b border-gray-50 last:border-b-0 cursor-pointer"
+              className="w-full flex items-center gap-3 p-3 hover:bg-[#2E7D32]/10 transition-colors text-left border-b border-gray-50 last:border-b-0 cursor-pointer"
             >
               <div className="relative w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
                 <Image
@@ -627,7 +661,7 @@ export function TemuSearchBar() {
       )}
       
       {/* Support Dropdown Portal - render outside DOM to avoid z-index issues */}
-      {showSupport && typeof window !== 'undefined' && createPortal(
+      {showSupport && isMounted && createPortal(
         <div 
           className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[10000] min-w-[200px]"
           style={{
@@ -641,7 +675,7 @@ export function TemuSearchBar() {
               href={`https://t.me/${siteConfig.telegramUsername}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-[#2E7D32]/10 transition-colors text-gray-900"
               onClick={() => setShowSupport(false)}
             >
               <div className="text-gray-700">
@@ -655,7 +689,7 @@ export function TemuSearchBar() {
               href={`viber://chat?number=${encodeURIComponent(siteConfig.viberPhone)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-[#2E7D32]/10 transition-colors text-gray-900 border-t border-gray-100"
               onClick={() => setShowSupport(false)}
             >
               <div className="text-gray-700">
@@ -669,7 +703,7 @@ export function TemuSearchBar() {
               href={`https://www.tiktok.com/@${siteConfig.tiktokUsername}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-[#2E7D32]/10 transition-colors text-gray-900 border-t border-gray-100"
               onClick={() => setShowSupport(false)}
             >
               <div className="text-gray-700">
@@ -681,10 +715,10 @@ export function TemuSearchBar() {
           {siteConfig.phone && (
             <a
               href={`tel:${siteConfig.phone}`}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-[#2E7D32]/10 transition-colors text-gray-900 border-t border-gray-100"
               onClick={() => setShowSupport(false)}
             >
-              <MessageCircle size={20} className="text-emerald-600" />
+              <MessageCircle size={20} className="text-[#2E7D32]" />
               <span className="text-sm font-semibold">{siteConfig.phone}</span>
             </a>
           )}
@@ -693,7 +727,7 @@ export function TemuSearchBar() {
       )}
 
       {/* Mobile Menu Dropdown Portal - render outside DOM to avoid z-index issues */}
-      {showMobileMenu && typeof window !== 'undefined' && createPortal(
+      {showMobileMenu && isMounted && createPortal(
         <div 
           data-mobile-menu-dropdown
           className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[10000] min-w-[200px]"
@@ -710,9 +744,9 @@ export function TemuSearchBar() {
                 setShowCatalog(!showCatalog);
                 setShowMobileMenu(false);
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 text-left"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#2E7D32]/10 transition-colors text-gray-900 text-left"
             >
-              <div className="text-emerald-600">
+              <div className="text-[#2E7D32]">
                 <Grid3x3 size={18} />
               </div>
               <span className="text-sm font-semibold">Каталог</span>
@@ -724,7 +758,7 @@ export function TemuSearchBar() {
             href={`https://t.me/${siteConfig.telegramUsername || 'health_east'}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 text-left border-t border-gray-100"
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#2E7D32]/10 transition-colors text-gray-900 text-left border-t border-gray-100"
             onClick={() => setShowMobileMenu(false)}
           >
             <div className="text-gray-700">
@@ -736,7 +770,7 @@ export function TemuSearchBar() {
           {/* FAQ Link */}
           <Link
             href="/faq"
-            className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-[#C7FCEC]/10 transition-colors text-gray-900 border-t border-gray-100"
             onClick={() => setShowMobileMenu(false)}
           >
             <div className="text-gray-700">
@@ -748,7 +782,7 @@ export function TemuSearchBar() {
           {/* Wishlist */}
           <Link
             href="/wishlist"
-            className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-[#C7FCEC]/10 transition-colors text-gray-900 border-t border-gray-100"
             onClick={() => setShowMobileMenu(false)}
           >
             <div className="text-gray-700">
@@ -766,7 +800,7 @@ export function TemuSearchBar() {
           {pathname !== "/tracking" && (
             <Link
               href="/tracking"
-              className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 transition-colors text-gray-900 border-t border-gray-100"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-[#2E7D32]/10 transition-colors text-gray-900 border-t border-gray-100"
               onClick={() => setShowMobileMenu(false)}
             >
               <div className="text-gray-700">
@@ -780,7 +814,7 @@ export function TemuSearchBar() {
       )}
 
       {/* Catalog Dropdown Portal - render outside DOM to avoid z-index issues */}
-      {showCatalog && typeof window !== 'undefined' && createPortal(
+      {showCatalog && isMounted && createPortal(
         <div 
           className="fixed bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[10000] min-w-[220px] max-h-[400px] overflow-y-auto"
           style={{

@@ -100,7 +100,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   "Оплачено":         { label: "Оплачено",         color: "text-green-600 bg-green-50 border-green-100" },
   "Відправлено":      { label: "Відправлено",       color: "text-blue-600 bg-blue-50 border-blue-100" },
   "У відділенні":     { label: "У відділенні",      color: "text-green-700 bg-green-100 border-green-200" },
-  "Доставлено":       { label: "Доставлено",        color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
+  "Доставлено":       { label: "Доставлено",        color: "text-[#2E7D32] bg-[#2E7D32]/10 border-[#2E7D32]/20" },
   "Скасовано":        { label: "Скасовано",         color: "text-red-600 bg-red-50 border-red-100" },
 };
 
@@ -109,6 +109,7 @@ function statusStyle(status: string) {
 }
 
 const PROFILE_NAME_KEY = "fhm_profile_name";
+const PROFILE_LAST_NAME_KEY = "fhm_profile_last_name";
 const PROFILE_ADDRESS_KEY = "fhm_profile_address";
 const PROFILE_CITY_KEY = "fhm_profile_city";
 const PROFILE_CITY_REF_KEY = "fhm_profile_city_ref";
@@ -227,6 +228,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [loggedEmail, setLoggedEmail] = useState("");
   const [loggedPhone, setLoggedPhone] = useState("");
   const [profileName, setProfileName] = useLocalStorage<string>(PROFILE_NAME_KEY, "");
+  const [profileLastName, setProfileLastName] = useLocalStorage<string>(PROFILE_LAST_NAME_KEY, "");
   const [profileAddress, setProfileAddress] = useLocalStorage<string>(PROFILE_ADDRESS_KEY, "");
   const [profileCity, setProfileCity] = useLocalStorage<string>(PROFILE_CITY_KEY, "");
   const [profileCityRef, setProfileCityRef] = useLocalStorage<string>(PROFILE_CITY_REF_KEY, "");
@@ -267,6 +269,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: "",
+    lastName: "",
     email: "",
     phone: "",
     city: "",
@@ -278,6 +281,8 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [newPhone, setNewPhone] = useState("");
   const [phoneOtp, setPhoneOtp] = useState(["", "", "", "", "", ""]);
   const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [phoneOtpMode, setPhoneOtpMode] = useState<"add" | "change" | null>(null);
+  const [pendingPhoneForOtp, setPendingPhoneForOtp] = useState<string | null>(null);
   const [phoneResendIn, setPhoneResendIn] = useState(0);
   const phoneTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -292,9 +297,31 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [warehouseOptions, setWarehouseOptions] = useState<NPWarehouse[]>([]);
   const [warehouseLoading, setWarehouseLoading] = useState(false);
   const [warehouseError, setWarehouseError] = useState<string>("");
-  const lastLoadedWarehouseCity = useRef<string>("");
+  const [warehouseValue, setWarehouseValue] = useState("");
+  const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
+  const warehouseSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const warehouseSearchRequestId = useRef(0);
+  const warehouseDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => () => { if (citySearchTimeoutRef.current) clearTimeout(citySearchTimeoutRef.current); }, []);
+  useEffect(() => {
+    return () => {
+      if (citySearchTimeoutRef.current) clearTimeout(citySearchTimeoutRef.current);
+      if (warehouseSearchTimeoutRef.current) clearTimeout(warehouseSearchTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!warehouseDropdownRef.current) return;
+      if (!warehouseDropdownRef.current.contains(event.target as Node)) {
+        setShowWarehouseDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const loadWarehouses = useCallback(async (cityRef: string, presetWarehouseRef?: string) => {
     if (!cityRef) {
@@ -302,7 +329,6 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       setWarehouseLoading(false);
       return;
     }
-    lastLoadedWarehouseCity.current = cityRef;
     setWarehouseLoading(true);
     setWarehouseError("");
     try {
@@ -313,8 +339,11 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       }
       if (presetWarehouseRef) {
         const preset = list.find((wh) => wh.Ref === presetWarehouseRef);
-        if (!preset) {
+        if (preset) {
+          setWarehouseValue(preset.Description);
+        } else {
           setEditFormData((prev) => ({ ...prev, warehouse: "", warehouseRef: "" }));
+          setWarehouseValue("");
         }
       }
     } catch (error) {
@@ -334,8 +363,13 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       warehouse: "",
       warehouseRef: ""
     }));
+    setWarehouseValue("");
+    setShowWarehouseDropdown(false);
     setWarehouseOptions([]);
     setWarehouseError("");
+    if (warehouseSearchTimeoutRef.current) {
+      clearTimeout(warehouseSearchTimeoutRef.current);
+    }
     if (!value || value.length < 2) {
       setCityResults([]);
       setShowCityDropdown(false);
@@ -380,19 +414,91 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setShowCityDropdown(false);
     setCityResults([]);
     setCitySearchError("");
+    setWarehouseValue("");
+    setShowWarehouseDropdown(false);
+    setWarehouseOptions([]);
     loadWarehouses(city.Ref);
   }, [loadWarehouses]);
 
-  const handleWarehouseSelect = useCallback((warehouseRef: string) => {
-    const warehouse = warehouseOptions.find((wh) => wh.Ref === warehouseRef);
-    if (!warehouse) return;
+  const handleWarehouseInput = useCallback((value: string) => {
+    const cityRef = editFormData.cityRef;
+    setWarehouseValue(value);
+    setEditFormData((prev) => ({
+      ...prev,
+      warehouse: value,
+      warehouseRef: ""
+    }));
+
+    if (warehouseSearchTimeoutRef.current) {
+      clearTimeout(warehouseSearchTimeoutRef.current);
+    }
+
+    if (!cityRef) {
+      setWarehouseOptions([]);
+      setShowWarehouseDropdown(false);
+      setWarehouseError("Спочатку оберіть місто");
+      setWarehouseLoading(false);
+      return;
+    }
+
+    if (value.length < 2) {
+      setWarehouseOptions([]);
+      setShowWarehouseDropdown(false);
+      setWarehouseError("");
+      setWarehouseLoading(false);
+      return;
+    }
+
+    setWarehouseError("");
+    setWarehouseLoading(true);
+    const requestId = ++warehouseSearchRequestId.current;
+    warehouseSearchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const list = await fetchNPWarehouses(cityRef, value);
+        if (requestId === warehouseSearchRequestId.current) {
+          setWarehouseOptions(list);
+          setShowWarehouseDropdown(true);
+          if (!list.length) {
+            setWarehouseError("Відділень не знайдено");
+          }
+        }
+      } catch (error) {
+        console.error("[profile] Warehouse search error:", error);
+        if (requestId === warehouseSearchRequestId.current) {
+          setWarehouseOptions([]);
+          setShowWarehouseDropdown(false);
+          setWarehouseError("Помилка пошуку відділень");
+        }
+      } finally {
+        if (requestId === warehouseSearchRequestId.current) {
+          setWarehouseLoading(false);
+        }
+      }
+    }, 350);
+  }, [editFormData.cityRef]);
+
+  const handleWarehousePick = useCallback((warehouse: NPWarehouse) => {
     setEditFormData((prev) => ({
       ...prev,
       warehouse: warehouse.Description,
       warehouseRef: warehouse.Ref
     }));
+    setWarehouseValue(warehouse.Description);
+    setShowWarehouseDropdown(false);
     setWarehouseError("");
-  }, [warehouseOptions]);
+  }, []);
+
+  const handleWarehouseFocus = useCallback(() => {
+    if (!editFormData.cityRef) {
+      setWarehouseError("Спочатку оберіть місто");
+      return;
+    }
+    setWarehouseError("");
+    setShowWarehouseDropdown(true);
+    if (!warehouseValue && warehouseOptions.length === 0) {
+      void loadWarehouses(editFormData.cityRef);
+    }
+  }, [editFormData.cityRef, warehouseOptions.length, warehouseValue, loadWarehouses]);
 
   const handleQuickCityPick = useCallback(async (cityName: string) => {
     setCitySearchError("");
@@ -413,6 +519,9 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         warehouse: "",
         warehouseRef: ""
       }));
+      setWarehouseValue("");
+      setShowWarehouseDropdown(false);
+      setWarehouseOptions([]);
       await loadWarehouses(match.Ref);
     } catch (error) {
       console.error("[profile] Quick city pick failed:", error);
@@ -421,12 +530,6 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       setCitySearchLoading(false);
     }
   }, [loadWarehouses]);
-
-  useEffect(() => {
-    if (isEditingProfile && editFormData.cityRef && lastLoadedWarehouseCity.current !== editFormData.cityRef) {
-      loadWarehouses(editFormData.cityRef, editFormData.warehouseRef);
-    }
-  }, [isEditingProfile, editFormData.cityRef, editFormData.warehouseRef, loadWarehouses]);
 
   const otpString = otp.join("");
   const router = useRouter();
@@ -821,14 +924,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     })();
     
     return () => { 
-      try {
-        if (!abortController.signal.aborted) {
-          abortController.abort(); 
-        }
-      } catch (error) {
-        // Ignore abort errors during cleanup
-        console.debug('[Profile] Abort controller cleanup error:', error);
-      }
+      abortController.abort(); 
     };
   }, [loadOrders, loadSitniksCustomer]);
 
@@ -995,6 +1091,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
   /* ── Phone change functions ── */
   const startPhoneChangeTimer = useCallback(() => {
+    if (phoneTimerRef.current) clearInterval(phoneTimerRef.current);
     setPhoneResendIn(60);
     phoneTimerRef.current = setInterval(() => {
       setPhoneResendIn((v) => {
@@ -1009,6 +1106,18 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
   useEffect(() => () => { 
     if (phoneTimerRef.current) clearInterval(phoneTimerRef.current); 
+  }, []);
+
+  const resetPhoneOtpFlow = useCallback(() => {
+    setPhoneOtp(["", "", "", "", "", ""]);
+    setPhoneOtpSent(false);
+    setPhoneOtpMode(null);
+    setPendingPhoneForOtp(null);
+    setPhoneResendIn(0);
+    if (phoneTimerRef.current) {
+      clearInterval(phoneTimerRef.current);
+      phoneTimerRef.current = null;
+    }
   }, []);
 
   const handleChangePhone = async () => {
@@ -1029,6 +1138,9 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       if (!res.ok) {
         throw new Error(data.error ?? "Помилка відправки коду. Спробуйте ще раз.");
       }
+      setPhoneOtp(["", "", "", "", "", ""]);
+      setPendingPhoneForOtp(normalized);
+      setPhoneOtpMode("change");
       setPhoneOtpSent(true);
       startPhoneChangeTimer();
     } catch (err: unknown) {
@@ -1040,24 +1152,32 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
   const handleVerifyPhoneOtp = async () => {
     const otpString = phoneOtp.join("");
-    if (otpString.length !== 6) return;
+    if (otpString.length !== 6 || !pendingPhoneForOtp) {
+      if (!pendingPhoneForOtp) {
+        setError("Введіть номер телефону та отримайте код ще раз.");
+      }
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      const normalized = normalizePhoneForApi(newPhone);
       const res = await fetch("/api/auth/update-phone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalized, otp: otpString }),
+        body: JSON.stringify({ phone: pendingPhoneForOtp, otp: otpString }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Невірний код");
-      setLoggedPhone(normalized);
-      setNewPhone("");
-      setPhoneOtp(["", "", "", "", "", ""]);
-      setPhoneOtpSent(false);
-      setIsChangingPhone(false);
-      loadOrders(normalized, undefined);
+      setLoggedPhone(pendingPhoneForOtp);
+      loadOrders(pendingPhoneForOtp, undefined);
+      if (phoneOtpMode === "add") {
+        setPhone("");
+        setStep("profile");
+      } else {
+        setNewPhone("");
+        setIsChangingPhone(false);
+      }
+      resetPhoneOtpFlow();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Помилка перевірки. Спробуйте ще раз.");
     } finally {
@@ -1068,15 +1188,31 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const handleCancelPhoneChange = () => {
     setIsChangingPhone(false);
     setNewPhone("");
-    setPhoneOtp(["", "", "", "", "", ""]);
-    setPhoneOtpSent(false);
+    resetPhoneOtpFlow();
     setError("");
   };
+
+  const handleBackToProfile = useCallback(() => {
+    resetPhoneOtpFlow();
+    setPhone("");
+    setPhoneError("");
+    setError("");
+    setStep("profile");
+  }, [resetPhoneOtpFlow]);
+
+  const handleBackToPhoneEntry = useCallback(() => {
+    setPhoneOtp(["", "", "", "", "", ""]);
+    setPhoneOtpSent(false);
+    setPendingPhoneForOtp(null);
+    setError("");
+    setPhoneError("");
+  }, []);
 
   /* ── Profile editing functions ── */
   const handleStartEditProfile = () => {
     setEditFormData({
       name: profileName,
+      lastName: profileLastName,
       email: loggedEmail,
       phone: loggedPhone,
       city: profileCity,
@@ -1084,6 +1220,9 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       warehouse: profileWarehouse,
       warehouseRef: profileWarehouseRef
     });
+    setWarehouseValue(profileWarehouse || "");
+    setWarehouseError("");
+    setShowWarehouseDropdown(false);
     if (profileCityRef) {
       loadWarehouses(profileCityRef, profileWarehouseRef);
     } else {
@@ -1109,6 +1248,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     if (editFormData.name !== profileName) {
       setProfileName(editFormData.name);
     }
+    // Update profile last name
+    if (editFormData.lastName !== profileLastName) {
+      setProfileLastName(editFormData.lastName);
+    }
     const formattedAddress = `${editFormData.city}, ${editFormData.warehouse}`;
     if (formattedAddress !== profileAddress) {
       setProfileAddress(formattedAddress);
@@ -1118,6 +1261,9 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setProfileWarehouse(editFormData.warehouse);
     setProfileWarehouseRef(editFormData.warehouseRef);
     // TODO: Update email, phone when APIs are available
+    setShowWarehouseDropdown(false);
+    setWarehouseOptions([]);
+    setWarehouseValue(editFormData.warehouse);
     setIsEditingProfile(false);
   };
 
@@ -1126,8 +1272,13 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setCityResults([]);
     setShowCityDropdown(false);
     setCitySearchError("");
+    setWarehouseValue(profileWarehouse || "");
+    setShowWarehouseDropdown(false);
     setWarehouseOptions([]);
     setWarehouseError("");
+    if (warehouseSearchTimeoutRef.current) {
+      clearTimeout(warehouseSearchTimeoutRef.current);
+    }
   };
 
   /* ════════════════════════════════════════════════════════
@@ -1153,10 +1304,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           </Link>
 
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-            <div className="h-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700" />
+            <div className="h-1.5 bg-gradient-to-r from-[#2E7D32] to-[#1B5E20]" />
             <div className="p-8">
-              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                <Mail size={30} className="text-emerald-600" />
+              <div className="w-16 h-16 bg-[#2E7D32]/10 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Mail size={30} className="text-[#2E7D32]" />
               </div>
               <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Особистий кабінет</h1>
               <p className="text-sm text-gray-500 text-center mb-7 leading-relaxed">
@@ -1201,7 +1352,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 <button
                   type="submit"
                   disabled={busy || !email.trim() || !isValidEmail(email)}
-                  className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-emerald-200"
+                  className="flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-[#1B5E20] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-[#2E7D32]/20"
                 >
                   {busy ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
                   {busy ? "Відправляємо…" : "Отримати код"}
@@ -1252,10 +1403,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           </button>
 
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-            <div className="h-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700" />
+            <div className="h-1.5 bg-gradient-to-r from-[#2E7D32] to-[#1B5E20]" />
             <div className="p-8">
-              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                <KeyRound size={30} className="text-emerald-600" />
+              <div className="w-16 h-16 bg-[#2E7D32]/10 rounded-full flex items-center justify-center mx-auto mb-5">
+                <KeyRound size={30} className="text-[#2E7D32]" />
               </div>
               <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Введіть код</h1>
               <p className="text-sm text-gray-500 text-center mb-1 leading-relaxed">
@@ -1294,7 +1445,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 <button
                   type="submit"
                   disabled={busy || otpString.length !== 6}
-                  className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-emerald-200"
+                  className="flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-[#1B5E20] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-[#2E7D32]/20"
                 >
                   {busy ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
                   {busy ? "Перевіряємо…" : "Підтвердити"}
@@ -1332,19 +1483,20 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       setError("");
       setPhoneError("");
       try {
-        const res = await fetch("/api/auth/update-phone", {
+        const res = await fetch("/api/auth/send-phone-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phone: normalized }),
         });
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.error ?? "Помилка додавання номера");
+          throw new Error(data.error ?? "Помилка відправки коду. Спробуйте ще раз.");
         }
-        setLoggedPhone(normalized);
-        setPhone("");
-        setStep("profile");
-        loadOrders(normalized, undefined);
+        setPhoneOtp(["", "", "", "", "", ""]);
+        setPendingPhoneForOtp(normalized);
+        setPhoneOtpMode("add");
+        setPhoneOtpSent(true);
+        startPhoneChangeTimer();
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Помилка. Спробуйте ще раз.");
       } finally {
@@ -1356,7 +1508,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       <div className="min-h-screen bg-gray-50 py-16 px-4 transition-opacity duration-300">
         <div className="max-w-md mx-auto">
           <button
-            onClick={() => { setStep("profile"); setError(""); setPhoneError(""); setPhone(""); }}
+            onClick={handleBackToProfile}
             className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-8"
           >
             <ChevronLeft size={16} />
@@ -1374,64 +1526,124 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 Додайте номер телефону для отримання замовлень та сповіщень про доставку.
               </p>
 
-              <form onSubmit={handleAddPhone} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Номер телефону</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/\D/g, "");
-                      if (!raw.length) {
-                        setPhone("");
+              {phoneOtpSent && phoneOtpMode === "add" ? (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Код підтвердження</label>
+                    <p className="text-xs text-gray-500">Код надіслано на номер {pendingPhoneForOtp ?? phone}</p>
+                    <div className="flex justify-center gap-2 sm:gap-3">
+                      {[0, 1, 2, 3, 4, 5].map((i) => (
+                        <input
+                          key={i}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={phoneOtp[i]}
+                          onChange={(e) => {
+                            const digit = e.target.value.replace(/\D/g, "").slice(-1);
+                            setError("");
+                            setPhoneOtp((prev) => {
+                              const next = [...prev];
+                              next[i] = digit;
+                              return next;
+                            });
+                          }}
+                          disabled={busy}
+                          className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-black rounded-xl border-2 border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition disabled:opacity-60"
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 text-sm text-red-600">
+                      <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleVerifyPhoneOtp}
+                    disabled={busy || phoneOtp.join("").length !== 6}
+                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-blue-200"
+                  >
+                    {busy ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                    {busy ? "Перевіряємо…" : "Підтвердити"}
+                  </button>
+
+                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleAddPhone}
+                      disabled={phoneResendIn > 0 || busy}
+                      className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
+                    >
+                      <RefreshCw size={14} />
+                      {phoneResendIn > 0 ? `Повторний код через ${phoneResendIn}с` : "Надіслати код ще раз"}
+                    </button>
+                    <button
+                      onClick={handleBackToPhoneEntry}
+                      className="text-sm text-gray-400 hover:text-gray-700 transition-colors font-medium"
+                    >
+                      Змінити номер
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleAddPhone} className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Номер телефону</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "");
+                        if (!raw.length) {
+                          setPhone("");
+                          setPhoneError("");
+                          setError("");
+                          return;
+                        }
+                        let ten = raw.length === 12 && raw.startsWith("38") ? raw.slice(2) : raw.slice(-10);
+                        if (ten.length === 10 && ten.startsWith("8")) ten = "0" + ten.slice(1);
+                        else if (ten.length === 9 && !ten.startsWith("0")) ten = "0" + ten;
+                        setPhone(formatPhoneDisplay(ten));
                         setPhoneError("");
                         setError("");
-                        return;
-                      }
-                      let ten = raw.length === 12 && raw.startsWith("38") ? raw.slice(2) : raw.slice(-10);
-                      if (ten.length === 10 && ten.startsWith("8")) ten = "0" + ten.slice(1);
-                      else if (ten.length === 9 && !ten.startsWith("0")) ten = "0" + ten;
-                      setPhone(formatPhoneDisplay(ten));
-                      setPhoneError("");
-                      setError("");
-                    }}
-                    onBlur={() => {
-                      if (phone.trim() && !isValidPhone(phone)) setPhoneError("Номер некоректний");
-                      else setPhoneError("");
-                    }}
-                    placeholder="+38 (067) 123-45-67"
-                    disabled={busy}
-                    autoComplete="tel"
-                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition disabled:opacity-60 disabled:cursor-not-allowed ${phoneError ? "border-red-400 bg-red-50/50" : "border-gray-200"}`}
-                  />
-                  {phoneError && (
-                    <p className="text-sm text-red-600 flex items-center gap-1.5">
-                      <AlertCircle size={14} className="flex-shrink-0" />
-                      {phoneError}
-                    </p>
-                  )}
-                </div>
-
-                {error && (
-                  <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 text-sm text-red-600">
-                    <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
-                    {error}
+                      }}
+                      onBlur={() => {
+                        if (phone.trim() && !isValidPhone(phone)) setPhoneError("Номер некоректний");
+                        else setPhoneError("");
+                      }}
+                      placeholder="+38 (067) 123-45-67"
+                      disabled={busy}
+                      autoComplete="tel"
+                      className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition disabled:opacity-60 disabled:cursor-not-allowed ${phoneError ? "border-red-400 bg-red-50/50" : "border-gray-200"}`}
+                    />
+                    {phoneError && (
+                      <p className="text-sm text-red-600 flex items-center gap-1.5">
+                        <AlertCircle size={14} className="flex-shrink-0" />
+                        {phoneError}
+                      </p>
+                    )}
                   </div>
-                )}
 
-                <button
-                  type="submit"
-                  disabled={busy || !phone.trim() || !isValidPhone(phone)}
-                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-blue-200"
-                >
-                  {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                  {busy ? "Додаємо…" : "Додати номер"}
-                </button>
-              </form>
+                  {error && (
+                    <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 text-sm text-red-600">
+                      <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                      {error}
+                    </div>
+                  )}
 
-              <p className="text-xs text-gray-400 text-center mt-5 leading-relaxed">
-                Номер телефону потрібен для відстеження замовлень через Ситнікс CRM
-              </p>
+                  <button
+                    type="submit"
+                    disabled={busy || !phone.trim() || !isValidPhone(phone)}
+                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-blue-200"
+                  >
+                    {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                    {busy ? "Додаємо…" : "Додати номер"}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
@@ -1542,8 +1754,8 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         {/* User card */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <User size={28} className="text-emerald-600" />
+            <div className="w-14 h-14 bg-[#2E7D32]/10 rounded-full flex items-center justify-center flex-shrink-0">
+              <User size={28} className="text-[#2E7D32]" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
@@ -1555,7 +1767,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                     </p>
                     {/* Статус аккаунта */}
                     {loggedPhone ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#2E7D32]/10 text-[#2E7D32] text-xs font-bold rounded-full border border-[#2E7D32]/20">
                         <Shield size={11} />
                         Верифіковано
                       </span>
@@ -1652,7 +1864,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                   </div>
 
                   <div className="space-y-4">
-                    {/* Name Field */}
+                    {/* Name Fields */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-sm font-semibold text-gray-700">Ім&apos;я</label>
                       <input
@@ -1660,6 +1872,17 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                         value={editFormData.name}
                         onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="Введіть ім&apos;я"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-semibold text-gray-700">Прізвище</label>
+                      <input
+                        type="text"
+                        value={editFormData.lastName}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                        placeholder="Введіть фамілію"
                         className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
                       />
                     </div>
@@ -1789,7 +2012,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                     </button>
                     <button
                       onClick={handleSaveProfile}
-                      className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl transition-colors shadow-lg shadow-emerald-200"
+                      className="flex-1 px-4 py-3 bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-black rounded-xl transition-colors shadow-lg shadow-[#2E7D32]/20"
                     >
                       Зберегти
                     </button>
@@ -2173,7 +2396,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
               </p>
               <Link
                 href="/#catalog"
-                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-2xl transition-colors shadow-lg shadow-emerald-200 text-sm"
+                className="inline-flex items-center gap-2 bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-bold py-3 px-6 rounded-2xl transition-colors shadow-lg shadow-[#2E7D32]/20 text-sm"
               >
                 Перейти до каталогу
                 <ChevronRight size={15} />
@@ -2391,7 +2614,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                               });
                               router.push("/checkout");
                             }}
-                            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm shadow-sm"
+                            className="inline-flex items-center gap-2 bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm shadow-sm"
                           >
                             <RotateCcw size={14} />
                             Повторити

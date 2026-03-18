@@ -28,7 +28,6 @@ import {
   type SitniksProperty,
   type SitniksAuxiliaryInfo,
 } from "./sitniks-consolidated";
-import { getAllProducts, getProductById as getFallbackProductById } from "./products";
 
 // ─── Type (same shape as before — nothing else in the app needs to change) ─────
 export interface CatalogProduct {
@@ -180,6 +179,33 @@ function getAllImages(product: SitniksProduct, variation?: SitniksVariation): st
   return images.length > 0 ? images : ["/images/placeholder.svg"];
 }
 
+function buildGalleryImages(primary: string, extras: string[]): string[] {
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+
+  const addIfNew = (url?: string) => {
+    if (!url) return;
+    if (seen.has(url)) return;
+    seen.add(url);
+    ordered.push(url);
+  };
+
+  addIfNew(primary);
+  for (const extra of extras ?? []) {
+    addIfNew(extra);
+  }
+
+  if (ordered.length === 0 && primary) {
+    ordered.push(primary);
+  }
+
+  if (ordered.length === 1) {
+    ordered.push(ordered[0]);
+  }
+
+  return ordered;
+}
+
 function getSizes(product: SitniksProduct): string[] {
   const sizes = new Set<string>();
   for (const v of product.variations ?? []) {
@@ -237,6 +263,9 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
   const reviews = reviewsRaw ? parseInt(reviewsRaw, 10) : 0;
   const sold = soldRaw ? parseInt(soldRaw, 10) : undefined;
 
+  const primaryImage = getFirstImage(p, firstVariation);
+  const galleryImages = buildGalleryImages(primaryImage, getAllImages(p, firstVariation));
+
   return {
     id: p.id,
     slug: p.title
@@ -262,8 +291,8 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     stock: getTotalStock(p),
     sizes: getSizes(p),
     description: p.description ?? "",
-    image: getFirstImage(p, firstVariation),
-    images: getAllImages(p, firstVariation),
+    image: primaryImage,
+    images: galleryImages,
     instagramPermalink: null, // Not available from Sitniks API
     variationId: firstVariation?.id,
     allVariations: activeVariations.map((v) => ({
@@ -278,41 +307,12 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
 }
 
 
-function mapFallbackProductToCatalogProduct(p: Awaited<ReturnType<typeof getAllProducts>>[number]): CatalogProduct {
-  return {
-    id: p.id,
-    slug: p.slug
-      .toLowerCase()
-      .replace(/[^a-zа-яїєі0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-+|-+$/g, ""),
-    instagramMediaId: null,
-    name: p.name,
-    price: p.price,
-    oldPrice: p.oldPrice,
-    category: p.category,
-    badge: p.badge,
-    badgeColor: p.badgeColor ?? "",
-    isHit: Boolean(p.isHit),
-    isNew: Boolean(p.isNew),
-    freeShipping: 'freeShipping' in p ? Boolean(p.freeShipping) : false,
-    rating: p.rating,
-    reviews: p.reviews,
-    stock: p.stock,
-    sizes: p.sizes ?? [],
-    description: p.description ?? "",
-    image: p.image,
-    images: p.images ? [...p.images] : [p.image], // Use single image as array if no multiple images
-    instagramPermalink: null,
-  };
-}
-
 // ─── Public API (same interface as before) ─────────────────────────────────────
 
 /**
- * Всі активні товари для каталогу.
+ * Всі активні товари з Sitniks API.
  * Кешується Next.js на 1 хвилину.
+ * Якщо API недоступний, повертає порожній масив для розробки.
  */
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   try {
@@ -329,31 +329,27 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
         name !== "налаштування сайту"
       );
     });
-    return catalogProducts.map(mapSitniksProduct);
-  } catch (err) {
-    console.error("[instagram-catalog] Failed to fetch from Sitniks:", err);
-    // Fallback: статичний каталог щоб вітрина працювала навіть без Sitniks API
-    const fallbackProducts = await getAllProducts();
-    
-    if (fallbackProducts.length === 0) {
-      console.warn("[instagram-catalog] Both Sitniks and fallback are empty!");
+
+    if (catalogProducts.length === 0) {
+      return [];
     }
-    
-    return fallbackProducts.map(mapFallbackProductToCatalogProduct);
+
+    return catalogProducts.map(mapSitniksProduct);
+  } catch (error) {
+    // Якщо Sitniks недоступний, повертаємо порожній список
+    return [];
   }
 }
 
 /**
- * Один товар за ID.
+ * Один товар за ID з Sitniks API.
  */
 export async function getCatalogProductById(id: number): Promise<CatalogProduct | null> {
   try {
     const p = await getSitniksProductByIdRaw(id);
-    if (!p) return null;
-    return mapSitniksProduct(p);
-  } catch {
-    const fallbackProduct = await getFallbackProductById(id);
-    return fallbackProduct ? mapFallbackProductToCatalogProduct(fallbackProduct) : null;
+    return p ? mapSitniksProduct(p) : null;
+  } catch (error) {
+    return null;
   }
 }
 

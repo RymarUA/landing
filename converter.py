@@ -9,11 +9,27 @@ PRICE_PATTERN = re.compile(r"(\d+[\.,]?\d*)")
 
 
 def load_source(path: Path) -> pd.DataFrame:
-    """Load 1688 CSV export handling common encodings."""
-    try:
-        return pd.read_csv(path, encoding="utf-8-sig")
-    except UnicodeDecodeError:
-        return pd.read_csv(path, encoding="cp1251")
+    """Load 1688 CSV export handling common encodings and parsing issues."""
+    for encoding in ["utf-8-sig", "cp1251"]:
+        try:
+            # Try to parse with more robust parameters
+            df = pd.read_csv(
+                path, 
+                encoding=encoding,
+                on_bad_lines='warn',  # Skip problematic lines but warn
+                quoting=1,  # QUOTE_ALL
+                escapechar='\\',  # Handle escaped characters
+                engine='python'  # Use python engine for better handling
+            )
+            return df
+        except UnicodeDecodeError:
+            continue
+        except Exception as e:
+            print(f"Warning: Error with encoding {encoding}: {e}")
+            continue
+    
+    # If all else fails, try basic reading
+    return pd.read_csv(path, encoding="utf-8-sig", on_bad_lines='skip')
 
 
 def load_template_columns(path: Path) -> list[str]:
@@ -105,7 +121,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--source",
-        default="1688_20260311_170535.csv",
+        default="1688_20260318_130556.csv",
         help="Path to the raw 1688 CSV export",
     )
     parser.add_argument(

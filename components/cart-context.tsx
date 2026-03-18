@@ -22,7 +22,7 @@ export type AddItemResult = { wasExisting: boolean; quantity: number };
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, "quantity">) => AddItemResult;
+  addItem: (item: Omit<CartItem, "quantity">, showToast?: boolean) => AddItemResult;
   removeItem: (id: number, size?: string | null) => void;
   updateQuantity: (id: number, qty: number, size?: string | null) => void;
   clearCart: () => void;
@@ -40,6 +40,7 @@ interface CartContextType {
 }
 
 const STORAGE_KEY = "fhm_cart_v1";
+const CART_TIMESTAMP_KEY = "fhm_cart_first_item_timestamp";
 
 const CartContext = createContext<CartContextType | null>(null);
 
@@ -51,6 +52,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [lastQuantityToast, setLastQuantityToast] = useState<{ name: string; quantity: number } | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<number>(Date.now());
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollPositionRef = useRef(0);
 
   // ── Load items from localStorage on mount ─────────────
   useEffect(() => {
@@ -64,6 +66,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (hydrated) {
       setStoredItems(items);
+      // Clear cart timestamp when cart becomes empty
+      if (items.length === 0) {
+        localStorage.removeItem(CART_TIMESTAMP_KEY);
+      }
     }
   }, [items, hydrated, setStoredItems]);
 
@@ -78,19 +84,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // ── Prevent body scroll when cart is open ─────────────
   useEffect(() => {
     if (isCartOpen) {
-      document.body.style.overflow = 'hidden';
+      scrollPositionRef.current = window.scrollY || window.pageYOffset;
       document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollPositionRef.current}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.overflow = 'hidden';
       document.body.style.width = '100%';
     } else {
       document.body.style.overflow = '';
       document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
       document.body.style.width = '';
+      if (scrollPositionRef.current) {
+        window.scrollTo({ top: scrollPositionRef.current });
+        scrollPositionRef.current = 0;
+      }
     }
 
     return () => {
       document.body.style.overflow = '';
       document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
       document.body.style.width = '';
+      if (scrollPositionRef.current) {
+        window.scrollTo({ top: scrollPositionRef.current });
+        scrollPositionRef.current = 0;
+      }
     };
   }, [isCartOpen]);
 
@@ -109,7 +133,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const addItem = useCallback((item: Omit<CartItem, "quantity">): AddItemResult => {
+  const addItem = useCallback((item: Omit<CartItem, "quantity">, showToast: boolean = true): AddItemResult => {
     let wasExisting = false;
     let finalQuantity = 1;
 
@@ -119,14 +143,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (existing) {
         wasExisting = true;
         finalQuantity = existing.quantity + 1;
-        setLastQuantityToast({ name: item.name, quantity: finalQuantity });
+        if (showToast) {
+          setLastQuantityToast({ name: item.name, quantity: finalQuantity });
+        }
         return prev.map((i) =>
           matchItem(i, item.id, item.size) ? { ...i, quantity: finalQuantity } : i
         );
       }
 
       finalQuantity = 1;
-      setLastQuantityToast({ name: item.name, quantity: finalQuantity });
+      if (showToast) {
+        setLastQuantityToast({ name: item.name, quantity: finalQuantity });
+      }
       return [...prev, { ...item, quantity: 1 }];
     });
 
@@ -135,10 +163,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       clearTimeout(toastTimerRef.current);
     }
     
-    toastTimerRef.current = setTimeout(() => {
-      setLastQuantityToast(null);
-      toastTimerRef.current = null;
-    }, 2000);
+    if (showToast) {
+      toastTimerRef.current = setTimeout(() => {
+        setLastQuantityToast(null);
+        toastTimerRef.current = null;
+      }, 2000);
+    }
 
     return { wasExisting, quantity: finalQuantity };
   }, [matchItem]);
@@ -167,6 +197,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = useCallback(() => {
     setItems([]);
+    // Clear the cart timestamp when cart is cleared
+    localStorage.removeItem(CART_TIMESTAMP_KEY);
   }, []);
 
   const totalCount = items.reduce((sum, i) => sum + i.quantity, 0);

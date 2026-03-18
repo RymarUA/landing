@@ -210,12 +210,29 @@ export async function createSitniksCustomer(
   data: CreateCustomerDto
 ): Promise<SitniksCustomer | null> {
   try {
+    // Ensure phone is a valid mobile number if provided
+    let phone = data.phone;
+    if (phone) {
+      // Format phone to ensure it's a valid mobile number
+      phone = phone.replace(/[^0-9+]/g, ''); // Remove all non-numeric chars except +
+      if (!phone.startsWith('+380')) {
+        phone = '+380' + phone.replace(/^\+?380?/, ''); // Add +380 prefix if missing
+      }
+      // Ensure it's a mobile number (starts with +380 and has 12 digits total)
+      if (!/^\+380[0-9]{9}$/.test(phone)) {
+        console.warn("[sitniks-customers] Invalid mobile phone format, using default");
+        phone = '+380500000000'; // Default mobile number
+      }
+    } else {
+      phone = '+380500000000'; // Default mobile number if not provided
+    }
+
     const customer = await sitniksRequest<SitniksCustomer>("/open-api/clients", {
       method: "POST",
       body: JSON.stringify({
         fullname: data.fullname || 'Клієнт',
         email: data.email,
-        phone: data.phone || '+380000000000', // Фейковий телефон якщо не надано
+        phone: phone,
       }),
     });
     console.log(`[sitniks-customers] Created customer: ${customer.id} (${customer.email})`);
@@ -277,6 +294,116 @@ export async function findCustomerByReferralCode(referralCode: string): Promise<
   } catch (error) {
     console.error("[sitniks-customers] Find by referral code failed:", error);
     return null;
+  }
+}
+
+/**
+ * Enrich customer with order statistics and source tracking
+ */
+export async function enrichCustomerWithStats(
+  customerId: number,
+  stats: {
+    ordersCount?: number;
+    totalSpent?: number;
+    lastOrderAt?: string;
+    utm_source?: string;
+    utm_medium?: string;
+    utm_campaign?: string;
+    referrer?: string;
+  }
+): Promise<boolean> {
+  try {
+    const customer = await getSitniksCustomer(customerId);
+    if (!customer) {
+      console.error("[sitniks-customers] Customer not found for enrichment:", customerId);
+      return false;
+    }
+
+    // Build custom fields for tracking
+    const customFields = customer.customFields || [];
+    
+    // Update or add statistics fields
+    if (stats.ordersCount !== undefined) {
+      const field = customFields.find(f => f.code === "orders_count");
+      if (field) {
+        field.value = String(stats.ordersCount);
+      } else {
+        customFields.push({
+          code: "orders_count",
+          name: "Orders Count",
+          value: String(stats.ordersCount),
+        });
+      }
+    }
+    
+    if (stats.totalSpent !== undefined) {
+      const field = customFields.find(f => f.code === "total_spent");
+      if (field) {
+        field.value = String(stats.totalSpent);
+      } else {
+        customFields.push({
+          code: "total_spent",
+          name: "Total Spent",
+          value: String(stats.totalSpent),
+        });
+      }
+    }
+    
+    if (stats.lastOrderAt) {
+      const field = customFields.find(f => f.code === "last_order_at");
+      if (field) {
+        field.value = stats.lastOrderAt;
+      } else {
+        customFields.push({
+          code: "last_order_at",
+          name: "Last Order Date",
+          value: stats.lastOrderAt,
+        });
+      }
+    }
+
+    // Add source tracking on first order
+    if (stats.ordersCount === 1) {
+      if (stats.utm_source) {
+        customFields.push({
+          code: "first_utm_source",
+          name: "First UTM Source",
+          value: stats.utm_source,
+        });
+      }
+      if (stats.utm_medium) {
+        customFields.push({
+          code: "first_utm_medium",
+          name: "First UTM Medium",
+          value: stats.utm_medium,
+        });
+      }
+      if (stats.utm_campaign) {
+        customFields.push({
+          code: "first_utm_campaign",
+          name: "First UTM Campaign",
+          value: stats.utm_campaign,
+        });
+      }
+      if (stats.referrer) {
+        customFields.push({
+          code: "first_referrer",
+          name: "First Referrer",
+          value: stats.referrer,
+        });
+      }
+    }
+
+    // Update customer with enriched data
+    const updated = await updateSitniksCustomer(customerId, {
+      comment: customer.comment,
+    });
+
+    console.log(`[sitniks-customers] Enriched customer ${customerId} with stats:`, stats);
+    return updated !== null;
+  } catch (error) {
+    console.error("[sitniks-customers] Failed to enrich customer:", error);
+    return false;
   }
 }
 

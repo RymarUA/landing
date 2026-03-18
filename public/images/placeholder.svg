@@ -9,6 +9,6 @@
   <rect width="800" height="600" rx="48" fill="url(#bg)" />
   <circle cx="620" cy="140" r="120" fill="#C9B27C" fill-opacity="0.18" />
   <circle cx="180" cy="480" r="140" fill="#1F6B5E" fill-opacity="0.12" />
-  <text x="80" y="280" fill="#0F2D2A" font-size="36" font-family="serif">Здоров’я Сходу</text>
-  <text x="80" y="330" fill="#24312E" font-size="20" font-family="sans-serif">Медичні та ортопедичні товари</text>
+  <text x="80" y="280" fill="#0F2D2A" font-size="36" font-family="serif">Р—РѕР±СЂР°Р¶РµРЅРЅСЏ С‚РѕРІР°СЂСѓ</text>
+  <text x="80" y="330" fill="#24312E" font-size="20" font-family="sans-serif">РќРµР·Р°Р±Р°СЂРѕРј Р±СѓРґРµ Р·Р°РІР°РЅС‚Р°Р¶РµРЅРѕ</text>
 </svg>

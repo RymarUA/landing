@@ -44,10 +44,13 @@ export interface CheckoutRequestBody {
 
 /** Successful response from POST /api/checkout. */
 export interface CheckoutResponseSuccess {
-  /** WayForPay payment page URL — frontend redirects here */
-  paymentUrl: string;
+  /** WayForPay form parameters for POST submission (only for online payments) */
+  paymentFormParams?: Record<string, string>;
   /** Sitniks order ID, for reference */
   orderId: string | number;
+  /** Order number for reference */
+  orderNumber?: string | number;
+  success: boolean;
 }
 
 /** Error response from POST /api/checkout. */

@@ -9,31 +9,52 @@ import Image from "next/image";
 import {
   ShoppingCart, ChevronLeft, Loader2,
   CreditCard, ExternalLink, MapPin,
-  Tag, Check, Banknote
+  Tag, Check, Banknote, Package
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
+import { useAuth } from "@/hooks/use-auth";
 import { checkoutSchema, applyPromoCode } from "@/lib/checkout-schema";
 import { useSavedAddresses } from "@/lib/use-saved-addresses";
+import { isValidUkrainianPhone } from "@/lib/phone-utils";
 import { trackInitiateCheckout } from "@/components/analytics";
 import { fetchNPCities, fetchNPWarehouses, type NPCity, type NPWarehouse } from "@/lib/novaposhta-api";
 import { Field } from "@/components/ui/field";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { ShopFooter } from "@/components/shop-footer";
 import { Minus, Plus, Trash2 } from "lucide-react";
 
 /* ─── Screens (Empty/Redirect) ─── */
 function EmptyCartScreen() {
   return (
-    <div className="min-h-screen bg-[#F6F4EF] flex items-center justify-center px-4 py-16">
-      <div className="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
-        <div className="w-20 h-20 bg-[#E7EFEA] rounded-full flex items-center justify-center mx-auto mb-6">
-          <ShoppingCart size={40} className="text-[#7A8A84]" />
+    <div className="min-h-screen bg-gray-50 pt-20 flex flex-col">
+      <div className="flex-1">
+        <div className="max-w-4xl mx-auto px-4">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-6">
+            <Link
+              href="/"
+              className="p-2 rounded-xl bg-white hover:bg-gray-100 transition-colors"
+              aria-label="Повернутися на головну"
+            >
+              <ChevronLeft size={20} className="text-gray-600" />
+            </Link>
+            <h1 className="text-2xl font-black text-gray-900">Кошик</h1>
+          </div>
+
+          <div className="text-center py-10 bg-white rounded-3xl shadow-sm">
+            <ShoppingCart size={64} className="text-gray-200 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-500 mb-2">Кошик порожній</h2>
+            <p className="text-gray-400 mb-6">Додайте товари з каталогу</p>
+            <Link
+              href="/#catalog"
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-2xl transition-colors"
+            >
+              Перейти до каталогу
+            </Link>
+          </div>
         </div>
-        <h1 className="text-2xl font-black text-[#0F2D2A] mb-2">Кошик порожній</h1>
-        <p className="text-[#7A8A84] mb-8 text-sm">Додайте товари до кошика, щоб перейти до оплати.</p>
-        <Link href="/#catalog" className="inline-flex items-center justify-center gap-2 bg-[#1F6B5E] text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-[#0F2D2A] transition-colors shadow-lg">
-          <ShoppingCart size={18} /> До каталогу
-        </Link>
       </div>
+      <ShopFooter />
     </div>
   );
 }
@@ -58,6 +79,7 @@ function RedirectingScreen() {
 /* ─── Main Component ─── */
 export default function CheckoutPage() {
   const { items, totalCount, totalPrice, updateQuantity, removeItem, totalSavings } = useCart();
+  const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { saved: savedAddress, save: saveAddress, hydrated: addressHydrated } = useSavedAddresses();
   const [submitting, setSubmitting] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
@@ -66,6 +88,10 @@ export default function CheckoutPage() {
   const [promoInput, setPromoInput] = useState("");
   const [promoResult, setPromoResult] = useState<{ discountPct: number; label: string } | null>(null);
   const [promoError, setPromoError] = useState("");
+  const [showAccountSuggestion, setShowAccountSuggestion] = useState(false);
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
+  const [orderData, setOrderData] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cod" | "card">("online");
 
   // Состояние Новой Почты
@@ -78,6 +104,8 @@ export default function CheckoutPage() {
   const [showCityResults, setShowCityResults] = useState(false);
   const [citySearchError, setCitySearchError] = useState<string>("");
   const [warehouseError, setWarehouseError] = useState<string>("");
+  const [warehouseValue, setWarehouseValue] = useState("");
+  const [showWarehouseResults, setShowWarehouseResults] = useState(false);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const abortController = useRef<AbortController | null>(null);
   const currentSearchId = useRef<number>(0);
@@ -105,11 +133,14 @@ export default function CheckoutPage() {
   }, [paymentMethod, setValue]);
 
   const nameValue = watch("name") ?? "";
+  const surnameValue = watch("surname") ?? "";
   const phoneValue = watch("phone") ?? "";
   const cityValue = watch("city") ?? "";
 
-  const discountAmount = promoResult ? Math.round(totalPrice * promoResult.discountPct / 100) : 0;
-  const finalPrice = totalPrice - discountAmount;
+  const promoDiscountAmount = promoResult ? Math.round(totalPrice * promoResult.discountPct / 100) : 0;
+  const onlinePaymentDiscount = paymentMethod === "online" ? Math.round((totalPrice - promoDiscountAmount) * 0.05) : 0;
+  const totalDiscountAmount = promoDiscountAmount + onlinePaymentDiscount;
+  const finalPrice = totalPrice - totalDiscountAmount;
 
   useEffect(() => {
     setMounted(true);
@@ -125,12 +156,44 @@ export default function CheckoutPage() {
     };
   }, []);
 
+  // Закрытие выпадающих списков при клике вне поля
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      
+      // Закрыть список городов если клик вне поля поиска
+      if (!target.closest('[data-city-search]')) {
+        setShowCityResults(false);
+      }
+      
+      // Закрыть список отделений если клик вне поля поиска
+      if (!target.closest('[data-warehouse-search]')) {
+        setShowWarehouseResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Поиск города
   const onCitySearch = useCallback((val: string) => {
     if (val.length < 2) {
       setCities([]);
       setShowCityResults(false);
       setCitySearchError("");
+      
+      // Если поле города очищено, сбрасываем отделение
+      if (val.length === 0) {
+        setSelectedCityRef("");
+        setWarehouseValue("");
+        setShowWarehouseResults(false);
+        setWarehouseError("");
+        setValue("warehouse", "", { shouldValidate: true });
+        setSelectedWarehouseRef("");
+        setWarehouses([]);
+      }
+      
       return;
     }
 
@@ -189,8 +252,14 @@ export default function CheckoutPage() {
     setShowCityResults(false);
     setCitySearchError("");
     
-    setLoadingWarehouses(true);
+    // Сбрасываем поле поиска отделений
+    setWarehouseValue("");
+    setShowWarehouseResults(false);
     setWarehouseError("");
+    setValue("warehouse", "", { shouldValidate: true });
+    setSelectedWarehouseRef("");
+    
+    setLoadingWarehouses(true);
     
     try {
       const data = await fetchNPWarehouses(city.Ref, "");
@@ -206,6 +275,86 @@ export default function CheckoutPage() {
       setLoadingWarehouses(false);
     }
   }, [setValue]);
+
+  // Поиск отделения
+  const onWarehouseSearch = useCallback((val: string) => {
+    setWarehouseValue(val);
+    
+    if (!selectedCityRef) {
+      setWarehouses([]);
+      setShowWarehouseResults(false);
+      setWarehouseError("Спочатку оберіть місто");
+      return;
+    }
+    
+    if (val.length < 2) {
+      setWarehouses([]);
+      setShowWarehouseResults(false);
+      setWarehouseError("");
+      return;
+    }
+    
+    setWarehouseError("");
+    setLoadingWarehouses(true);
+    
+    // Отменяем предыдущий таймаут
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+    
+    // Устанавливаем новый таймаут для debounce
+    searchTimeout.current = setTimeout(async () => {
+      const searchId = ++currentSearchId.current;
+      try {
+        const data = await fetchNPWarehouses(selectedCityRef, val);
+        if (searchId === currentSearchId.current) {
+          setWarehouses(data);
+          setShowWarehouseResults(true);
+          if (data.length === 0) {
+            setWarehouseError("Відділень не знайдено");
+          }
+        }
+      } catch (error) {
+        if (searchId === currentSearchId.current) {
+          console.error("[checkout] Warehouse search error:", error);
+          setWarehouseError("Помилка пошуку відділень");
+          setWarehouses([]);
+          setShowWarehouseResults(false);
+        }
+      } finally {
+        if (searchId === currentSearchId.current) {
+          setLoadingWarehouses(false);
+        }
+      }
+    }, 300);
+  }, [selectedCityRef]);
+
+  // Выбор отделения
+  const onWarehouseSelect = useCallback((warehouse: NPWarehouse) => {
+    setSelectedWarehouseRef(warehouse.Ref);
+    setWarehouseValue(warehouse.Description);
+    setShowWarehouseResults(false);
+    setWarehouseError("");
+    setValue("warehouse", warehouse.Description, { shouldValidate: true });
+  }, [setValue]);
+
+  // Auto-fill user data from auth when available
+  useEffect(() => {
+    if (isAuthenticated && user && !authLoading) {
+      // Auto-fill name if field is empty and user has name
+      if (!nameValue && user.name) {
+        setValue("name", user.name, { shouldValidate: false });
+      }
+      // Auto-fill surname if field is empty and user has surname
+      if (!surnameValue && user.surname) {
+        setValue("surname", user.surname, { shouldValidate: false });
+      }
+      // Auto-fill phone if field is empty and user has phone
+      if (!phoneValue && user.phone) {
+        setValue("phone", user.phone, { shouldValidate: false });
+      }
+    }
+  }, [isAuthenticated, user, authLoading, nameValue, surnameValue, phoneValue, setValue]);
 
   const registerAbandonedCart = useCallback(
     async (name: string, phone: string) => {
@@ -244,6 +393,14 @@ export default function CheckoutPage() {
     [items, totalPrice]
   );
 
+  // Register abandoned cart when name and phone are entered
+  useEffect(() => {
+    const fullName = `${nameValue} ${surnameValue}`.trim();
+    if (fullName && phoneValue && isValidUkrainianPhone(phoneValue)) {
+      registerAbandonedCart(fullName, phoneValue);
+    }
+  }, [nameValue, surnameValue, phoneValue, registerAbandonedCart]);
+
   const cancelAbandonedCart = useCallback(async () => {
     if (!abandonedRegistered.current) return;
     try {
@@ -268,12 +425,20 @@ export default function CheckoutPage() {
 
     try {
       await cancelAbandonedCart();
+      
+      // Extract UTM parameters from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const utm_source = urlParams.get('utm_source') || undefined;
+      const utm_medium = urlParams.get('utm_medium') || undefined;
+      const utm_campaign = urlParams.get('utm_campaign') || undefined;
+      const referrer = document.referrer || undefined;
+      
       console.log("[checkout] Sending to API...");
       console.log("[checkout] Request body:", {
         ...data,
         paymentMethod,
         promoCode: promoResult ? promoInput.trim().toUpperCase() : undefined,
-        discountAmount: discountAmount > 0 ? discountAmount : undefined,
+        discountAmount: totalDiscountAmount > 0 ? totalDiscountAmount : undefined,
         items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
         totalPrice: finalPrice,
       });
@@ -287,9 +452,13 @@ export default function CheckoutPage() {
           departmentRef: selectedWarehouseRef,
           paymentMethod,
           promoCode: promoResult ? promoInput.trim().toUpperCase() : undefined,
-          discountAmount: discountAmount > 0 ? discountAmount : undefined,
+          discountAmount: totalDiscountAmount > 0 ? totalDiscountAmount : undefined,
           items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
           totalPrice: finalPrice,
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          referrer,
         }),
       });
 
@@ -301,16 +470,50 @@ export default function CheckoutPage() {
 
       saveAddress({ city: data.city, warehouse: data.warehouse, cityRef: selectedCityRef });
 
+      // Store order data for potential account creation
+      setOrderData({
+        name: data.name,
+        surname: data.surname,
+        phone: data.phone,
+        email: data.email,
+        city: data.city,
+        warehouse: data.warehouse
+      });
+
       // Clear cart after successful order creation
       items.forEach(item => removeItem(item.id));
 
       if (paymentMethod === "cod") {
+        // Show account creation suggestion for non-authenticated users
+        if (!isAuthenticated && data.email) {
+          setShowAccountSuggestion(true);
+          return;
+        }
         window.location.href = `/checkout/success?ref=${json.orderNumber}&method=cod`;
         return;
       }
 
-      setRedirecting(true);
-      setTimeout(() => { window.location.href = json.paymentUrl; }, 800);
+      // For online payment, submit POST form to WayForPay
+      if (json.paymentFormParams) {
+        setRedirecting(true);
+        
+        // Create and submit POST form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://secure.wayforpay.com/pay';
+        
+        // Add all form parameters as hidden inputs
+        Object.entries(json.paymentFormParams).forEach(([key, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = String(value);
+          form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        setTimeout(() => form.submit(), 800);
+      }
     } catch (err: any) {
       console.error("[checkout] Error:", err);
       setServerError(err.message);
@@ -323,9 +526,106 @@ export default function CheckoutPage() {
     setServerError("Будь ласка, заповніть всі обов'язкові поля");
   };
 
+  const handleCreateAccount = async () => {
+    if (!orderData) return;
+    
+    setCreatingAccount(true);
+    try {
+      const response = await fetch("/api/auth/register-from-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: orderData.name,
+          surname: orderData.surname,
+          phone: orderData.phone,
+          email: orderData.email,
+        }),
+      });
+      
+      if (response.ok) {
+        setAccountCreated(true);
+        setTimeout(() => {
+          window.location.href = `/checkout/success?ref=order&method=cod`;
+        }, 2000);
+      } else {
+        const error = await response.json();
+        console.error("[checkout] Account creation error:", error);
+        setServerError("Помилка створення аккаунту");
+      }
+    } catch (error) {
+      console.error("[checkout] Account creation error:", error);
+      setServerError("Помилка створення аккаунту");
+    } finally {
+      setCreatingAccount(false);
+    }
+  };
+
+  const skipAccountCreation = () => {
+    window.location.href = `/checkout/success?ref=order&method=cod`;
+  };
+
   if (!mounted) return null;
   if (totalCount === 0) return <EmptyCartScreen />;
   if (redirecting) return <RedirectingScreen />;
+  if (showAccountSuggestion) {
+    return (
+      <div className="min-h-screen bg-[#F6F4EF] flex items-center justify-center px-4 py-16">
+        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center">
+          {accountCreated ? (
+            <>
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check size={40} className="text-green-600" />
+              </div>
+              <h1 className="text-2xl font-black text-[#0F2D2A] mb-2">Аккаунт створено!</h1>
+              <p className="text-[#7A8A84] text-sm leading-relaxed mb-6">
+                Ваш особистий кабінет успішно створено. Тепер ви можете відстежувати замовлення та отримувати знижки.
+              </p>
+              <p className="text-[#7A8A84] text-xs">Перенаправлення на сторінку успіху...</p>
+            </>
+          ) : (
+            <>
+              <div className="w-20 h-20 bg-[#E7EFEA] rounded-full flex items-center justify-center mx-auto mb-6">
+                <Package size={40} className="text-[#1F6B5E]" />
+              </div>
+              <h1 className="text-2xl font-black text-[#0F2D2A] mb-2">Створити особистий кабінет?</h1>
+              <p className="text-[#7A8A84] text-sm leading-relaxed mb-6">
+                Збережіть ваші дані для швидкого оформлення в майбутньому та отримайте доступ до історії замовлень
+              </p>
+              
+              <div className="bg-gray-50 rounded-2xl p-4 mb-6 text-left">
+                <p className="text-xs font-semibold text-[#7A8A84] mb-2">Ваші дані:</p>
+                <p className="text-sm text-[#0F2D2A]">{orderData?.name} {orderData?.surname}</p>
+                <p className="text-sm text-[#0F2D2A]">{orderData?.phone}</p>
+                {orderData?.email && <p className="text-sm text-[#0F2D2A]">{orderData.email}</p>}
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleCreateAccount}
+                  disabled={creatingAccount}
+                  className="flex items-center justify-center gap-2 bg-[#1F6B5E] hover:bg-[#0F2D2A] disabled:opacity-60 text-white font-bold py-3 px-6 rounded-xl transition-all active:scale-[0.98] text-sm"
+                >
+                  {creatingAccount ? (
+                    <><Loader2 size={20} className="animate-spin" /> Створення...</>
+                  ) : (
+                    <><Check size={20} /> Створити кабінет</>
+                  )}
+                </button>
+                
+                <button
+                  onClick={skipAccountCreation}
+                  disabled={creatingAccount}
+                  className="text-[#7A8A84] hover:text-[#0F2D2A] disabled:opacity-60 font-medium py-2 px-4 text-sm transition-colors"
+                >
+                  Пропустити
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F6F4EF] flex flex-col">
@@ -352,10 +652,16 @@ export default function CheckoutPage() {
                   <h2 className="text-lg font-black text-[#0F2D2A]">Контактні дані</h2>
                 </div>
                 <Field label="Ваше ім'я *" error={errors.name?.message}>
-                  <input {...register("name")} placeholder="Наприклад: Олена Коваль" className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition" />
+                  <input {...register("name")} placeholder="Наприклад: Олена" className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition" />
+                </Field>
+                <Field label="Прізвище *" error={errors.surname?.message}>
+                  <input {...register("surname")} placeholder="Наприклад: Коваль" className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition" />
                 </Field>
                 <Field label="Телефон *" error={errors.phone?.message}>
-                  <input {...register("phone")} onBlur={() => registerAbandonedCart(nameValue, phoneValue)} placeholder="+380..." className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition" />
+                  <PhoneInput 
+                    {...register("phone")} 
+                    className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition" 
+                  />
                 </Field>
               </div>
 
@@ -372,6 +678,7 @@ export default function CheckoutPage() {
                     onClick={async () => {
                       setValue("city", savedAddress.city, { shouldValidate: true });
                       setValue("warehouse", savedAddress.warehouse, { shouldValidate: true });
+                      setWarehouseValue(savedAddress.warehouse);
                       if (savedAddress.cityRef) {
                         setSelectedCityRef(savedAddress.cityRef);
                         setLoadingWarehouses(true);
@@ -389,7 +696,7 @@ export default function CheckoutPage() {
 
                 {/* City Search */}
                 <Field label="Місто *" error={errors.city?.message || citySearchError}>
-                  <div className="relative">
+                  <div className="relative" data-city-search>
                     <input
                       value={cityValue}
                       placeholder="Почніть вводити назву міста..."
@@ -440,6 +747,14 @@ export default function CheckoutPage() {
                             const exact = data.find((c: NPCity) => c.Description === cityName || c.Description?.startsWith(cityName));
                             if (exact) {
                               setSelectedCityRef(exact.Ref);
+                              
+                              // Сбрасываем поле поиска отделений
+                              setWarehouseValue("");
+                              setShowWarehouseResults(false);
+                              setWarehouseError("");
+                              setValue("warehouse", "", { shouldValidate: true });
+                              setSelectedWarehouseRef("");
+                              
                               setLoadingWarehouses(true);
                               setWarehouseError("");
                               try {
@@ -484,27 +799,42 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Warehouse Select */}
+                {/* Warehouse Search */}
                 <Field label="Відділення або поштомат *" error={errors.warehouse?.message || warehouseError}>
-                  <div className="relative">
-                    <select
-                      {...register("warehouse")}
-                      disabled={!selectedCityRef || loadingWarehouses}
+                  <div className="relative" data-warehouse-search>
+                    <input
+                      value={warehouseValue}
+                      placeholder="Почніть вводити назву відділення..."
+                      autoComplete="off"
+                      disabled={!selectedCityRef}
                       onChange={(e) => {
-                        const selectedWarehouse = warehouses.find(wh => wh.Description === e.target.value);
-                        if (selectedWarehouse) {
-                          setSelectedWarehouseRef(selectedWarehouse.Ref);
-                        }
-                        setValue("warehouse", e.target.value, { shouldValidate: true });
+                        const v = e.target.value;
+                        setValue("warehouse", v, { shouldValidate: true });
+                        onWarehouseSearch(v);
                       }}
-                      className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] bg-white text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none disabled:bg-[#F6F4EF] transition appearance-none cursor-pointer"
-                    >
-                      <option value="">{loadingWarehouses ? "Завантаження..." : "Оберіть відділення"}</option>
-                      {warehouses.map((wh) => (
-                        <option key={wh.Ref} value={wh.Description}>{wh.Description}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#7A8A84]">▼</div>
+                      className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none disabled:bg-[#F6F4EF] transition"
+                    />
+                    {loadingWarehouses && <Loader2 className="absolute right-3 top-3 animate-spin text-[#1F6B5E]" size={18} />}
+                    
+                    {showWarehouseResults && warehouses.length > 0 && (
+                      <div className="absolute z-[100] w-full mt-1 bg-white border border-[#E7EFEA] rounded-xl shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden">
+                        {warehouses.map((wh) => (
+                          <div 
+                            key={wh.Ref} 
+                            onClick={() => onWarehouseSelect(wh)} 
+                            className="px-4 py-3 hover:bg-[#F6F4EF] cursor-pointer text-sm border-b border-[#E7EFEA] last:border-none transition-colors flex items-center gap-2"
+                          >
+                            <Package size={14} className="text-[#7A8A84]" />
+                            <div className="flex-1">
+                              <div className="font-medium">{wh.Description}</div>
+                              {wh.Number && (
+                                <div className="text-xs text-[#7A8A84]">№{wh.Number}</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </Field>
               </div>
@@ -517,19 +847,24 @@ export default function CheckoutPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {([
-                    { value: "online" as const, label: "Онлайн-оплата", sublabel: "WayForPay — Visa/MC", icon: <CreditCard size={20} /> },
-                    { value: "cod"    as const, label: "Накладений платіж", sublabel: "Оплата при отриманні", icon: <Banknote size={20} /> },
+                    { value: "online" as const, label: "Онлайн-оплата", sublabel: "WayForPay — Visa/Mastercard", icon: <CreditCard size={20} />, discount: "-5%" },
+                    { value: "cod"    as const, label: "Накладений платіж", sublabel: "Оплата при отриманні", icon: <Banknote size={20} />, discount: null },
                   ]).map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setPaymentMethod(opt.value)}
-                      className={`flex flex-col items-start gap-1 p-4 rounded-2xl border-2 text-left transition-all ${
+                      className={`flex flex-col items-start gap-1 p-4 rounded-2xl border-2 text-left transition-all relative ${
                         paymentMethod === opt.value
                           ? "border-[#1F6B5E] bg-[#F6F4EF]"
                           : "border-[#E7EFEA] hover:border-[#C9B27C]/50"
                       }`}
                     >
+                      {opt.discount && (
+                        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          {opt.discount}
+                        </div>
+                      )}
                       <div className={`flex items-center gap-2 font-bold text-sm ${paymentMethod === opt.value ? "text-[#1F6B5E]" : "text-[#24312E]"}`}>
                         {opt.icon}
                         {opt.label}
@@ -539,12 +874,38 @@ export default function CheckoutPage() {
                     </button>
                   ))}
                 </div>
+                
+                {/* Email field for COD */}
+                {paymentMethod === "cod" && (
+                  <div className="mt-4">
+                    <Field label="Email *" error={errors.email?.message}>
+                      <input {...register("email")} type="email" placeholder="example@mail.com" className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition" />
+                    </Field>
+                  </div>
+                )}
               </div>
 
-              {/* 4. Promo code */}
+              {/* 4. Comment */}
               <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-[#E7EFEA] p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">4</div>
+                  <h2 className="text-lg font-black text-[#0F2D2A]">Коментар до замовлення</h2>
+                </div>
+                <Field label="Ваш коментар (опціонально)" error={errors.comment?.message}>
+                  <textarea
+                    {...register("comment")}
+                    placeholder="Наприклад: Передзвоніть перед відправкою, зручний час доставки тощо..."
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl border border-[#E7EFEA] text-sm focus:ring-2 focus:ring-[#C9B27C]/70 outline-none transition resize-none"
+                  />
+                </Field>
+              </div>
+
+              {/* 5. Promo code - temporarily hidden */}
+              {/*
+              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-[#E7EFEA] p-4 sm:p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 bg-[#E7EFEA] rounded-full flex items-center justify-center text-xs font-black text-[#1F6B5E]">5</div>
                   <h2 className="text-lg font-black text-[#0F2D2A]">Промокод</h2>
                 </div>
                 {promoResult ? (
@@ -590,6 +951,7 @@ export default function CheckoutPage() {
                 )}
                 {promoError && <p className="text-xs text-red-500 font-medium mt-2">{promoError}</p>}
               </div>
+              */}
 
               {serverError && (
                 <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm font-medium">⚠️ {serverError}</div>
@@ -625,7 +987,7 @@ export default function CheckoutPage() {
                             onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
                             className="p-2.5 sm:p-1 hover:bg-[#E7EFEA] rounded-l-lg transition-colors h-full flex items-center justify-center"
                           >
-                            <Minus size={7} className="sm:size-5 text-[#1F6B5E]" />
+                            <Minus size={14} className="sm:size-6 text-[#1F6B5E]" />
                           </button>
                           <span className="px-3 sm:px-2 text-sm sm:text-xs font-semibold text-[#0F2D2A] min-w-[32px] sm:min-w-[20px] text-center">
                             {item.quantity}
@@ -635,7 +997,7 @@ export default function CheckoutPage() {
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
                             className="p-2.5 sm:p-1 hover:bg-[#E7EFEA] rounded-r-lg transition-colors h-full flex items-center justify-center"
                           >
-                            <Plus size={7} className="sm:size-5 text-[#1F6B5E]" />
+                            <Plus size={14} className="sm:size-6 text-[#1F6B5E]" />
                           </button>
                         </div>
                         <button
@@ -647,27 +1009,55 @@ export default function CheckoutPage() {
                         </button>
                       </div>
                     </div>
-                    <div className="text-sm sm:text-sm font-semibold text-[#0F2D2A] min-w-0 text-right">{(item.price * item.quantity).toLocaleString()} грн</div>
+                    <div className="text-sm sm:text-sm font-semibold text-[#0F2D2A] min-w-0 text-right">
+                      <div className="flex flex-col items-end">
+                        {item.oldPrice && item.oldPrice > item.price && (
+                          <span className="text-xs text-[#7A8A84] line-through">
+                            {(item.oldPrice * item.quantity).toLocaleString()} грн
+                          </span>
+                        )}
+                        <span>{(item.price * item.quantity).toLocaleString()} грн</span>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
               <div className="border-t border-[#E7EFEA] pt-4 sm:pt-4 space-y-3">
                 {totalSavings > 0 && (
-                  <div className="flex justify-between text-sm text-green-600 font-semibold">
-                    <span>Економія:</span>
+                  <div className="flex justify-between text-sm text-green-600 font-semibold group relative">
+                    <div className="flex flex-col items-start cursor-help">
+                      <div className="relative">
+                        <span>Економія:</span>
+                        <div className="absolute -top-1 -right-1 w-1.5 h-1.5 border border-green-600 rounded-full"></div>
+                      </div>
+                    </div>
                     <span>{totalSavings.toLocaleString()} грн</span>
+                    
+                    {/* Tooltip */}
+                    <div className="absolute left-0 bottom-full mb-2 bg-gray-800 text-white text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                      <div className="absolute bottom-0 left-4 transform translate-y-1/2 rotate-45 w-2 h-2 bg-gray-800"></div>
+                      Економія від зниженої ціни на {totalCount === 1 ? 'товар' : 'товари'}
+                    </div>
                   </div>
                 )}
                 <div className="flex justify-between text-sm text-[#7A8A84] py-1"><span>Доставка</span><span className="text-[#1F6B5E] font-semibold">За тарифами НП</span></div>
-                {discountAmount > 0 && (
+                {(promoDiscountAmount > 0 || onlinePaymentDiscount > 0) && (
                   <>
                     <div className="flex justify-between text-sm text-[#7A8A84]">
                       <span>Товари</span><span>{totalPrice.toLocaleString()} грн</span>
                     </div>
-                    <div className="flex justify-between text-sm text-[#1F6B5E] font-semibold">
-                      <span>Знижка ({promoResult?.discountPct}%)</span>
-                      <span>−{discountAmount.toLocaleString()} грн</span>
-                    </div>
+                    {promoDiscountAmount > 0 && (
+                      <div className="flex justify-between text-sm text-[#1F6B5E] font-semibold">
+                        <span>Знижка ({promoResult?.discountPct}%)</span>
+                        <span>−{promoDiscountAmount.toLocaleString()} грн</span>
+                      </div>
+                    )}
+                    {onlinePaymentDiscount > 0 && (
+                      <div className="flex justify-between text-sm text-[#1F6B5E] font-semibold">
+                        <span>Знижка за онлайн-оплату (5%)</span>
+                        <span>−{onlinePaymentDiscount.toLocaleString()} грн</span>
+                      </div>
+                    )}
                   </>
                 )}
                 <div className="flex justify-between items-center pt-2 border-t border-[#E7EFEA]"><span className="font-semibold text-[#0F2D2A] text-base">До оплати:</span><span className="text-xl sm:text-xl font-semibold text-[#1F6B5E]">{finalPrice.toLocaleString()} грн</span></div>

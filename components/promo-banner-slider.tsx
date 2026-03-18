@@ -17,19 +17,13 @@ const PROMO_BANNERS: PromoBanner[] = [
     id: 1,
     text: "Подарунок при покупці від 1000 грн",
     icon: Gift,
-    bgGradient: "from-emerald-600 to-emerald-700",
+    bgGradient: "from-[#2E7D32] to-[#1B5E20]",
   },
   {
     id: 2,
-    text: "Безкоштовна доставка від 800 грн",
-    icon: Truck,
-    bgGradient: "from-amber-600 to-amber-700",
-  },
-  {
-    id: 3,
-    text: "Знижка -15% на перше замовлення",
+    text: "Знижка -15% на твое перше замовлення",
     icon: Percent,
-    bgGradient: "from-red-600 to-red-700",
+    bgGradient: "from-[#F9A825] to-[#F57C00]",
   },
 ];
 
@@ -87,7 +81,12 @@ export function PromoBannerSlider() {
 
   return (
     <div className="relative w-full overflow-hidden rounded-2xl shadow-lg mb-6" ref={sliderRef}>
-      <div className={`relative bg-gradient-to-r ${currentBanner.bgGradient} px-6 py-5 md:py-6`} aria-live="polite">
+      <motion.div 
+        className={`relative bg-gradient-to-r ${currentBanner.bgGradient} px-6 py-5 md:py-6`} 
+        aria-live="polite"
+        layout
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
             key={currentBanner.id}
@@ -123,7 +122,7 @@ export function PromoBannerSlider() {
             />
           ))}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

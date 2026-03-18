@@ -14,13 +14,13 @@ export const metadata = {
 export default function TrackingPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="text-white bg-emerald-900/95 backdrop-blur-md">
-        <div className="border-b border-emerald-900/10">
+      <div className="text-white bg-[#2E7D32]/95 backdrop-blur-md">
+        <div className="border-b border-[#1B5E20]/10">
           <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3">
             <h1 className="text-xl sm:text-2xl font-bold text-center mb-1">
               Відстеження посилки
             </h1>
-            <p className="text-center text-emerald-100 text-sm">
+            <p className="text-center text-gray-600 text-sm">
               Дізнайтеся статус вашого замовлення Новою Поштою
             </p>
           </div>

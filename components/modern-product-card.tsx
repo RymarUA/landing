@@ -7,9 +7,8 @@ import { Heart, Star, Truck } from "lucide-react";
 import { motion } from "framer-motion";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { useWishlist } from "@/components/wishlist-context";
-import { useCart } from "@/components/cart-context";
+import { useCart, type CartItem } from "@/components/cart-context";
 import { OptimizedImage } from "@/components/optimized-image";
-// import { Badge } from "@/components/badge";
 import { useProductTracking } from "@/hooks/use-product-tracking";
 
 // Advanced StarRating component from shared
@@ -65,7 +64,7 @@ export function ModernProductCard({
   compact = false,
 }: ModernProductCardProps) {
   const { has, toggle, hydrated } = useWishlist();
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const router = useRouter();
   const { trackClick } = useProductTracking();
   const inWishlist = hydrated && has(product.id);
@@ -88,14 +87,20 @@ export function ModernProductCard({
   const handleQuickBuy = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      size: product.sizes[0] ?? null,
-      oldPrice: product.oldPrice ?? null,
-    });
+    
+    // Добавляем товар только если его еще нет в корзине
+    const existingItem = items.find((item: CartItem) => item.id === product.id);
+    if (!existingItem) {
+      addItem({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        size: product.sizes[0] ?? null,
+        oldPrice: product.oldPrice ?? null,
+      }, false); // Отключаем Toast для кнопки "Купити"
+    }
+    
     router.push("/checkout");
   };
 
@@ -310,7 +315,7 @@ export function ModernProductCard({
                 </span>
               )}
               {product.freeShipping && (
-                <span className="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                <span className="bg-[#2E7D32] text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
                   <Truck size={10} />
                   Безкоштовна доставка
                 </span>

@@ -8,9 +8,9 @@
   --radius: 0.625rem;
 
   /* Brand palette - Medical & Premium */
-  --brand-ink: #065F46;
-  --brand-primary: #065F46;
-  --brand-gold: #D4AF37;
+  --brand-ink: #2E7D32;
+  --brand-primary: #2E7D32;
+  --brand-gold: #F9A825;
   --brand-cream: #F9FAFB;
   --brand-mist: #F9FAFB;
   --brand-graphite: #1F2937;
@@ -37,8 +37,8 @@
   --color-card-foreground: oklch(0.145 0 0);
   --color-popover: oklch(1 0 0);
   --color-popover-foreground: oklch(0.145 0 0);
-  --color-primary: oklch(0.205 0 0);
-  --color-primary-foreground: oklch(0.985 0 0);
+  --color-primary: #2E7D32;
+  --color-primary-foreground: #065F46;
   --color-secondary: oklch(0.97 0 0);
   --color-secondary-foreground: oklch(0.205 0 0);
   --color-muted: oklch(0.97 0 0);

@@ -10,18 +10,28 @@
 
 import { z } from "zod";
 import { isValidUkrainianPhone, normalizePhone } from "./phone-utils";
+import { validateAndFormatName, validateAndFormatSurname } from "./name-utils";
 
 /** Payment method: online (WayForPay) or cash-on-delivery */
 export const PAYMENT_METHODS = ["online", "cod"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const checkoutSchema = z.object({
-  /** Customer full name — 2 to 60 chars */
+  /** Customer first name — letters only, 2 to 60 chars */
   name: z
     .string()
     .trim()
     .min(2, "Вкажіть ім'я (мінімум 2 символи)")
-    .max(60, "Ім'я занадто довге"),
+    .max(60, "Ім'я занадто довге")
+    .transform(validateAndFormatName),
+
+  /** Customer surname — letters only, 2 to 60 chars */
+  surname: z
+    .string()
+    .trim()
+    .min(2, "Вкажіть прізвище (мінімум 2 символи)")
+    .max(60, "Прізвище занадто довге")
+    .transform(validateAndFormatSurname),
 
   /** Ukrainian phone number */
   phone: z
@@ -44,6 +54,18 @@ export const checkoutSchema = z.object({
 
   /** Payment method: online via WayForPay or COD (накладений платіж) */
   paymentMethod: z.enum(PAYMENT_METHODS),
+
+  /** Email - required only for COD payment */
+  email: z.string().email("Невірний формат email").optional(),
+}).refine((data) => {
+  // Email is required only for COD payment
+  if (data.paymentMethod === "cod") {
+    return !!data.email;
+  }
+  return true;
+}, {
+  message: "Email обов'язковий для накладного платежу",
+  path: ["email"],
 });
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>;

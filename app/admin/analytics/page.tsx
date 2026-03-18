@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AdminGuard } from "@/components/admin-guard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 interface AnalyticsData {
   totalCustomers: number;
@@ -86,15 +87,20 @@ function AdminAnalyticsContent() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">📊 Аналитика клиентов</h1>
-            <p className="text-gray-600 mt-2">Детальная статистика поведения клиентов</p>
+            <h1 className="text-3xl font-bold text-gray-900">� Аналітика</h1>
+            <p className="text-gray-600 mt-1">Огляд показників магазину</p>
           </div>
           <div className="flex gap-3">
+            <Link href="/admin/products">
+              <Button variant="outline">
+                📦 Управління товарами
+              </Button>
+            </Link>
             <Button onClick={() => exportData("csv")} variant="outline">
-              📊 Экспорт CSV
+              📊 Export CSV
             </Button>
             <Button onClick={() => exportData("pdf")} variant="outline">
-              📄 Экспорт PDF
+              📄 Export PDF
             </Button>
           </div>
         </div>

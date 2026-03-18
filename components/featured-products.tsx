@@ -146,13 +146,13 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
                 {type === "hits" ? (
                   <SimpleProductCard
                     product={product}
-                    priority={index < 4}
+                    priority={index < 6}
                   />
                 ) : (
                   <ModernProductCard
                     product={product}
                     onAddToCart={handleAddToCart}
-                    priority={index < 4}
+                    priority={index < 6}
                     compact={true}
                   />
                 )}

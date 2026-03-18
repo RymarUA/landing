@@ -135,8 +135,8 @@ export function CategoryIconsSlider({
                 className={`
                   px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all
                   ${isActive 
-                    ? "bg-emerald-600 text-white shadow-md" 
-                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    ? "bg-[#2E7D32] text-[#1A1A1A] shadow-md" 
+                    : "bg-[#FAF9F4] text-[#4A4A4A] border border-[#E5E5E5]"
                   }
                 `}
               >
@@ -172,18 +172,18 @@ export function CategoryIconsSlider({
                     className={`
                       w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 mb-1.5
                       ${isActive
-                        ? "bg-emerald-600 shadow-lg"
-                        : "bg-emerald-50 group-hover:bg-emerald-100 border border-emerald-200"
+                        ? "bg-[#2E7D32] shadow-lg"
+                        : "bg-[#FAF9F4] group-hover:bg-[#F0EDE6] border border-[#E5E5E5]"
                       }
                     `}
                   >
                     <Icon
                       size={20}
-                      className={`transition-colors ${isActive ? "text-white" : "text-emerald-700"}`}
+                      className={`transition-colors ${isActive ? "text-white" : "text-[#4A4A4A]"}`}
                     />
                   </div>
                   
-                  <span className={`text-xs font-semibold text-center px-1 line-clamp-2 ${isActive ? "text-emerald-700" : "text-emerald-700"}`}>
+                  <span className={`text-xs font-semibold text-center px-1 line-clamp-2 ${isActive ? "text-[#1A1A1A]" : "text-[#4A4A4A]"}`}>
                     {category}
                   </span>
                 </button>

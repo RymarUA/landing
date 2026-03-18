@@ -27,6 +27,46 @@ const WFP_PAYMENT_PAGE = "https://secure.wayforpay.com/pay";
 // const WFP_API_URL = "https://api.wayforpay.com/api";
 
 /* ─────────────────────────────────────────────────────────────────────────
+   SANITIZATION UTILITY
+   ───────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Sanitizes product name for WayForPay.
+ * WayForPay is sensitive to Cyrillic and special characters in signature.
+ * 
+ * Converts Cyrillic to Latin transliteration and removes special characters.
+ * CRITICAL: Removes semicolons (;) which WayForPay uses as field separator.
+ */
+export function sanitizeProductName(name: string): string {
+  const translitMap: Record<string, string> = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'ґ': 'g', 'д': 'd', 'е': 'e', 'є': 'ye',
+    'ж': 'zh', 'з': 'z', 'и': 'y', 'і': 'i', 'ї': 'yi', 'й': 'y', 'к': 'k', 'л': 'l',
+    'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+    'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ь': '', 'ю': 'yu',
+    'я': 'ya', 'ы': 'y', 'э': 'e', 'ё': 'yo', 'ъ': '',
+    'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Ґ': 'G', 'Д': 'D', 'Е': 'E', 'Є': 'Ye',
+    'Ж': 'Zh', 'З': 'Z', 'И': 'Y', 'І': 'I', 'Ї': 'Yi', 'Й': 'Y', 'К': 'K', 'Л': 'L',
+    'М': 'M', 'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U',
+    'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch', 'Ь': '', 'Ю': 'Yu',
+    'Я': 'Ya', 'Ы': 'Y', 'Э': 'E', 'Ё': 'Yo', 'Ъ': ''
+  };
+
+  let result = '';
+  for (const char of name) {
+    result += translitMap[char] || char;
+  }
+
+  // CRITICAL: Remove semicolons first - WayForPay uses ; as field separator
+  result = result.replace(/;/g, ' ');
+  
+  // Remove special characters except spaces, numbers, letters, and basic punctuation
+  result = result.replace(/[^\w\s\-().]/g, '');
+  
+  // Trim and limit length to 100 characters (WayForPay limit)
+  return result.trim().slice(0, 100);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    SIGNATURE UTILITY
    ───────────────────────────────────────────────────────────────────────── */
 
@@ -37,7 +77,12 @@ const WFP_PAYMENT_PAGE = "https://secure.wayforpay.com/pay";
  * with semicolons (";"), in EXACTLY this order:
  *
  *   merchantAccount;merchantDomainName;orderReference;orderDate;amount;currency;
- *   productName[0];...;productPrice[0];...;productCount[0];...
+ *   productName[0];...;productCount[0];...;productPrice[0];...
+ *
+ * CRITICAL FIXES:
+ * 1. Correct field order: productName → productCount → productPrice
+ * 2. Format amounts with toFixed(2) for consistency
+ * 3. Sanitize semicolons from product names
  *
  * Reference: https://wiki.wayforpay.com/en/view/852115 §"Purchase"
  *
@@ -49,19 +94,36 @@ export function buildWfpSignature(
   params: WayForPayPaymentParams,
   secret: string
 ): string {
+  // 1. Format amount: always 2 decimal places (e.g., 1500.00)
+  const formattedAmount = Number(params.amount).toFixed(2);
+  
+  // 2. Sanitize product names: remove semicolons and trim
+  const sanitizedNames = params.productName.map((name: string) => 
+    name.replace(/;/g, ' ').trim()
+  );
+
+  // 3. Format prices: always 2 decimal places
+  const formattedPrices = params.productPrice.map((p: number) => 
+    Number(p).toFixed(2)
+  );
+
+  // CORRECT ORDER: productName → productCount → productPrice
   const parts: (string | number)[] = [
     params.merchantAccount,
     params.merchantDomainName,
     params.orderReference,
     params.orderDate,
-    params.amount,
+    formattedAmount,
     params.currency,
-    ...params.productName,
-    ...params.productPrice,
+    ...sanitizedNames,
     ...params.productCount,
+    ...formattedPrices,
   ];
 
   const signatureString = parts.join(";");
+  
+  // Uncomment for debugging on server (PM2 logs)
+  // console.log("[WFP_DEBUG] Signature String:", signatureString);
 
   return createHmac("md5", secret).update(signatureString, "utf8").digest("hex");
 }
@@ -125,12 +187,59 @@ export function verifyWfpWebhookSignature(
    ───────────────────────────────────────────────────────────────────────── */
 
 /**
+ * Builds WayForPay form parameters for POST submission.
+ *
+ * WayForPay requires POST request with form data.
+ * Arrays (productName, productPrice, productCount) are passed as
+ * repeated fields with [index] suffix: productName[0], productName[1], etc.
+ *
+ * CRITICAL: Uses consistent number formatting (toFixed(2)) to match signature.
+ *
+ * @returns Object with form fields ready for POST submission
+ */
+export function buildWfpFormParams(
+  params: WayForPayPaymentParams,
+  secret: string
+): Record<string, string> {
+  const signature = buildWfpSignature(params, secret);
+
+  const formParams: Record<string, string> = {
+    merchantAccount: params.merchantAccount,
+    merchantDomainName: params.merchantDomainName,
+    orderReference: params.orderReference,
+    orderDate: String(params.orderDate),
+    amount: Number(params.amount).toFixed(2), // CRITICAL: toFixed(2) for consistency
+    currency: params.currency,
+    returnUrl: params.returnUrl,
+    serviceUrl: params.serviceUrl,
+    merchantSignature: signature,
+  };
+
+  // Arrays — WayForPay expects repeated keys with [index] suffix
+  // Sanitize names and format prices consistently with signature
+  params.productName.forEach((n, i) => {
+    formParams[`productName[${i}]`] = n.replace(/;/g, ' ').trim();
+  });
+  params.productPrice.forEach((p, i) => {
+    formParams[`productPrice[${i}]`] = Number(p).toFixed(2); // CRITICAL: toFixed(2)
+  });
+  params.productCount.forEach((c, i) => {
+    formParams[`productCount[${i}]`] = String(c);
+  });
+
+  return formParams;
+}
+
+/**
+ * @deprecated Use buildWfpFormParams instead. WayForPay requires POST, not GET.
  * Builds a WayForPay hosted-page redirect URL.
  *
  * WayForPay accepts all payment parameters as query-string values
  * on the https://secure.wayforpay.com/pay endpoint.
  * Arrays (productName, productPrice, productCount) are passed as
  * repeated query params: productName[0]=..., productName[1]=...
+ *
+ * CRITICAL: Uses consistent number formatting (toFixed(2)) to match signature.
  *
  * @returns Full URL string — redirect the user here to complete payment.
  */
@@ -145,16 +254,23 @@ export function buildWfpPaymentUrl(
   query.set("merchantDomainName", params.merchantDomainName);
   query.set("orderReference", params.orderReference);
   query.set("orderDate", String(params.orderDate));
-  query.set("amount", String(params.amount));
+  query.set("amount", Number(params.amount).toFixed(2)); // CRITICAL: toFixed(2)
   query.set("currency", params.currency);
   query.set("returnUrl", params.returnUrl);
   query.set("serviceUrl", params.serviceUrl);
   query.set("merchantSignature", signature);
 
   // Arrays — WayForPay expects repeated keys with [index] suffix
-  params.productName.forEach((n, i) => query.append(`productName[${i}]`, n));
-  params.productPrice.forEach((p, i) => query.append(`productPrice[${i}]`, String(p)));
-  params.productCount.forEach((c, i) => query.append(`productCount[${i}]`, String(c)));
+  // Sanitize names and format prices consistently with signature
+  params.productName.forEach((n, i) => 
+    query.append(`productName[${i}]`, n.replace(/;/g, ' ').trim())
+  );
+  params.productPrice.forEach((p, i) => 
+    query.append(`productPrice[${i}]`, Number(p).toFixed(2)) // CRITICAL: toFixed(2)
+  );
+  params.productCount.forEach((c, i) => 
+    query.append(`productCount[${i}]`, String(c))
+  );
 
   return `${WFP_PAYMENT_PAGE}?${query.toString()}`;
 }

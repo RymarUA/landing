@@ -19,8 +19,14 @@ export function useProductTracking() {
   }) => {
     if (!isClient) return;
 
+    // Validate product data before sending
+    if (!product.id || !product.name || !product.category || product.price === undefined) {
+      console.error("[useProductTracking] Invalid product data for trackView:", product);
+      return;
+    }
+
     try {
-      await fetch("/api/analytics/track-view", {
+      const response = await fetch("/api/analytics/track-view", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -31,9 +37,13 @@ export function useProductTracking() {
           source: product.source || "catalog",
         }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn("[useProductTracking] Failed to track view:", response.status, errorData);
+      }
     } catch (error) {
-      // Silent fail - analytics shouldn't break UX
-      console.debug("[useProductTracking] Failed to track view:", error);
+      console.error("[useProductTracking] Failed to track view:", error);
     }
   }, [isClient]);
 
@@ -46,6 +56,12 @@ export function useProductTracking() {
     if (!isClient) return;
 
     console.log("[useProductTracking] Tracking click:", product.id, product.name);
+
+    // Validate product data before sending
+    if (!product.id || !product.name || !product.category || product.price === undefined) {
+      console.error("[useProductTracking] Invalid product data:", product);
+      return;
+    }
 
     try {
       const response = await fetch("/api/analytics/track-view", {
@@ -63,10 +79,11 @@ export function useProductTracking() {
       if (response.ok) {
         console.log("[useProductTracking] Successfully tracked:", product.id);
       } else {
-        console.warn("[useProductTracking] Failed to track:", response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.warn("[useProductTracking] Failed to track:", response.status, errorData);
       }
     } catch (error) {
-      console.debug("[useProductTracking] Failed to track click:", error);
+      console.error("[useProductTracking] Failed to track click:", error);
     }
   }, [isClient]);
 

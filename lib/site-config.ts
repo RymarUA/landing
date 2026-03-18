@@ -45,8 +45,8 @@ export const siteConfig = {
   ogImage: "",
 
   // Theme colors for OG image (fallback when ogImage is empty)
-  ogBackground: "#065F46",
-  ogAccent1: "#065F46",
+  ogBackground: "#2E7D32",
+  ogAccent1: "#F9A825",
   ogAccent2: "#D4AF37",
 
   // -- Announcement Bar -------------------------------------------------

@@ -137,7 +137,7 @@ export function TemuBottomNav() {
   return (
     <div 
       data-bottom-nav 
-      className="fixed bottom-0 left-0 right-0 bg-emerald-900/95 border-t border-emerald-700/40 backdrop-blur-lg z-[100] pb-[env(safe-area-inset-bottom)] shadow-2xl"
+      className="fixed bottom-0 left-0 right-0 bg-[#2E7D32]/95 border-t border-[#1B5E20]/40 backdrop-blur-lg z-[100] pb-[env(safe-area-inset-bottom)] shadow-2xl text-white"
     >
       <nav className="flex justify-around items-center py-1.5 px-2" aria-label="Нижня навігація">
         {navItems.map((item) => {
@@ -149,8 +149,8 @@ export function TemuBottomNav() {
                 onClick={item.onClick}
                 className={`relative flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all min-w-[68px] ${
                   item.isActive
-                    ? "text-[#D4AF37] bg-white/10"
-                    : "text-white/70 hover:text-white hover:bg-white/5"
+                    ? "text-white bg-white/30"
+                    : "text-white/70 hover:text-white hover:bg-white/10"
                 }`}
                 aria-label={item.ariaLabel}
                 aria-current={item.isActive ? "page" : undefined}
@@ -170,8 +170,8 @@ export function TemuBottomNav() {
               onClick={item.onClick}
               className={`relative flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all min-w-[68px] ${
                 item.isActive
-                  ? "text-[#D4AF37] bg-white/10"
-                  : "text-white/70 hover:text-white hover:bg-white/5"
+                  ? "text-white bg-white/30"
+                  : "text-white/70 hover:text-white hover:bg-white/10"
               }`}
               aria-label={item.ariaLabel}
               aria-current={item.isActive ? "page" : undefined}

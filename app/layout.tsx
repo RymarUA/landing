@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Metadata } from "next/types";
 import type { ReactNode } from "react";
 import "./globals.css";
@@ -108,13 +107,22 @@ export const metadata: Metadata = {
   },
 };
 
+// Pre-load settings to avoid async issues in layout
+let cachedSettings: any = null;
+async function getSettings() {
+  if (!cachedSettings) {
+    cachedSettings = await getCachedSiteSettings();
+  }
+  return cachedSettings;
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
   // Load site settings from Sitniks (with fallback to site-config)
-  const { settings } = await getCachedSiteSettings();
+  const { settings } = await getSettings();
 
   return (
     <html lang="uk" data-scroll-behavior="smooth" className="h-full">
@@ -124,11 +132,11 @@ export default async function RootLayout({
         <JsonLd data={organizationSchema} id="organization" />
         <JsonLd data={websiteSchema} id="website" />
       </head>
-      <body suppressHydrationWarning
+      <body
         className={cn(
           notoSans.variable,
           notoSerif.variable,
-          "bg-white antialiased min-h-screen flex flex-col",
+          "bg-[#FAF9F4] antialiased min-h-screen flex flex-col",
         )}
       >
         <Analytics />

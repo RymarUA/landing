@@ -46,8 +46,8 @@ export function CookieBanner() {
           {/* Main row */}
           <div className="p-5">
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Cookie size={20} className="text-emerald-400" />
+              <div className="w-10 h-10 bg-[#2E7D32]/20 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Cookie size={20} className="text-[#2E7D32]" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-white font-bold text-sm mb-1">Ми використовуємо файли cookie</h3>
@@ -76,7 +76,7 @@ export function CookieBanner() {
                     <p className="text-white text-xs font-semibold">Необхідні</p>
                     <p className="text-gray-500 text-xs">Потрібні для роботи сайту</p>
                   </div>
-                  <div className="w-10 h-5 bg-emerald-500 rounded-full flex items-center justify-end px-0.5 opacity-60 cursor-not-allowed">
+                  <div className="w-10 h-5 bg-[#2E7D32] rounded-full flex items-center justify-end px-0.5 opacity-60 cursor-not-allowed">
                     <div className="w-4 h-4 bg-white rounded-full" />
                   </div>
                 </div>
@@ -89,7 +89,7 @@ export function CookieBanner() {
                   </div>
                   <button
                     onClick={() => setAnalytics((v) => !v)}
-                    className={`w-10 h-5 rounded-full flex items-center px-0.5 transition-all ${analytics ? "bg-emerald-500 justify-end" : "bg-gray-700 justify-start"}`}
+                    className={`w-10 h-5 rounded-full flex items-center px-0.5 transition-all ${analytics ? "bg-[#2E7D32] justify-end" : "bg-gray-700 justify-start"}`}
                   >
                     <div className="w-4 h-4 bg-white rounded-full shadow" />
                   </button>
@@ -103,7 +103,7 @@ export function CookieBanner() {
                   </div>
                   <button
                     onClick={() => setMarketing((v) => !v)}
-                    className={`w-10 h-5 rounded-full flex items-center px-0.5 transition-all ${marketing ? "bg-emerald-500 justify-end" : "bg-gray-700 justify-start"}`}
+                    className={`w-10 h-5 rounded-full flex items-center px-0.5 transition-all ${marketing ? "bg-[#2E7D32] justify-end" : "bg-gray-700 justify-start"}`}
                   >
                     <div className="w-4 h-4 bg-white rounded-full shadow" />
                   </button>
@@ -115,7 +115,7 @@ export function CookieBanner() {
             <div className="flex flex-col sm:flex-row gap-2 mt-4">
               <button
                 onClick={() => accept(true)}
-                className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-[#1B5E20] text-white text-xs font-bold py-2.5 rounded-xl transition-colors"
               >
                 <Check size={14} />
                 Прийняти всі

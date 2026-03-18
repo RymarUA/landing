@@ -1,0 +1,17 @@
+{
+  "name": "Test User",
+  "phone": "+380501234567",
+  "city": "Київ",
+  "department": "Test Warehouse",
+  "warehouse": "Test Warehouse",
+  "paymentMethod": "cod",
+  "items": [
+    {
+      "id": 1001,
+      "variationId": 1001,
+      "name": "Матча-еліксир для ранкового балансу",
+      "price": 420,
+      "quantity": 1
+    }
+  ]
+}

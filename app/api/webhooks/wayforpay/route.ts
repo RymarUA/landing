@@ -28,6 +28,9 @@ import { verifyWfpWebhookSignature, buildWfpResponseSignature } from "@/lib/wayf
 import { updateSitniksOrder } from "@/lib/sitniks-consolidated";
 import { sendTelegramNotification } from "@/lib/telegram";
 
+// Load status IDs from environment
+const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
+
 /* ─────────────────────────────────────────────────────────────────────────
    POST handler
    ───────────────────────────────────────────────────────────────────────── */
@@ -83,12 +86,13 @@ export async function POST(req: NextRequest) {
   if (transactionStatus === "Approved") {
     try {
       // Always use the better updateSitniksOrder function
-      const success = await updateSitniksOrder(orderReference, "paid");
+      // Pass PAID_STATUS_ID if available for direct status ID update
+      const success = await updateSitniksOrder(orderReference, "paid", PAID_STATUS_ID > 0 ? PAID_STATUS_ID : undefined);
       
       if (!success) {
         console.error(`[wfp-webhook] Failed to update Sitniks order #${orderReference}`);
       } else {
-        console.info(`[wfp-webhook] Sitniks order #${orderReference} marked as Оплачено`);
+        console.info(`[wfp-webhook] Sitniks order #${orderReference} marked as Оплачено (statusId: ${PAID_STATUS_ID || 'by name'})`);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

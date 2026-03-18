@@ -2,10 +2,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { ShoppingCart, X, Trash2, Minus, Plus } from "lucide-react";
-import { useCart } from "@/components/cart-context";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCart } from "@/components/cart-context";
+import { getCrossSellRecommendations, getCrossSellTitle, isGoodDeal, getDiscountPercentage } from "@/lib/cross-sell-recommendations";
+import { OptimizedImage } from "./optimized-image";
 
 export function CartWidget() {
   const {
@@ -21,9 +23,47 @@ export function CartWidget() {
     closeCart,
     toggleCart,
     lastQuantityToast,
+    addItem,
   } = useCart();
   const [animate, setAnimate] = useState(false);
+  const [crossSellItems, setCrossSellItems] = useState<any[]>([]);
+  const [loadingCrossSell, setLoadingCrossSell] = useState(false);
   const prevCount = useRef(totalCount);
+
+  // Handle adding related product to cart
+  const handleAddRelatedProduct = (item: any) => {
+    addItem({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      image: item.image,
+      size: item.size || null,
+      oldPrice: item.oldPrice || null,
+    });
+  };
+
+  // Load cross-sell recommendations when cart changes
+  useEffect(() => {
+    if (!hydrated || items.length === 0) {
+      setCrossSellItems([]);
+      return;
+    }
+
+    const loadRecommendations = async () => {
+      setLoadingCrossSell(true);
+      try {
+        const recommendations = await getCrossSellRecommendations(items, 500, 3);
+        setCrossSellItems(recommendations);
+      } catch (error) {
+        // Silent fail - just set empty array
+        setCrossSellItems([]);
+      } finally {
+        setLoadingCrossSell(false);
+      }
+    };
+
+    loadRecommendations();
+  }, [items, hydrated]);
 
   // const isProductPage = pathname?.startsWith("/product/");
 
@@ -46,20 +86,20 @@ export function CartWidget() {
       <motion.button
         onClick={toggleCart}
         className={`fixed right-6 bottom-24 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-[110]
-          bg-gradient-to-br from-emerald-600 to-emerald-700 text-white`}
+          bg-gradient-to-br from-[#2E7D32] to-[#1B5E20] text-white`}
         aria-label="Відкрити кошик"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         animate={animate ? { 
           scale: [1, 1.2, 1.1, 1.2, 1], 
           boxShadow: [
-            "0 0 0 0 rgba(16, 185, 129, 0.4)",
-            "0 0 0 8px rgba(16, 185, 129, 0.2)",
-            "0 0 0 16px rgba(16, 185, 129, 0.1)",
-            "0 0 0 8px rgba(16, 185, 129, 0.2)",
-            "0 0 0 0 rgba(16, 185, 129, 0)"
+            "0 0 0 0 rgba(27, 94, 32, 0.4)",
+            "0 0 0 8px rgba(27, 94, 32, 0.2)",
+            "0 0 0 16px rgba(27, 94, 32, 0.1)",
+            "0 0 0 8px rgba(27, 94, 32, 0.2)",
+            "0 0 0 0 rgba(27, 94, 32, 0)"
           ]
-        } : { scale: 1, boxShadow: "0 0 0 0 rgba(16, 185, 129, 0)" }}
+        } : { scale: 1, boxShadow: "0 0 0 0 rgba(27, 94, 32, 0)" }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
         <ShoppingCart size={26} />
@@ -198,26 +238,75 @@ export function CartWidget() {
               </div>
 
               {/* Cross-sell section */}
-              <div className="mb-4 pt-4 border-t border-gray-100">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">З цим товаром також куплять:</h3>
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {items.slice(0, 3).map((item) => (
-                    <div key={item.id} className="flex-shrink-0 w-32 bg-gray-50 rounded-xl p-2">
-                      <div className="relative h-20 rounded-lg overflow-hidden bg-gray-200 mb-2">
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          fill
-                          sizes="80px"
-                          className="object-cover"
-                        />
-                      </div>
-                      <p className="text-xs font-medium text-gray-900 truncate">{item.name}</p>
-                      <p className="text-xs text-orange-500 font-bold">{item.price} грн</p>
-                    </div>
-                  ))}
+              {(loadingCrossSell || crossSellItems.length > 0) && (
+                <div className="mb-4 pt-4 border-t border-gray-100">
+                  <h3 className="text-sm font-bold text-gray-900 mb-3">
+                    {getCrossSellTitle(500)}
+                  </h3>
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                    {loadingCrossSell ? (
+                      // Скелетоны для загрузки
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <div key={`skeleton-${index}`} className="flex-shrink-0 w-36 bg-gray-50 rounded-xl p-3">
+                          <div className="h-20 rounded-lg bg-gray-200 mb-2 animate-pulse"></div>
+                          <div className="h-3 bg-gray-200 rounded mb-1 animate-pulse"></div>
+                          <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+                        </div>
+                      ))
+                    ) : (
+                      crossSellItems.map((item) => (
+                        <div key={item.id} className="flex-shrink-0 w-36 bg-gray-50 rounded-xl p-3 hover:bg-gray-100 transition-colors border border-gray-100">
+                          {/* Product image - clickable to product page */}
+                          <Link 
+                            href={`/product/${item.id}`} 
+                            className="block relative h-20 rounded-lg overflow-hidden bg-gray-200 mb-2 group"
+                            onClick={closeCart}
+                          >
+                            <OptimizedImage
+                              src={item.image}
+                              alt={item.name}
+                              fill
+                              sizes="144px"
+                              className="object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            {/* Badge для выгодных предложений */}
+                            {isGoodDeal(item) && (
+                              <div className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                                -{getDiscountPercentage(item)}%
+                              </div>
+                            )}
+                          </Link>
+                          <p className="text-xs font-medium text-gray-900 truncate leading-tight mb-1">{item.name}</p>
+                          <div className="flex items-center gap-1 mb-1">
+                            <p className="text-sm text-orange-500 font-bold">{item.price} грн</p>
+                            {item.oldPrice && (
+                              <p className="text-xs text-gray-400 line-through">{item.oldPrice} грн</p>
+                            )}
+                          </div>
+                          {/* Rating indicator */}
+                          <div className="flex items-center gap-1 mb-2">
+                            <div className="flex text-yellow-400">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <span key={i} className={`text-xs ${i < Math.floor(item.rating) ? '' : 'text-gray-300'}`}>
+                                  ★
+                                </span>
+                              ))}
+                            </div>
+                            <span className="text-xs text-gray-500">({item.rating})</span>
+                          </div>
+                          {/* Add to cart button */}
+                          <button 
+                            onClick={() => handleAddRelatedProduct(item)}
+                            className="w-full text-xs bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-medium shadow-sm hover:shadow-md"
+                          >
+                            Додати
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex gap-2">
                 <Link
@@ -251,13 +340,13 @@ export function CartWidget() {
             duration: 0.15,
             ease: [0.25, 0.46, 0.45, 0.94]
           }}
-          className="fixed left-4 right-4 sm:left-auto sm:right-28 z-[60] max-w-sm bottom-32"
+          className="fixed left-4 right-4 sm:left-auto sm:right-28 z-[60] max-w-sm bottom-48 sm:bottom-32"
         >
           <motion.div 
             initial={{ scale: 0.98, opacity: 0.9 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.02, duration: 0.1 }}
-            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-3 border border-emerald-400/20"
+            className="bg-gradient-to-r from-[#2E7D32] to-[#1B5E20] text-white rounded-2xl shadow-2xl p-4 flex items-center gap-3 border border-[#2E7D32]/20"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}

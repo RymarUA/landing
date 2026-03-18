@@ -191,64 +191,51 @@ function getSitniksConfigOrThrow(): SitniksConfig {
 
 /** Safe fetch: timeout 8000ms, on error log and return null. */
 export async function sitniksSafe<T>(
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
   body?: unknown,
   options?: { revalidate?: number }
 ): Promise<T | null> {
   const config = getSitniksConfig();
   if (!config) {
-    console.error("[sitniks] SITNIKS_API_URL or SITNIKS_API_KEY not set");
+    // Silent fail - no configuration available
     return null;
   }
 
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${config.apiKey}`,
+    Accept: "application/json",
+  };
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), SITNIKS_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
-      Accept: "application/json",
-      "User-Agent": "FamilyHub-Market/1.0",
-    };
-
-    // For GET requests, don't send body
-    const fetchOptions: RequestInit = {
+    const res = await fetch(`${config.apiUrl}${path}`, {
       method,
       headers,
+      body: JSON.stringify(body),
       signal: controller.signal,
-      next: { revalidate: options?.revalidate ?? 60 },
-    };
+      // @ts-ignore Next.js revalidate option for fetch
+      next: options?.revalidate ? { revalidate: options.revalidate } : undefined,
+    });
 
-    // Only add body for POST/PATCH requests
-    if (method !== "GET" && body !== undefined) {
-      fetchOptions.body = JSON.stringify(body);
-    }
-
-    const res = await fetch(`${config.apiUrl}${path}`, fetchOptions);
-
-    clearTimeout(timeout);
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
-      const errorText = await res.text();
-      // Reduce noise for expected 404 errors on product lookup
-      if (res.status === 404 && (path.includes('/products/') || path.includes('/open-api/products/'))) {
-        console.log(`[sitniks] Product not found (404): ${path}`);
-      } else {
-        console.error(`[sitniks] HTTP ${res.status}: ${errorText}`);
-      }
+      console.error(`[sitniks] HTTP ${res.status} ${res.statusText} for ${path}`);
       return null;
     }
 
-    return await res.json() as T;
-  } catch (error) {
-    clearTimeout(timeout);
-    if (error instanceof Error && error.name === "AbortError") {
-      console.error("[sitniks] Request timeout after 8000ms");
-    } else if (error instanceof Error) {
-      // Handle SSL errors specifically
-      if (error.message.includes('SSL') || error.message.includes('packet length')) {
+    const data = await res.json();
+    return data;
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error) {
+      if (error.name === "AbortError") {
+        console.error("[sitniks] Request timeout after 8s for", path);
+      } else if (error.message.includes('SSL') || error.message.includes('packet length')) {
         console.error("[sitniks] SSL/Connection error - this might be a network or SSL certificate issue:", error.message);
         console.error("[sitniks] Check if SITNIKS_API_URL is correct and accessible");
       } else {
@@ -257,6 +244,44 @@ export async function sitniksSafe<T>(
     } else {
       console.error("[sitniks] Unknown error:", error);
     }
+    return null;
+  }
+}
+
+/** Safe version of sitniks function that doesn't throw */
+async function sitniksWithoutThrow<T>(
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  path: string,
+  body?: unknown
+): Promise<T | null> {
+  const config = getSitniksConfig();
+  if (!config) {
+    // Silent in development - only log if explicitly needed
+    return null;
+  }
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${config.apiKey}`,
+    Accept: "application/json",
+  };
+
+  try {
+    const res = await fetch(`${config.apiUrl}${path}`, {
+      method,
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      console.error(`[sitniks] HTTP ${res.status} ${res.statusText} for ${path}`);
+      return null;
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("[sitniks] Request failed:", error);
     return null;
   }
 }
@@ -317,10 +342,16 @@ export async function getSitniksProducts(options: {
     ...(options.query ? { query: options.query } : {}),
   });
 
-  const res = await sitniks<{ data: SitniksProduct[]; total: number }>(
+  const res = await sitniksWithoutThrow<{ data: SitniksProduct[]; total: number }>(
     "GET",
     `/open-api/products?${params}`
   );
+  
+  if (!res) {
+    // Silent fail - return empty result without noise
+    return { data: [], total: 0 };
+  }
+  
   return res;
 }
 
@@ -331,16 +362,26 @@ export async function getAllSitniksProducts(): Promise<SitniksProduct[]> {
 
   while (true) {
     const page = await getSitniksProducts({ limit, skip });
+    
+    // Debug: log what we get
+    console.log(`[sitniks] Page ${skip}-${skip + limit}:`, page ? `${page.data.length} products, total ${page.total}` : 'null');
+    
+    // If API fails and returns empty, stop pagination
+    if (!page || page.data.length === 0) {
+      break;
+    }
+    
     all.push(...page.data);
     if (all.length >= page.total || page.data.length < limit) break;
     skip += limit;
   }
 
+  console.log(`[sitniks] Total products loaded: ${all.length}`);
   return all;
 }
 
 export async function getSitniksProductById(productId: number): Promise<SitniksProduct | null> {
-  return sitniksSafe<SitniksProduct>("GET", `/open-api/products/${productId}`);
+  return await sitniksSafe<SitniksProduct>("GET", `/open-api/products/${productId}`);
 }
 
 export async function getSitniksCategories(): Promise<SitniksCategory[]> {
@@ -465,12 +506,100 @@ function createFallbackSettings(): { settings: SiteSettings; source: 'fallback' 
 // ─── Orders API (consolidated) ─────────────────────────────────────────────────────
 
 /**
+ * Validates CreateOrderDto before sending to Sitniks CRM.
+ * Returns validation error message or null if valid.
+ */
+function validateCreateOrderDto(dto: CreateOrderDto): string | null {
+  // Validate client data
+  if (!dto.client?.fullname || dto.client.fullname.trim().length < 2) {
+    return "Ім'я клієнта повинно містити мінімум 2 символи";
+  }
+
+  // Validate phone format (must be +380XXXXXXXXX)
+  if (dto.client.phone) {
+    const phoneRegex = /^\+380\d{9}$/;
+    if (!phoneRegex.test(dto.client.phone)) {
+      return `Невірний формат телефону: ${dto.client.phone}. Очікується +380XXXXXXXXX`;
+    }
+  }
+
+  // Validate email format if provided
+  if (dto.client.email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(dto.client.email)) {
+      return `Невірний формат email: ${dto.client.email}`;
+    }
+  }
+
+  // Validate products array
+  if (!Array.isArray(dto.products) || dto.products.length === 0) {
+    return "Замовлення повинно містити хоча б один товар";
+  }
+
+  // Validate each product
+  for (let i = 0; i < dto.products.length; i++) {
+    const product = dto.products[i];
+    
+    if (!product.productVariationId || product.productVariationId <= 0) {
+      return `Товар #${i + 1}: невірний productVariationId (${product.productVariationId})`;
+    }
+    
+    if (!product.title || product.title.trim().length === 0) {
+      return `Товар #${i + 1}: відсутня назва товару`;
+    }
+    
+    if (typeof product.price !== 'number' || product.price < 0) {
+      return `Товар #${i + 1}: невірна ціна (${product.price})`;
+    }
+    
+    if (typeof product.quantity !== 'number' || product.quantity < 1) {
+      return `Товар #${i + 1}: невірна кількість (${product.quantity})`;
+    }
+  }
+
+  // Validate Nova Poshta delivery if provided
+  if (dto.npDelivery) {
+    if (!dto.npDelivery.integrationNovaposhtaId || dto.npDelivery.integrationNovaposhtaId <= 0) {
+      return "Невірний ID інтеграції Нової Пошти";
+    }
+    
+    if (!dto.npDelivery.city || dto.npDelivery.city.trim().length === 0) {
+      return "Не вказано місто доставки";
+    }
+    
+    if (!dto.npDelivery.department || dto.npDelivery.department.trim().length === 0) {
+      return "Не вказано відділення Нової Пошти";
+    }
+    
+    if (typeof dto.npDelivery.weight !== 'number' || dto.npDelivery.weight <= 0) {
+      return `Невірна вага посилки (${dto.npDelivery.weight})`;
+    }
+  }
+
+  return null; // Valid
+}
+
+/**
  * Create a new order (safe version - returns null on error).
  */
 export async function createSitniksOrder(dto: CreateOrderDto): Promise<SitniksOrder | null> {
-  console.log("[sitniks] Creating order with DTO:", JSON.stringify(dto, null, 2));
+  // Validate DTO before sending to CRM
+  const validationError = validateCreateOrderDto(dto);
+  if (validationError) {
+    console.error("[sitniks] Order validation failed:", validationError);
+    console.error("[sitniks] Invalid DTO:", JSON.stringify(dto, null, 2));
+    return null;
+  }
+
+  console.log("[sitniks] Creating order with validated DTO:", JSON.stringify(dto, null, 2));
   const result = await sitniksSafe<SitniksOrder>("POST", "/open-api/orders", dto);
-  console.log("[sitniks] Order creation result:", result);
+  
+  if (!result) {
+    console.error("[sitniks] Order creation failed - CRM returned null/error");
+  } else {
+    console.log("[sitniks] ✓ Order created successfully:", result.orderNumber);
+  }
+  
   return result;
 }
 
@@ -504,7 +633,8 @@ export async function getSitniksOrderStatuses(): Promise<Array<{ id: number; nam
  */
 export async function updateSitniksOrder(
   orderReference: string,
-  status: "paid" | "shipped" | "delivered" | "cancelled"
+  status: "paid" | "shipped" | "delivered" | "cancelled",
+  statusId?: number
 ): Promise<boolean> {
   const STATUS_MAP: Record<string, string> = {
     paid: "Оплачено",
@@ -525,7 +655,9 @@ export async function updateSitniksOrder(
     return false;
   }
   
-  const res = await sitniksSafe<unknown>("PATCH", `/open-api/orders/${targetId}`, { status: crmStatus });
+  // Use statusId if provided, otherwise use status name
+  const payload = statusId ? { statusId } : { status: crmStatus };
+  const res = await sitniksSafe<unknown>("PATCH", `/open-api/orders/${targetId}`, payload);
   return res !== null;
 }
 

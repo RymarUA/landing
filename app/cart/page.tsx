@@ -79,7 +79,7 @@ export default function CartPage() {
           </Link>
           <h1 className="text-2xl font-black text-gray-900">Кошик</h1>
           {totalCount > 0 && (
-            <span className="bg-emerald-100 text-emerald-600 text-sm font-bold px-3 py-1 rounded-full">
+            <span className="bg-[#2E7D32]/10 text-[#2E7D32] text-sm font-bold px-3 py-1 rounded-full">
               {totalCount} {totalCount === 1 ? "товар" : totalCount < 5 ? "товари" : "товарів"}
             </span>
           )}
@@ -92,7 +92,7 @@ export default function CartPage() {
             <p className="text-gray-400 mb-6">Додайте товари з каталогу</p>
             <button
               onClick={handleGoToCatalog}
-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-2xl transition-colors"
+              className="inline-flex items-center gap-2 bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-bold px-6 py-3 rounded-2xl transition-colors"
             >
               Перейти до каталогу
             </button>
@@ -203,7 +203,7 @@ export default function CartPage() {
 
                 <Link
                   href="/checkout"
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl transition-colors shadow-lg shadow-emerald-200 mb-3"
+                  className="w-full flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-bold py-4 rounded-2xl transition-colors shadow-lg shadow-[#2E7D32]/20 mb-3"
                 >
                   Оформити замовлення
                 </Link>

@@ -5,10 +5,9 @@ import React, { useState, useRef, useEffect } from "react";
 import Image, { ImageProps } from "next/image";
 import { cn } from "@/lib/utils";
 
-interface OptimizedImageProps extends Omit<ImageProps, 'onLoad' | 'onError'> {
+interface OptimizedImageProps extends Omit<ImageProps, "onLoad" | "onError"> {
   fallback?: string;
   wrapperClassName?: string;
-  enableLazyLoad?: boolean;
 }
 
 // Оптимізований компонент зображення з lazy loading та fallback
@@ -18,39 +17,12 @@ export function OptimizedImage({
   fallback = "/images/placeholder.jpg",
   className,
   wrapperClassName,
-  enableLazyLoad = true,
   priority = false,
   ...props
 }: OptimizedImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [isInView, setIsInView] = useState(!enableLazyLoad);
   const imgRef = useRef<HTMLDivElement>(null);
-
-  // Intersection Observer для lazy loading
-  useEffect(() => {
-    if (!enableLazyLoad || priority) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const target = entries[0];
-        if (target.isIntersecting) {
-          setIsInView(true);
-          observer.disconnect();
-        }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: "50px",
-      }
-    );
-
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [enableLazyLoad, priority]);
 
   const handleLoad = () => {
     setIsLoading(false);
@@ -62,28 +34,32 @@ export function OptimizedImage({
   };
 
   return (
-    <div ref={imgRef} className={cn("relative overflow-hidden", wrapperClassName)}>
-      {/* Placeholder skeleton */}
+    <div
+      ref={imgRef}
+      className={cn(
+        "relative overflow-hidden",
+        props.fill ? "w-full h-full" : undefined,
+        wrapperClassName,
+      )}
+    >
       {isLoading && (
         <div className="absolute inset-0 bg-gray-100 animate-pulse" />
       )}
-      
-      {/* Image */}
-      {isInView && (
-        <Image
-          src={hasError ? fallback : src}
-          alt={alt}
-          className={cn(
-            "transition-opacity duration-300",
-            isLoading ? "opacity-0" : "opacity-100",
-            className
-          )}
-          onLoad={handleLoad}
-          onError={handleError}
-          priority={priority}
-          {...props}
-        />
-      )}
+
+      <Image
+        src={hasError ? fallback : src}
+        alt={alt}
+        className={cn(
+          "transition-opacity duration-300",
+          isLoading ? "opacity-0" : "opacity-100",
+          className,
+        )}
+        onLoad={handleLoad}
+        onError={handleError}
+        priority={priority}
+        placeholder={props.placeholder}
+        {...props}
+      />
       
       {/* Error fallback */}
       {hasError && (

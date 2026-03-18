@@ -39,6 +39,8 @@ import { blurProps } from "@/lib/utils";
 // import { siteConfig } from "@/lib/site-config";
 import { ShopFooter } from "@/components/shop-footer";
 import { useLocalStorage } from "@/hooks/use-isomorphic";
+import { fetchNPCities, fetchNPWarehouses } from "@/lib/novaposhta-api";
+import type { NPCity, NPWarehouse } from "@/lib/types";
 
 
 /* ─── Types ──────────────────────────────────────────── */
@@ -108,6 +110,10 @@ function statusStyle(status: string) {
 
 const PROFILE_NAME_KEY = "fhm_profile_name";
 const PROFILE_ADDRESS_KEY = "fhm_profile_address";
+const PROFILE_CITY_KEY = "fhm_profile_city";
+const PROFILE_CITY_REF_KEY = "fhm_profile_city_ref";
+const PROFILE_WAREHOUSE_KEY = "fhm_profile_warehouse";
+const PROFILE_WAREHOUSE_REF_KEY = "fhm_profile_warehouse_ref";
 
 /* ─── Promo Code System ─────────────────────────────── */
 interface PromoCode {
@@ -222,6 +228,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [loggedPhone, setLoggedPhone] = useState("");
   const [profileName, setProfileName] = useLocalStorage<string>(PROFILE_NAME_KEY, "");
   const [profileAddress, setProfileAddress] = useLocalStorage<string>(PROFILE_ADDRESS_KEY, "");
+  const [profileCity, setProfileCity] = useLocalStorage<string>(PROFILE_CITY_KEY, "");
+  const [profileCityRef, setProfileCityRef] = useLocalStorage<string>(PROFILE_CITY_REF_KEY, "");
+  const [profileWarehouse, setProfileWarehouse] = useLocalStorage<string>(PROFILE_WAREHOUSE_KEY, "");
+  const [profileWarehouseRef, setProfileWarehouseRef] = useLocalStorage<string>(PROFILE_WAREHOUSE_REF_KEY, "");
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [error, setError]   = useState("");
@@ -259,7 +269,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     name: "",
     email: "",
     phone: "",
-    address: ""
+    city: "",
+    cityRef: "",
+    warehouse: "",
+    warehouseRef: ""
   });
   const [isChangingPhone, setIsChangingPhone] = useState(false);
   const [newPhone, setNewPhone] = useState("");
@@ -269,6 +282,151 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const phoneTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const [cityResults, setCityResults] = useState<NPCity[]>([]);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [citySearchError, setCitySearchError] = useState("");
+  const [citySearchLoading, setCitySearchLoading] = useState(false);
+  const citySearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const citySearchRequestId = useRef(0);
+  const [warehouseOptions, setWarehouseOptions] = useState<NPWarehouse[]>([]);
+  const [warehouseLoading, setWarehouseLoading] = useState(false);
+  const [warehouseError, setWarehouseError] = useState<string>("");
+  const lastLoadedWarehouseCity = useRef<string>("");
+
+  useEffect(() => () => { if (citySearchTimeoutRef.current) clearTimeout(citySearchTimeoutRef.current); }, []);
+
+  const loadWarehouses = useCallback(async (cityRef: string, presetWarehouseRef?: string) => {
+    if (!cityRef) {
+      setWarehouseOptions([]);
+      setWarehouseLoading(false);
+      return;
+    }
+    lastLoadedWarehouseCity.current = cityRef;
+    setWarehouseLoading(true);
+    setWarehouseError("");
+    try {
+      const list = await fetchNPWarehouses(cityRef, "");
+      setWarehouseOptions(list);
+      if (!list.length) {
+        setWarehouseError("Відділень не знайдено");
+      }
+      if (presetWarehouseRef) {
+        const preset = list.find((wh) => wh.Ref === presetWarehouseRef);
+        if (!preset) {
+          setEditFormData((prev) => ({ ...prev, warehouse: "", warehouseRef: "" }));
+        }
+      }
+    } catch (error) {
+      console.error("[profile] Failed to load warehouses:", error);
+      setWarehouseOptions([]);
+      setWarehouseError("Помилка завантаження відділень");
+    } finally {
+      setWarehouseLoading(false);
+    }
+  }, []);
+
+  const handleCitySearch = useCallback((value: string) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      city: value,
+      cityRef: "",
+      warehouse: "",
+      warehouseRef: ""
+    }));
+    setWarehouseOptions([]);
+    setWarehouseError("");
+    if (!value || value.length < 2) {
+      setCityResults([]);
+      setShowCityDropdown(false);
+      setCitySearchError(value ? "Введіть мінімум 2 символи" : "");
+      return;
+    }
+    if (citySearchTimeoutRef.current) clearTimeout(citySearchTimeoutRef.current);
+    const requestId = ++citySearchRequestId.current;
+    citySearchTimeoutRef.current = setTimeout(async () => {
+      setCitySearchLoading(true);
+      setCitySearchError("");
+      try {
+        const results = await fetchNPCities(value);
+        if (requestId === citySearchRequestId.current) {
+          setCityResults(results);
+          setShowCityDropdown(true);
+          if (!results.length) setCitySearchError("Місто не знайдено");
+        }
+      } catch (error) {
+        console.error("[profile] City search failed:", error);
+        if (requestId === citySearchRequestId.current) {
+          setCityResults([]);
+          setShowCityDropdown(false);
+          setCitySearchError("Помилка пошуку міста");
+        }
+      } finally {
+        if (requestId === citySearchRequestId.current) {
+          setCitySearchLoading(false);
+        }
+      }
+    }, 350);
+  }, []);
+
+  const handleCitySelect = useCallback((city: NPCity) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      city: city.Description,
+      cityRef: city.Ref,
+      warehouse: "",
+      warehouseRef: ""
+    }));
+    setShowCityDropdown(false);
+    setCityResults([]);
+    setCitySearchError("");
+    loadWarehouses(city.Ref);
+  }, [loadWarehouses]);
+
+  const handleWarehouseSelect = useCallback((warehouseRef: string) => {
+    const warehouse = warehouseOptions.find((wh) => wh.Ref === warehouseRef);
+    if (!warehouse) return;
+    setEditFormData((prev) => ({
+      ...prev,
+      warehouse: warehouse.Description,
+      warehouseRef: warehouse.Ref
+    }));
+    setWarehouseError("");
+  }, [warehouseOptions]);
+
+  const handleQuickCityPick = useCallback(async (cityName: string) => {
+    setCitySearchError("");
+    setShowCityDropdown(false);
+    setCitySearchLoading(true);
+    try {
+      const results = await fetchNPCities(cityName);
+      const match = results.find((city) => city.Description === cityName || city.Description?.startsWith(cityName)) || results[0];
+      if (!match) {
+        setCityResults([]);
+        setCitySearchError("Місто не знайдено");
+        return;
+      }
+      setEditFormData((prev) => ({
+        ...prev,
+        city: match.Description,
+        cityRef: match.Ref,
+        warehouse: "",
+        warehouseRef: ""
+      }));
+      await loadWarehouses(match.Ref);
+    } catch (error) {
+      console.error("[profile] Quick city pick failed:", error);
+      setCitySearchError("Помилка пошуку міста");
+    } finally {
+      setCitySearchLoading(false);
+    }
+  }, [loadWarehouses]);
+
+  useEffect(() => {
+    if (isEditingProfile && editFormData.cityRef && lastLoadedWarehouseCity.current !== editFormData.cityRef) {
+      loadWarehouses(editFormData.cityRef, editFormData.warehouseRef);
+    }
+  }, [isEditingProfile, editFormData.cityRef, editFormData.warehouseRef, loadWarehouses]);
 
   const otpString = otp.join("");
   const router = useRouter();
@@ -921,26 +1079,55 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       name: profileName,
       email: loggedEmail,
       phone: loggedPhone,
-      address: profileAddress
+      city: profileCity,
+      cityRef: profileCityRef,
+      warehouse: profileWarehouse,
+      warehouseRef: profileWarehouseRef
     });
+    if (profileCityRef) {
+      loadWarehouses(profileCityRef, profileWarehouseRef);
+    } else {
+      setWarehouseOptions([]);
+      setWarehouseError("");
+    }
+    setCityResults([]);
+    setShowCityDropdown(false);
+    setCitySearchError("");
     setIsEditingProfile(true);
   };
 
   const handleSaveProfile = () => {
+    if (!editFormData.cityRef) {
+      setCitySearchError("Оберіть місто доставки");
+      return;
+    }
+    if (!editFormData.warehouseRef) {
+      setWarehouseError("Оберіть відділення або поштомат");
+      return;
+    }
     // Update profile name
     if (editFormData.name !== profileName) {
       setProfileName(editFormData.name);
     }
-    // Update profile address
-    if (editFormData.address !== profileAddress) {
-      setProfileAddress(editFormData.address);
+    const formattedAddress = `${editFormData.city}, ${editFormData.warehouse}`;
+    if (formattedAddress !== profileAddress) {
+      setProfileAddress(formattedAddress);
     }
+    setProfileCity(editFormData.city);
+    setProfileCityRef(editFormData.cityRef);
+    setProfileWarehouse(editFormData.warehouse);
+    setProfileWarehouseRef(editFormData.warehouseRef);
     // TODO: Update email, phone when APIs are available
     setIsEditingProfile(false);
   };
 
   const handleCancelEdit = () => {
     setIsEditingProfile(false);
+    setCityResults([]);
+    setShowCityDropdown(false);
+    setCitySearchError("");
+    setWarehouseOptions([]);
+    setWarehouseError("");
   };
 
   /* ════════════════════════════════════════════════════════
@@ -1411,7 +1598,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         </div>
 
         {/* Address Card */}
-        {profileAddress.trim() && (
+        {(profileCity && profileWarehouse) || profileAddress.trim() ? (
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -1420,7 +1607,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Адреса доставки</p>
                 <p className="font-medium text-gray-900 text-sm break-words">
-                  {profileAddress.trim()}
+                  {profileCity && profileWarehouse ? `${profileCity}, ${profileWarehouse}` : profileAddress.trim()}
                 </p>
               </div>
               <button
@@ -1432,7 +1619,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
               </button>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Edit Profile Modal */}
         <AnimatePresence mode="wait">
@@ -1510,15 +1697,85 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                     </div>
 
                     {/* Address Field */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-gray-700">Адреса доставки</label>
-                      <input
-                        type="text"
-                        value={editFormData.address}
-                        onChange={(e) => setEditFormData(prev => ({ ...prev, address: e.target.value }))}
-                        placeholder="Введіть адресу доставки"
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
-                      />
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-gray-700">Місто доставки</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={editFormData.city}
+                            onChange={(e) => handleCitySearch(e.target.value)}
+                            placeholder="Почніть вводити назву міста"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                            autoComplete="off"
+                          />
+                          {citySearchLoading && (
+                            <Loader2 size={16} className="absolute right-3 top-3 animate-spin text-emerald-600" />
+                          )}
+                          {showCityDropdown && cityResults.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-2xl max-h-60 overflow-y-auto">
+                              {cityResults.map((city) => (
+                                <button
+                                  key={city.Ref}
+                                  type="button"
+                                  onClick={() => handleCitySelect(city)}
+                                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <Truck size={14} className="text-gray-400" />
+                                  {city.Description}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {(citySearchError) && (
+                          <p className="text-xs text-red-500">{citySearchError}</p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <span className="text-xs font-semibold text-gray-400 w-full">Популярні міста:</span>
+                          {(["Київ", "Одеса", "Харків", "Дніпро", "Львів"] as const).map((cityName) => (
+                            <button
+                              key={cityName}
+                              type="button"
+                              className="px-3 py-1.5 rounded-lg border text-xs font-semibold text-gray-600 hover:border-emerald-400 hover:text-emerald-600 transition"
+                              onClick={() => {
+                                handleCitySearch(cityName);
+                                setTimeout(() => {
+                                  const match = cityResults.find((c) => c.Description === cityName);
+                                  if (match) handleCitySelect(match);
+                                }, 0);
+                              }}
+                            >
+                              {cityName}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-gray-700">Відділення / поштомат</label>
+                        <div className="relative">
+                          <select
+                            value={editFormData.warehouseRef}
+                            onChange={(e) => handleWarehouseSelect(e.target.value)}
+                            disabled={!editFormData.cityRef || warehouseLoading}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition disabled:bg-gray-50"
+                          >
+                            <option value="">
+                              {editFormData.cityRef ? (warehouseLoading ? "Завантаження..." : "Оберіть відділення") : "Спочатку оберіть місто"}
+                            </option>
+                            {warehouseOptions.map((warehouse) => (
+                              <option key={warehouse.Ref} value={warehouse.Ref}>
+                                {warehouse.Description}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">▼</div>
+                        </div>
+                        {(warehouseError) && (
+                          <p className="text-xs text-red-500">{warehouseError}</p>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500">Адреса буде збережена для майбутніх замовлень</p>
                     </div>
                   </div>

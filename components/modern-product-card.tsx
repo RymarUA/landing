@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Heart, Star, Truck } from "lucide-react";
@@ -9,6 +8,7 @@ import { motion } from "framer-motion";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
+import { OptimizedImage } from "@/components/optimized-image";
 // import { Badge } from "@/components/badge";
 import { useProductTracking } from "@/hooks/use-product-tracking";
 
@@ -128,7 +128,7 @@ export function ModernProductCard({
       >
         {/* Compact Image */}
         <div className="relative aspect-square bg-gray-50 overflow-hidden">
-          <Image
+          <OptimizedImage
             src={product.image}
             alt={product.name}
             fill
@@ -239,7 +239,7 @@ export function ModernProductCard({
     >
       {/* Зображення товару */}
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
-        <Image
+        <OptimizedImage
           src={product.image}
           alt={product.name}
           fill

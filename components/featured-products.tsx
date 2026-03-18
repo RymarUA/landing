@@ -6,13 +6,13 @@ import { Flame, ChevronRight, ChevronLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { SimpleProductCard } from "@/components/simple-product-card";
 import { ModernProductCard } from "@/components/modern-product-card";
-import type { CatalogProduct } from "@/lib/instagram-catalog";
+import type { FeaturedProduct } from "@/types/featured-product";
 import { useCart } from "@/components/cart-context";
 import { Container } from "@/components/container";
 import { Heading } from "@/components/heading";
 
 interface FeaturedProductsProps {
-  products: CatalogProduct[];
+  products: FeaturedProduct[];
   type: "hits" | "new";
 }
 
@@ -20,13 +20,9 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
   const { addItem } = useCart();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const filteredProducts = products.filter((p) =>
-    type === "hits" ? p.isHit : p.isNew
-  ).slice(0, 10);
-
   useEffect(() => {
     const container = scrollRef.current;
-    if (!container || filteredProducts.length <= 3) return;
+    if (!container || products.length <= 3) return;
 
     const interval = setInterval(() => {
       const scrollWidth = container.scrollWidth;
@@ -41,9 +37,9 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [filteredProducts.length]);
+  }, [products.length]);
 
-  if (filteredProducts.length === 0) return null;
+  if (products.length === 0) return null;
 
   const title = type === "hits" ? "Хіти продажів" : "Новинки";
   const bgGradient = type === "hits"
@@ -51,7 +47,7 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
     : "from-purple-50 to-pink-50";
   const accentColor = type === "hits" ? "text-orange-600" : "text-purple-600";
 
-  const handleAddToCart = (product: CatalogProduct) => {
+  const handleAddToCart = (product: FeaturedProduct) => {
     addItem({
       id: product.id,
       name: product.name,
@@ -139,7 +135,7 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
             ref={scrollRef}
             className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth"
           >
-            {filteredProducts.map((product, index) => (
+            {products.map((product, index) => (
               <motion.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}

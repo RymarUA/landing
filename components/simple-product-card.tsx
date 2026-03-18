@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { useWishlist } from "@/components/wishlist-context";
 import { useProductTracking } from "@/hooks/use-product-tracking";
+import { OptimizedImage } from "@/components/optimized-image";
 
 interface SimpleProductCardProps {
   product: CatalogProduct;
@@ -52,7 +52,7 @@ export function SimpleProductCard({
     >
       {/* Image */}
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
-        <Image
+        <OptimizedImage
           src={product.image}
           alt={product.name}
           fill

@@ -13,6 +13,7 @@ interface NavItem {
   isActive: boolean;
   ariaLabel: string;
   onClick?: (e: React.MouseEvent) => void;
+  renderAsButton?: boolean;
 }
 
 export function TemuBottomNav() {
@@ -22,10 +23,13 @@ export function TemuBottomNav() {
   const { totalCount } = useCart();
 
   useEffect(() => {
-    setHash(window.location.hash);
-    const onHashChange = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    const updateHash = () => {
+      const newHash = window.location.hash || "";
+      setHash(newHash);
+    };
+    updateHash();
+    window.addEventListener("hashchange", updateHash);
+    return () => window.removeEventListener("hashchange", updateHash);
   }, []);
 
   const scrollCatalogIntoView = () => {
@@ -45,6 +49,9 @@ export function TemuBottomNav() {
     const url = new URL(window.location.href);
     url.hash = "catalog";
     window.history.replaceState({}, "", url.toString());
+    
+    // Manually trigger hash update since replaceState doesn't trigger hashchange
+    setHash("#catalog");
 
     return true;
   };
@@ -69,6 +76,17 @@ export function TemuBottomNav() {
     attemptCatalogScroll();
   };
 
+  const handleHomeClick = () => {
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    url.hash = "";
+    window.history.replaceState({}, "", url.toString());
+    setHash("");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   useEffect(() => {
     if (!hash.includes("catalog")) return;
     const timer = setTimeout(attemptCatalogScroll, 80);
@@ -86,29 +104,32 @@ export function TemuBottomNav() {
       icon: Home,
       label: "Головна",
       href: "/",
-      isActive: pathname === "/" && !hash.includes("catalog"),
+      isActive: pathname === "/" && (hash === "" || hash === "#"),
       ariaLabel: "Перейти на головну",
+      onClick: handleHomeClick,
+      renderAsButton: true,
     },
     {
       icon: Grid3x3,
       label: "Каталог",
       href: "/#catalog",
-      isActive: pathname === "/" && hash.includes("catalog"),
+      isActive: pathname === "/" && hash === "#catalog",
       ariaLabel: "Переглянути каталог",
       onClick: handleCatalogClick,
+      renderAsButton: true,
     },
     {
       icon: ShoppingBag,
       label: "Кошик",
       href: "/cart",
-      isActive: pathname.includes("cart"),
+      isActive: pathname.includes("/cart"),
       ariaLabel: "Кошик покупок",
     },
     {
       icon: User,
       label: "Профіль",
       href: "/profile",
-      isActive: pathname.includes("profile"),
+      isActive: pathname.includes("/profile"),
       ariaLabel: "Профіль клієнта",
     },
   ];
@@ -120,7 +141,7 @@ export function TemuBottomNav() {
     >
       <nav className="flex justify-around items-center py-1.5 px-2" aria-label="Нижня навігація">
         {navItems.map((item) => {
-          if (item.onClick) {
+          if (item.renderAsButton) {
             // Для каталога используем кастомный обработчик
             return (
               <button
@@ -146,6 +167,7 @@ export function TemuBottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={item.onClick}
               className={`relative flex flex-col items-center justify-center p-1.5 rounded-2xl transition-all min-w-[68px] ${
                 item.isActive
                   ? "text-[#D4AF37] bg-white/10"

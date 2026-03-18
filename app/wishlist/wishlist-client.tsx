@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Heart, ShoppingCart, Trash2, ArrowLeft, PackageOpen } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
@@ -16,11 +17,40 @@ interface Props {
 export function WishlistPageClient({ allProducts }: Props) {
   const { ids, toggle, hydrated } = useWishlist();
   const { addItem } = useCart();
+  const router = useRouter();
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [selectedSizes, setSelectedSizes] = useState<Record<number, string>>({});
   const timeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   const items = useMemo(() => allProducts.filter((p) => ids.has(p.id)), [allProducts, ids]);
+
+  const handleGoToCatalog = (event?: React.MouseEvent) => {
+    event?.preventDefault();
+    
+    // Сначала переходим на главную страницу
+    router.push("/");
+    
+    // Затем добавляем хеш и прокручиваем
+    setTimeout(() => {
+      window.location.hash = "catalog";
+      
+      // Прокручиваем после установки хеша
+      setTimeout(() => {
+        const catalogElement = document.getElementById("catalog");
+        if (!catalogElement) return;
+
+        const headerElement = document.getElementById("site-header");
+        const headerHeight = headerElement?.getBoundingClientRect().height ?? 0;
+        const additionalGap = 4;
+
+        const targetTop = catalogElement.getBoundingClientRect().top + window.scrollY - headerHeight - additionalGap;
+        window.scrollTo({
+          top: Math.max(targetTop, 0),
+          behavior: "smooth",
+        });
+      }, 200);
+    }, 100);
+  };
 
   useEffect(() => {
     const timers = timeoutsRef.current;
@@ -100,12 +130,12 @@ export function WishlistPageClient({ allProducts }: Props) {
                 Натисніть ❤️ на картці товару, щоб зберегти його тут.
               </p>
             </div>
-            <Link
-              href="/#catalog"
+            <button
+              onClick={handleGoToCatalog}
               className="bg-[#065F46] hover:bg-[#054E3A] text-white font-bold px-6 py-3 rounded-2xl transition-colors"
             >
               Переглянути каталог
-            </Link>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
-import { getCatalogProducts } from "@/lib/instagram-catalog";
+import { getCachedCatalogProducts, getCachedFeaturedHits } from "@/lib/cached-data";
 import { ShopFooter } from "@/components/shop-footer";
 
 const PromoBannerSlider = dynamic(
@@ -16,7 +16,7 @@ const PromoBannerSlider = dynamic(
           </div>
         </div>
       </div>
-    )
+    ),
   }
 );
 
@@ -52,17 +52,27 @@ const CatalogFallback = () => (
   </section>
 );
 
+const CatalogHashProvider = dynamic(
+  () => import("@/components/catalog-hash-provider").then(mod => ({ default: mod.CatalogHashProvider }))
+);
+
 const EnhancedShopCatalog = dynamic(
   () => import("@/components/enhanced-shop-catalog").then(mod => ({ default: mod.EnhancedShopCatalog })),
   { loading: CatalogFallback }
 );
 
 export default async function Home() {
-  const products = await getCatalogProducts();
+  const [products, featuredHits] = await Promise.all([
+    getCachedCatalogProducts(),
+    getCachedFeaturedHits(10),
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 bg-white flex flex-col">
+        {/* Обработчик хеша для прокрутки к каталогу */}
+        <CatalogHashProvider />
+        
         {/* Promo Banner */}
         <div className="mx-auto max-w-7xl px-2 sm:px-3 md:px-4 mt-4 sm:mt-6">
           <Suspense fallback={
@@ -80,7 +90,7 @@ export default async function Home() {
         </div>
 
         {/* Featured Sections */}
-        <FeaturedProducts products={products} type="hits" />
+        <FeaturedProducts products={featuredHits} type="hits" />
         
         {/* Main Catalog */}
         <div data-catalog-section>

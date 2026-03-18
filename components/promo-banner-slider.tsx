@@ -1,8 +1,8 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Gift, Truck, Percent } from "lucide-react";
 
 interface PromoBanner {
@@ -33,18 +33,39 @@ const PROMO_BANNERS: PromoBanner[] = [
   },
 ];
 
+const SLIDE_INTERVAL = 5000;
+
 export function PromoBannerSlider() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    if (!sliderRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsActive(entry.isIntersecting);
+      },
+      { threshold: 0.4 }
+    );
+
+    observer.observe(sliderRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (shouldReduceMotion) return;
+    if (!isActive) return;
+
+    const timer = window.setInterval(() => {
       setDirection(1);
       setCurrentIndex((prev) => (prev + 1) % PROMO_BANNERS.length);
-    }, 5000);
+    }, SLIDE_INTERVAL);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => window.clearInterval(timer);
+  }, [isActive, shouldReduceMotion]);
 
   const currentBanner = PROMO_BANNERS[currentIndex];
   const Icon = currentBanner.icon;
@@ -65,17 +86,17 @@ export function PromoBannerSlider() {
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl shadow-lg mb-6">
-      <div className={`relative bg-gradient-to-r ${currentBanner.bgGradient} px-6 py-5 md:py-6`}>
+    <div className="relative w-full overflow-hidden rounded-2xl shadow-lg mb-6" ref={sliderRef}>
+      <div className={`relative bg-gradient-to-r ${currentBanner.bgGradient} px-6 py-5 md:py-6`} aria-live="polite">
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
             key={currentBanner.id}
             custom={direction}
             variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
+            initial={shouldReduceMotion ? false : "enter"}
+            animate={shouldReduceMotion ? { opacity: 1, x: 0 } : "center"}
+            exit={shouldReduceMotion ? undefined : "exit"}
+            transition={shouldReduceMotion ? { duration: 0 } : {
               x: { type: "spring", stiffness: 300, damping: 30 },
               opacity: { duration: 0.2 },
             }}

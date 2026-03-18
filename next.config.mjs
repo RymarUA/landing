@@ -18,6 +18,7 @@ const nextConfig = {
     },
   },
 
+  // Experimental features
   experimental: {
     // Enable partial prerendering for faster loads
     // ppr: true, // Only available in canary

@@ -16,8 +16,8 @@ import { AbandonedCartNotification } from "@/components/abandoned-cart-notificat
 import { JsonLd, organizationSchema, websiteSchema } from "@/components/seo/JsonLd";
 import { validateEnv } from "@/lib/env-validation";
 import { WebVitals } from "./web-vitals";
-import { getSiteSettingsWithFallback } from "@/lib/sitniks-consolidated";
-import { getCatalogProducts } from "@/lib/instagram-catalog";
+import { getCachedSiteSettings } from "@/lib/cached-data";
+import { CatalogSearchPrefetcher } from "@/components/catalog-search-prefetcher";
 
 // Validate environment variables on server startup (single evaluation)
 validateEnv();
@@ -114,10 +114,7 @@ export default async function RootLayout({
   children: ReactNode;
 }>) {
   // Load site settings from Sitniks (with fallback to site-config)
-  const { settings } = await getSiteSettingsWithFallback();
-
-  // Load products for search bar
-  const products = await getCatalogProducts();
+  const { settings } = await getCachedSiteSettings();
 
   return (
     <html lang="uk" data-scroll-behavior="smooth" className="h-full">
@@ -135,12 +132,13 @@ export default async function RootLayout({
         )}
       >
         <Analytics />
+        <CatalogSearchPrefetcher />
         <WebVitals />
         <DevToolsGuard />
         <div className="flex-1 flex flex-col">
           <CartProvider>
             <WishlistProvider>
-              <HeaderWrapper products={products} announcementText={settings.announcementText} />
+              <HeaderWrapper announcementText={settings.announcementText} />
               <MobileLayout>
                 {children}
                 <DiscountPopup />

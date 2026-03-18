@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Heart, MessageCircle, HelpCircle, Package, Grid3x3, ChevronDown, Truck, Activity, Bandage, Shield, Vibrate, Droplets, Shirt, Menu } from "lucide-react";
+import { Search, Heart, MessageCircle, HelpCircle, Package, Grid3x3, ChevronDown, Truck, Activity, Bandage, Shield, Vibrate, Droplets, Shirt, Menu, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { siteConfig } from "@/lib/site-config";
 import { useWishlist } from "@/components/wishlist-context";
-import type { CatalogProduct } from "@/lib/instagram-catalog";
+import type { CatalogSearchProduct } from "@/types/catalog-search";
 
 // Highlight component from shared
 // function Highlight({ text, query }: { text: string; query: string }) {
@@ -54,15 +54,7 @@ import { ViberIcon } from "@/components/icons/viber-icon";
 import { TikTokIcon } from "@/components/icons/tiktok-icon";
 import { CategoryIconsSlider } from "@/components/category-icons-slider";
 
-interface TemuSearchBarProps {
-  products?: CatalogProduct[];
-  // hasAnnouncement?: boolean;
-}
-
-export function TemuSearchBar({
-  products = [],
-  // hasAnnouncement = false,
-}: TemuSearchBarProps) {
+export function TemuSearchBar() {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -80,6 +72,10 @@ export function TemuSearchBar({
   const catalogRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const { count } = useWishlist();
+  const [searchProducts, setSearchProducts] = useState<CatalogSearchProduct[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -124,6 +120,63 @@ export function TemuSearchBar({
     loadCategories();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadSearchIndex = useCallback(async (forceRefresh = false) => {
+    if (typeof window === "undefined") return;
+
+    if (!forceRefresh) {
+      const cached = sessionStorage.getItem("catalog_search_index");
+      if (cached) {
+        try {
+          const parsed: CatalogSearchProduct[] = JSON.parse(cached);
+          setSearchProducts(parsed);
+          return;
+        } catch {
+          sessionStorage.removeItem("catalog_search_index");
+        }
+      }
+    }
+
+    setSearchLoading(true);
+    setSearchError(false);
+
+    try {
+      const res = await fetch("/api/catalog-search", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed search fetch");
+      const data = await res.json();
+      if (!isMountedRef.current) return;
+      if (data?.success && Array.isArray(data.products)) {
+        setSearchProducts(data.products);
+        sessionStorage.setItem("catalog_search_index", JSON.stringify(data.products));
+      }
+    } catch (error) {
+      console.error("Failed to load catalog search index", error);
+      if (isMountedRef.current) {
+        setSearchError(true);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setSearchLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSearchIndex();
+  }, [loadSearchIndex]);
+
+  const handleRetrySearch = useCallback(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("catalog_search_index");
+    }
+    loadSearchIndex(true);
+  }, [loadSearchIndex]);
+
   // Sync category with URL query and hash
   useEffect(() => {
     const syncFromURL = () => {
@@ -167,10 +220,18 @@ export function TemuSearchBar({
     url.hash = 'catalog';
     window.history.replaceState({}, '', url.toString());
     
-    // Scroll to catalog section
+    // Scroll to catalog section with proper offset
     const catalogElement = document.getElementById('catalog');
     if (catalogElement) {
-      catalogElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const headerElement = document.getElementById("site-header");
+      const headerHeight = headerElement?.getBoundingClientRect().height ?? 0;
+      const additionalGap = 4;
+      
+      const targetTop = catalogElement.getBoundingClientRect().top + window.scrollY - headerHeight - additionalGap;
+      window.scrollTo({
+        top: Math.max(targetTop, 0),
+        behavior: "smooth",
+      });
     }
     
     // Close catalog dropdown if it's open
@@ -181,11 +242,13 @@ export function TemuSearchBar({
     handleCategoryChange(category);
   };
 
+  const hasQuery = searchQuery.trim().length >= 2;
+
   // Use useMemo to prevent re-renders
   const suggestions = useMemo(() => {
-    if (searchQuery.trim().length >= 2) {
+    if (hasQuery) {
       const query = searchQuery.toLowerCase();
-      return products
+      return searchProducts
         .filter((p) => 
           p.name.toLowerCase().includes(query) ||
           p.category.toLowerCase().includes(query) ||
@@ -194,7 +257,9 @@ export function TemuSearchBar({
         .slice(0, 5);
     }
     return [];
-  }, [searchQuery, products]);
+  }, [hasQuery, searchQuery, searchProducts]);
+
+  const hasNoResults = !searchLoading && !searchError && hasQuery && searchProducts.length > 0 && suggestions.length === 0;
 
   const updateMobileMenuPosition = useCallback(() => {
     if (typeof window === "undefined" || !mobileMenuRef.current) return;
@@ -274,16 +339,15 @@ export function TemuSearchBar({
 
   // Update suggestions visibility and position
   useLayoutEffect(() => {
-    const shouldShow = suggestions.length > 0 && searchQuery.trim().length >= 2;
+    const shouldShow = hasQuery && (suggestions.length > 0 || searchLoading || searchError || hasNoResults);
     
     if (shouldShow) {
       setShowSuggestions(true);
-      
       updateSuggestionsPosition();
     } else {
       setShowSuggestions(false);
     }
-  }, [suggestions, searchQuery, updateSuggestionsPosition]);
+  }, [hasQuery, suggestions, searchLoading, searchError, hasNoResults, updateSuggestionsPosition]);
 
   useLayoutEffect(() => {
     if (!showSuggestions) return;
@@ -353,8 +417,7 @@ export function TemuSearchBar({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => {
-                // Show suggestions
-                if (searchQuery.trim().length >= 2 && suggestions.length > 0) {
+                if (hasQuery) {
                   setShowSuggestions(true);
                 }
               }}
@@ -375,6 +438,21 @@ export function TemuSearchBar({
               spellCheck="false"
             />
             <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+            <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searchLoading && (
+                <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" aria-label="Завантаження каталогу" />
+              )}
+              {!searchLoading && searchError && (
+                <button
+                  type="button"
+                  onClick={handleRetrySearch}
+                  className="text-amber-500 hover:text-amber-600 transition-colors"
+                  aria-label="Повторити завантаження пошуку"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
           </form>
           </div>
@@ -468,7 +546,7 @@ export function TemuSearchBar({
       )}
       
       {/* Search Suggestions - render at component level with highest z-index */}
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && (
         <div 
           className="fixed bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden max-h-[400px] overflow-y-auto"
           style={{
@@ -478,18 +556,39 @@ export function TemuSearchBar({
             zIndex: 10000,
             pointerEvents: 'auto'
           }}
-          onClick={(e) => {
-            console.log('Container clicked!', e.target);
-          }}
         >
-          {suggestions.map((product) => (
+          {searchLoading && (
+            <div className="p-4 flex items-center gap-3 text-sm text-gray-600">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              <span>Завантажуємо підказки…</span>
+            </div>
+          )}
+          {searchError && !searchLoading && (
+            <div className="p-4 flex items-center justify-between gap-3 text-sm text-amber-600">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                <span>Не вдалося завантажити каталог.</span>
+              </div>
+              <button
+                onClick={handleRetrySearch}
+                className="text-emerald-600 font-semibold hover:text-emerald-700"
+              >
+                Спробувати ще
+              </button>
+            </div>
+          )}
+          {!searchLoading && !searchError && hasNoResults && (
+            <div className="p-4 text-sm text-gray-500">
+              Нічого не знайдено. Спробуйте змінити запит.
+            </div>
+          )}
+          {!searchLoading && !searchError && suggestions.map((product) => (
             <div
               key={product.id}
               role="button"
               tabIndex={0}
               onMouseDown={(e) => {
                 e.preventDefault();
-                console.log('MouseDown on product!', product.id);
                 setShowSuggestions(false);
                 setTimeout(() => {
                   window.location.href = `/product/${product.id}`;

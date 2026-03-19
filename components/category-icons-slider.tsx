@@ -135,7 +135,7 @@ export function CategoryIconsSlider({
                 className={`
                   px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all
                   ${isActive 
-                    ? "bg-[#2E7D32] text-[#1A1A1A] shadow-md" 
+                    ? "bg-[#2E7D32] text-white shadow-md" 
                     : "bg-[#FAF9F4] text-[#4A4A4A] border border-[#E5E5E5]"
                   }
                 `}

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Gift, Truck, Percent } from "lucide-react";
+import { Gift, Percent } from "lucide-react";
 
 interface PromoBanner {
   id: number;

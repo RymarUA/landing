@@ -89,11 +89,32 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-      // Format the phone on blur
+      // Format the phone on blur and ensure form gets the normalized value
       const digits = displayValue.replace(/\D/g, "");
+      
       if (digits.length > 0) {
         const formatted = formatPhoneDisplay(digits);
         setDisplayValue(formatted);
+        
+        // Ensure the form gets the normalized value on blur
+        let normalizedPhone = "";
+        try {
+          normalizedPhone = normalizePhone(digits);
+        } catch {
+          normalizedPhone = digits;
+        }
+        
+        // Trigger onChange with normalized value on blur
+        if (onChange) {
+          const syntheticEvent = {
+            ...e,
+            target: {
+              ...e.target,
+              value: normalizedPhone,
+            },
+          };
+          onChange(syntheticEvent);
+        }
       }
       
       if (onBlur) {

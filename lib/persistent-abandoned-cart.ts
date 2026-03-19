@@ -87,15 +87,14 @@ export async function scheduleAbandonedCartNotification(
  * Cancel an abandoned cart notification
  */
 export async function cancelAbandonedCartNotification(sessionId: string): Promise<boolean> {
-  const store = getStore();
-  
   // Get the entry to find its scheduled time
-  const entry = await store.get<AbandonedCartEntry>(`${ABANDONED_CART_PREFIX}${sessionId}`);
+  const entry = await getStore().get<AbandonedCartEntry>(`${ABANDONED_CART_PREFIX}${sessionId}`);
   if (!entry) {
     return false;
   }
   
   // Remove the cart entry
+  const store = getStore();
   await store.delete(`${ABANDONED_CART_PREFIX}${sessionId}`);
   
   // Remove from scheduled queue
@@ -110,17 +109,13 @@ export async function cancelAbandonedCartNotification(sessionId: string): Promis
  * Get all scheduled carts that are ready to be processed
  */
 export async function getReadyCarts(): Promise<AbandonedCartEntry[]> {
-  const store = getStore();
-  const now = Date.now();
+  // const now = Date.now(); // Unused - can be removed if not needed
   const readyCarts: AbandonedCartEntry[] = [];
   
   // This is a simplified approach - in production you'd use Redis SCAN with pattern matching
   // For now, we'll use a timestamp-based approach
   
   // Get all scheduled keys up to current time
-  const scheduledPrefix = SCHEDULED_CART_PREFIX;
-  const maxScanTime = now + 60000; // Scan 1 minute ahead
-  
   // Note: This is a simplified implementation
   // In production with Redis, you'd use SCAN or sorted sets (ZSET) for efficiency
   try {
@@ -217,10 +212,9 @@ export async function processReadyCarts(config: Partial<AbandonedCartConfig> = {
       await sendAbandonedCartNotification(cart, config);
       
       // Clean up processed cart
-      const store = getStore();
-      await store.delete(`${ABANDONED_CART_PREFIX}${cart.sessionId}`);
+      await getStore().delete(`${ABANDONED_CART_PREFIX}${cart.sessionId}`);
       const scheduleKey = `${SCHEDULED_CART_PREFIX}${cart.scheduledAt + cart.delayMs}:${cart.sessionId}`;
-      await store.delete(scheduleKey);
+      await getStore().delete(scheduleKey);
       
       processed++;
     } catch (error) {
@@ -241,8 +235,7 @@ export async function getAbandonedCartStats(): Promise<{
   scheduledInLastHour: number;
   scheduledInLast24Hours: number;
 }> {
-  const store = getStore();
-  const now = Date.now();
+  // const now = Date.now(); // Unused - can be removed if not needed
   
   // This is a simplified implementation
   // In production with Redis, you'd use SCAN with pattern matching

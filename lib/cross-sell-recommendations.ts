@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { getCatalogProducts, type CatalogProduct } from "./instagram-catalog";
+import { getCatalogProducts } from "./instagram-catalog";
 
 /**
  * Умная система подбора сопутствующих товаров
@@ -74,7 +74,7 @@ export async function getCrossSellRecommendations(
       rating: product.rating,
       slug: product.slug,
     }));
-  } catch (error) {
+  } catch {
     // Silent fail - return empty array
     return [];
   }

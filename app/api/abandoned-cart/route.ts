@@ -8,8 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { 
   scheduleAbandonedCartNotification, 
-  cancelAbandonedCartNotification,
-  type AbandonedCartEntry 
+  cancelAbandonedCartNotification
 } from "@/lib/persistent-abandoned-cart";
 
 export async function POST(req: NextRequest) {

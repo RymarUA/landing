@@ -195,7 +195,7 @@ export async function getSitniksCustomer(id: number): Promise<SitniksCustomer | 
       customer.lastOrderAt = orders.length > 0 ? 
         orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0].createdAt : 
         undefined;
-    } catch (_error) {
+    } catch {
       console.warn("[sitniks-customers] Orders endpoint not available, using defaults");
       // Set default values if orders endpoint fails
       customer.ordersCount = 0;
@@ -217,21 +217,43 @@ export async function createSitniksCustomer(
   data: CreateCustomerDto
 ): Promise<SitniksCustomer | null> {
   try {
+    console.log("[sitniks-customers] Creating customer with:", { 
+      fullname: data.fullname, 
+      email: data.email, 
+      phone: data.phone 
+    });
+
     // Ensure phone is a valid mobile number if provided
     let phone = data.phone;
     if (phone) {
       // Format phone to ensure it's a valid mobile number
       phone = phone.replace(/[^0-9+]/g, ''); // Remove all non-numeric chars except +
-      if (!phone.startsWith('+380')) {
-        phone = '+380' + phone.replace(/^\+?380?/, ''); // Add +380 prefix if missing
+      console.log("[sitniks-customers] Cleaned phone:", phone);
+      
+      // Handle different input formats
+      if (!phone.startsWith('+')) {
+        if (phone.startsWith('380')) {
+          phone = '+' + phone; // Add + if starts with 380
+        } else if (phone.length === 9) {
+          phone = '+380' + phone; // Add +380 prefix for 9-digit numbers
+        } else if (phone.length === 10 && phone.startsWith('0')) {
+          phone = '+38' + phone; // Add +38 for numbers starting with 0
+        } else {
+          phone = '+380' + phone.replace(/^0?/, ''); // Add +380 and remove leading 0
+        }
       }
+      
+      console.log("[sitniks-customers] Formatted phone:", phone);
+      
       // Ensure it's a mobile number (starts with +380 and has 12 digits total)
       if (!/^\+380[0-9]{9}$/.test(phone)) {
         console.warn("[sitniks-customers] Invalid mobile phone format, using generated fallback");
         phone = generateFallbackPhone();
+        console.log("[sitniks-customers] Using fallback phone:", phone);
       }
     } else {
       phone = generateFallbackPhone(); // Generate unique fallback if not provided
+      console.log("[sitniks-customers] No phone provided, using generated:", phone);
     }
 
     const customer = await sitniksRequest<SitniksCustomer>("/open-api/clients", {

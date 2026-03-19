@@ -53,6 +53,7 @@ export interface CatalogProduct {
   image: string;          // перше фото варіації або продукту
   images?: string[];     // додаткові фото товару
   instagramPermalink: string | null;
+  weight?: number;
 
   // Sitniks-specific (для сторінки товару)
   variationId?: number;   // ID першої варіації (для замовлення)
@@ -75,6 +76,57 @@ const DEFAULT_BADGE_COLOR: Record<string, string> = {
   "Топ":     "bg-orange-500 text-white",
   "Акція":   "bg-purple-500 text-white",
 };
+
+// In-memory cache for variation → product mapping (avoids repeated API calls)
+const variationToProductCache = new Map<number, number>();
+let variationCacheBuildPromise: Promise<void> | null = null;
+let variationCacheBuilt = false;
+
+async function buildVariationCache(): Promise<void> {
+  if (variationCacheBuilt) return;
+  if (variationCacheBuildPromise) {
+    await variationCacheBuildPromise;
+    return;
+  }
+
+  variationCacheBuildPromise = (async () => {
+    try {
+      const allProducts = await getAllSitniksProducts();
+      for (const product of allProducts) {
+        if (!product?.variations?.length) continue;
+        for (const variation of product.variations) {
+          if (variation?.id) {
+            variationToProductCache.set(variation.id, product.id);
+          }
+        }
+      }
+      variationCacheBuilt = true;
+      console.log(`[catalog] Built variation cache: ${variationToProductCache.size} variations`);
+    } catch (error) {
+      console.error("[catalog] Failed to build variation cache:", error);
+    } finally {
+      variationCacheBuildPromise = null;
+    }
+  })();
+
+  await variationCacheBuildPromise;
+}
+
+async function findProductByVariationId(variationId: number): Promise<number | null> {
+  const cached = variationToProductCache.get(variationId);
+  if (cached) {
+    console.log(`[catalog] Found variation ${variationId} → product ${cached} in cache`);
+    return cached;
+  }
+
+  await buildVariationCache();
+
+  const resolved = variationToProductCache.get(variationId) ?? null;
+  if (resolved) {
+    console.log(`[catalog] Found variation ${variationId} → product ${resolved} after cache build`);
+  }
+  return resolved;
+}
 
 /** Шукає значення характеристики по імені (без урахування регістру та пробілів) */
 function getProp(p: SitniksProduct, key: string, variation?: SitniksVariation): string | undefined {
@@ -294,6 +346,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
     image: primaryImage,
     images: galleryImages,
     instagramPermalink: null, // Not available from Sitniks API
+    weight: firstVariation?.weight ?? p.weight,
     variationId: firstVariation?.id,
     allVariations: activeVariations.map((v) => ({
       id: v.id,
@@ -335,7 +388,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
     }
 
     return catalogProducts.map(mapSitniksProduct);
-  } catch (error) {
+  } catch {
     // Якщо Sitniks недоступний, повертаємо порожній список
     return [];
   }
@@ -343,13 +396,32 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
 
 /**
  * Один товар за ID з Sitniks API.
+ * Спочатку пробує знайти як productId, якщо не знайдено - шукає як variationId (для старих товарів у кошику)
  */
 export async function getCatalogProductById(id: number): Promise<CatalogProduct | null> {
   try {
-    const p = await getSitniksProductByIdRaw(id);
-    return p ? mapSitniksProduct(p) : null;
+    // Try direct product lookup first
+    const product = await getSitniksProductByIdRaw(id);
+    if (product) {
+      return mapSitniksProduct(product);
+    }
+
+    // Fallback: search for parent product by variation ID
+    console.log(`[getCatalogProductById] Product ${id} not found, searching as variationId...`);
+    
+    const parentProductId = await findProductByVariationId(id);
+    if (parentProductId) {
+      console.log(`[getCatalogProductById] Found parent product ${parentProductId} for variation ${id}`);
+      const parentProduct = await getSitniksProductByIdRaw(parentProductId);
+      if (parentProduct) {
+        return mapSitniksProduct(parentProduct);
+      }
+    }
+
+    console.warn(`[getCatalogProductById] Neither product nor variation ${id} found in Sitniks`);
+    return null;
   } catch (error) {
+    console.error(`[getCatalogProductById] Error:`, error);
     return null;
   }
 }
-

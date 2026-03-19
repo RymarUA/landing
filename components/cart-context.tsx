@@ -1,10 +1,11 @@
 // @ts-nocheck
 "use client";
 import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from "react";
-import { useLocalStorage } from "@/hooks/use-isomorphic";
 
 export interface CartItem {
   id: number;
+  productId?: number;
+  variationId?: number;
   name: string;
   price: number;
   image: string;
@@ -44,8 +45,44 @@ const CART_TIMESTAMP_KEY = "fhm_cart_first_item_timestamp";
 
 const CartContext = createContext<CartContextType | null>(null);
 
+async function migrateLegacyCartItems(items: CartItem[]): Promise<CartItem[]> {
+  let changed = false;
+
+  const migrated = await Promise.all(
+    items.map(async (item) => {
+      if (item.productId != null) {
+        return item;
+      }
+
+      try {
+        const response = await fetch(`/api/catalog/product/${item.id}`);
+        if (!response.ok) {
+          return item;
+        }
+
+        const product = await response.json();
+        if (!product?.id) {
+          return item;
+        }
+
+        changed = true;
+        return {
+          ...item,
+          id: product.id,
+          productId: product.id,
+          variationId: item.id !== product.id ? item.id : product.variationId,
+        };
+      } catch (error) {
+        console.error("[Cart] Failed to migrate legacy cart item:", error);
+        return item;
+      }
+    })
+  );
+
+  return changed ? migrated : items;
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [storedItems, setStoredItems] = useLocalStorage<CartItem[]>(STORAGE_KEY, []);
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -54,24 +91,46 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
   const scrollPositionRef = useRef(0);
 
-  // ── Load items from localStorage on mount ─────────────
+  // Load initial items from localStorage
   useEffect(() => {
-    if (storedItems && storedItems.length > 0) {
-      setItems(storedItems);
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : [];
+      if (Array.isArray(parsed)) {
+        setItems(parsed);
+
+        if (parsed.some((item) => item && typeof item === "object" && item.productId == null)) {
+          migrateLegacyCartItems(parsed).then((migratedItems) => {
+            setItems((currentItems) => {
+              if (JSON.stringify(currentItems) === JSON.stringify(migratedItems)) {
+                return currentItems;
+              }
+              return migratedItems;
+            });
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[Cart] Failed to load items from localStorage:', error);
+      setItems([]);
     }
     setHydrated(true);
-  }, [storedItems]);
+  }, []);
 
   // ── Sync items to localStorage whenever they change ─────────────
   useEffect(() => {
     if (hydrated) {
-      setStoredItems(items);
-      // Clear cart timestamp when cart becomes empty
-      if (items.length === 0) {
-        localStorage.removeItem(CART_TIMESTAMP_KEY);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        // Clear cart timestamp when cart becomes empty
+        if (items.length === 0) {
+          localStorage.removeItem(CART_TIMESTAMP_KEY);
+        }
+      } catch (error) {
+        console.error('[Cart] Failed to save items to localStorage:', error);
       }
     }
-  }, [items, hydrated, setStoredItems]);
+  }, [items, hydrated]);
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);

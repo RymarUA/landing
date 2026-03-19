@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, PanInfo } from "framer-motion";
-import { SlidersHorizontal, Search, X, ArrowUpDown, ChevronDown } from "lucide-react";
+import { SlidersHorizontal, Search, ArrowUpDown, ChevronDown } from "lucide-react";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
 import { useCart } from "@/components/cart-context";
 import { Container } from "@/components/container";
@@ -195,6 +195,8 @@ export function EnhancedShopCatalog({ products }: ShopCatalogProps) {
   const handleAddToCart = useCallback((product: CatalogProduct) => {
     addItem({
       id: product.id,
+      productId: product.id,
+      variationId: product.variationId,
       name: product.name,
       price: product.price,
       image: product.image,

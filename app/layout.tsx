@@ -17,6 +17,7 @@ import { validateEnv } from "@/lib/env-validation";
 import { WebVitals } from "./web-vitals";
 import { getCachedSiteSettings } from "@/lib/cached-data";
 import { CatalogSearchPrefetcher } from "@/components/catalog-search-prefetcher";
+import { DeploymentErrorHandler } from "@/components/deployment-error-handler";
 import { headers } from "next/headers";
 
 // Validate environment variables on server startup (single evaluation)
@@ -142,6 +143,7 @@ export default async function RootLayout({
           "bg-[#FAF9F4] antialiased min-h-screen flex flex-col",
         )}
       >
+        <DeploymentErrorHandler />
         <Analytics cspNonce={nonce} />
         <CatalogSearchPrefetcher />
         <WebVitals />

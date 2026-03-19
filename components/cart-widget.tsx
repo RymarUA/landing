@@ -1,12 +1,12 @@
 // @ts-nocheck
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ShoppingCart, X, Trash2, Minus, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/components/cart-context";
-import { getCrossSellRecommendations, getCrossSellTitle, isGoodDeal, getDiscountPercentage } from "@/lib/cross-sell-recommendations";
+import { getCrossSellRecommendations, getCrossSellTitle, isGoodDeal, getDiscountPercentage, type CrossSellProduct } from "@/lib/cross-sell-recommendations";
 import { OptimizedImage } from "./optimized-image";
 
 export function CartWidget() {
@@ -22,24 +22,42 @@ export function CartWidget() {
     isCartOpen,
     closeCart,
     toggleCart,
-    lastQuantityToast,
-    addItem,
   } = useCart();
-  const [animate, setAnimate] = useState(false);
-  const [crossSellItems, setCrossSellItems] = useState<any[]>([]);
+  const [crossSellItems, setCrossSellItems] = useState<CrossSellProduct[]>([]);
   const [loadingCrossSell, setLoadingCrossSell] = useState(false);
+  const [animate, setAnimate] = useState(false);
+  const [lastQuantityToast, setLastQuantityToast] = useState<{ name: string; quantity: number } | null>(null);
   const prevCount = useRef(totalCount);
 
-  // Handle adding related product to cart
-  const handleAddRelatedProduct = (item: any) => {
-    addItem({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      image: item.image,
-      size: item.size || null,
-      oldPrice: item.oldPrice || null,
-    });
+  // Create a stable key for cart items to prevent infinite re-renders
+  const cartItemsKey = useMemo(() => {
+    return items.map(item => `${item.id}:${item.quantity}`).sort().join('|');
+  }, [items]);
+
+  // Wrapper for updateQuantity with toast
+  const handleUpdateQuantity = useCallback((id: number, qty: number, size?: string | null) => {
+    const currentItem = items.find(item => matchItem(item, id, size));
+    const currentQty = currentItem?.quantity || 0;
+    
+    updateQuantity(id, qty, size);
+    
+    // Show toast only when increasing quantity
+    if (qty > currentQty && currentItem) {
+      setLastQuantityToast({
+        name: currentItem.name,
+        quantity: qty
+      });
+      
+      // Clear toast after 2 seconds
+      setTimeout(() => {
+        setLastQuantityToast(null);
+      }, 2000);
+    }
+  }, [items, updateQuantity]);
+
+  // Helper function to match cart items
+  const matchItem = (item: any, id: number, size?: string | null) => {
+    return item.id === id && (size ?? null) === (item.size ?? null);
   };
 
   // Load cross-sell recommendations when cart changes
@@ -54,7 +72,7 @@ export function CartWidget() {
       try {
         const recommendations = await getCrossSellRecommendations(items, 500, 3);
         setCrossSellItems(recommendations);
-      } catch (error) {
+      } catch {
         // Silent fail - just set empty array
         setCrossSellItems([]);
       } finally {
@@ -63,7 +81,7 @@ export function CartWidget() {
     };
 
     loadRecommendations();
-  }, [items, hydrated]);
+  }, [cartItemsKey, hydrated, items]);
 
   // const isProductPage = pathname?.startsWith("/product/");
 
@@ -192,7 +210,7 @@ export function CartWidget() {
 
                     <div className="flex items-center gap-2 mt-1.5">
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1, item.size)}
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity - 1, item.size)}
                         className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:border-emerald-300 hover:text-emerald-600 transition-colors"
                         aria-label="Зменшити"
                       >
@@ -200,7 +218,7 @@ export function CartWidget() {
                       </button>
                       <span className="text-sm font-bold text-gray-900 w-5 text-center">{item.quantity}</span>
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1, item.size)}
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1, item.size)}
                         className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:border-emerald-300 hover:text-emerald-600 transition-colors"
                         aria-label="Збільшити"
                       >
@@ -331,17 +349,18 @@ export function CartWidget() {
       </div>
 
       {/* Toast: quantity increased */}
-      {lastQuantityToast && (
-        <motion.div
-          initial={{ opacity: 0, y: 15, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -10, scale: 0.98 }}
-          transition={{ 
-            duration: 0.15,
-            ease: [0.25, 0.46, 0.45, 0.94]
-          }}
-          className="fixed left-4 right-4 sm:left-auto sm:right-28 z-[60] max-w-sm bottom-48 sm:bottom-32"
-        >
+      <AnimatePresence>
+        {lastQuantityToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 15, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ 
+              duration: 0.15,
+              ease: [0.25, 0.46, 0.45, 0.94]
+            }}
+            className="fixed left-4 right-4 sm:left-auto sm:right-28 z-[60] max-w-sm bottom-48 sm:bottom-32"
+          >
           <motion.div 
             initial={{ scale: 0.98, opacity: 0.9 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -384,7 +403,8 @@ export function CartWidget() {
             </motion.div>
           </motion.div>
         </motion.div>
-      )}
+        )}
+      </AnimatePresence>
     </>
   );
 }

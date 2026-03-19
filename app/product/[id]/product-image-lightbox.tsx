@@ -18,7 +18,6 @@ interface Props {
 export function ProductImageLightbox({ src, alt, images = [], children, priority = false }: Props) {
   const [open, setOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [direction, setDirection] = useState(0);
 
   const allImages = useMemo(() => {
     const sanitized = [src, ...(images ?? [])].filter(Boolean);
@@ -46,7 +45,6 @@ export function ProductImageLightbox({ src, alt, images = [], children, priority
 
   const changeSlide = (delta: number) => {
     if (!showControls && delta !== 0) return;
-    setDirection(delta);
     setCurrentIndex((prev) => {
       const next = (prev + delta + allImages.length) % allImages.length;
       return next;
@@ -58,7 +56,6 @@ export function ProductImageLightbox({ src, alt, images = [], children, priority
 
   const handleSelectIndex = (index: number) => {
     if (index === currentIndex) return;
-    setDirection(index > currentIndex ? 1 : -1);
     setCurrentIndex(index);
   };
 

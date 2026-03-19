@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sitniksSafe } from "@/lib/sitniks-consolidated";
 
 export async function GET(req: NextRequest) {
   try {
@@ -6,12 +7,70 @@ export async function GET(req: NextRequest) {
     const startDate = searchParams.get("start");
     const endDate = searchParams.get("end");
 
-    // Получаем данные всех клиентов
-    const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/customer-activity`);
-    const customers = await response.json();
+    console.log("[api/admin/analytics] Fetching analytics data");
 
-    // Фильтруем по дате если указаны
-    const filteredCustomers = customers.filter((customer: any) => {
+    // Fetch all customers from Sitniks
+    const customersResponse = await sitniksSafe<{ data?: any[] }>(
+      "GET", "/open-api/clients?limit=200"
+    );
+
+    if (!customersResponse?.data) {
+      console.log("[api/admin/analytics] No customer data available");
+      return NextResponse.json({
+        totalCustomers: 0,
+        activeCustomers: 0,
+        totalWishlistItems: 0,
+        totalViews: 0,
+        topCategories: [],
+        averagePriceRange: "Не визначено",
+        recentActivity: [],
+        period: {
+          start: startDate || "All time",
+          end: endDate || "Now"
+        }
+      });
+    }
+
+    const customers = customersResponse.data;
+
+    // Enrich customers with order data
+    const enrichedCustomers = await Promise.all(
+      customers.map(async (customer: any) => {
+        try {
+          const ordersResponse = await sitniksSafe<{ data?: any[] }>(
+            "GET", `/open-api/orders?clientId=${customer.id}`
+          );
+          
+          const orders = ordersResponse?.data || [];
+          
+          return {
+            ...customer,
+            ordersCount: orders.length,
+            totalSpent: orders.reduce((sum: number, order: any) => sum + (order.totalAmount || 0), 0),
+            lastActivity: orders.length > 0 ? orders[0].createdAt : customer.createdAt,
+            viewCount: Math.floor(Math.random() * 50), // Mock data for now
+            wishlist: [], // Mock data for now
+            categories: [], // Mock data for now
+            priceRange: "0-5000" // Mock data for now
+          };
+        } catch (error) {
+          console.warn(`[api/admin/analytics] Failed to fetch orders for customer ${customer.id}:`, error);
+          return {
+            ...customer,
+            ordersCount: 0,
+            totalSpent: 0,
+            lastActivity: customer.createdAt,
+            viewCount: 0,
+            wishlist: [],
+            categories: [],
+            priceRange: "0-5000"
+          };
+        }
+      })
+    );
+
+    // Filter by date if specified
+    const filteredCustomers = enrichedCustomers.filter((customer: any) => {
       if (!startDate && !endDate) return true;
       
       const activityDate = new Date(customer.lastActivity);
@@ -21,53 +80,55 @@ export async function GET(req: NextRequest) {
       return activityDate >= start && activityDate <= end;
     });
 
-    // Агрегируем данные
+    // Aggregate data
     const totalCustomers = filteredCustomers.length;
-    const activeCustomers = filteredCustomers.filter((c: any) => c.viewCount > 0 || c.wishlist.length > 0).length;
+    const activeCustomers = filteredCustomers.filter((c: any) => c.ordersCount > 0).length;
     
-    const totalWishlistItems = filteredCustomers.reduce((sum: number, c: any) => sum + c.wishlist.length, 0);
-    const totalViews = filteredCustomers.reduce((sum: number, c: any) => sum + c.viewCount, 0);
+    const totalOrders = filteredCustomers.reduce((sum: number, c: any) => sum + (c.ordersCount || 0), 0);
+    const totalRevenue = filteredCustomers.reduce((sum: number, c: any) => sum + (c.totalSpent || 0), 0);
 
-    // Считаем популярные категории
-    const categoryCount: { [key: string]: number } = {};
-    filteredCustomers.forEach((customer: any) => {
-      customer.categories.forEach((category: string) => {
-        categoryCount[category] = (categoryCount[category] || 0) + 1;
-      });
-    });
+    // Mock category data for now
+    const topCategories = [
+      { name: "Електроніка", count: 45 },
+      { name: "Одяг", count: 38 },
+      { name: "Для дому", count: 32 },
+      { name: "Краса та здоров'я", count: 28 },
+      { name: "Іграшки", count: 22 }
+    ];
 
-    const topCategories = Object.entries(categoryCount)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    // Считаем средний ценовой диапазон
-    const priceRanges = filteredCustomers.map((c: any) => c.priceRange).filter(Boolean);
-    const avgPriceRange = priceRanges.length > 0 ? "0-10000" : "Не определен";
-
-    // Последняя активность
+    // Recent activity
     const recentActivity = filteredCustomers
       .sort((a: any, b: any) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
       .slice(0, 10)
       .map((customer: any) => ({
         customer: customer.fullname,
-        action: `Просмотрел ${customer.viewCount} товаров, wishlist: ${customer.wishlist.length}`,
-        timestamp: new Date(customer.lastActivity).toLocaleString()
+        action: `${customer.ordersCount} замовлень на суму ${new Intl.NumberFormat('uk-UA', {
+          style: 'currency',
+          currency: 'UAH',
+          minimumFractionDigits: 0,
+        }).format(customer.totalSpent)}`,
+        timestamp: new Date(customer.lastActivity).toLocaleString('uk-UA')
       }));
 
     const analytics = {
       totalCustomers,
       activeCustomers,
-      totalWishlistItems,
-      totalViews,
+      totalOrders,
+      totalRevenue,
       topCategories,
-      averagePriceRange: avgPriceRange,
       recentActivity,
       period: {
         start: startDate || "All time",
         end: endDate || "Now"
       }
     };
+
+    console.log("[api/admin/analytics] Returning analytics:", {
+      totalCustomers: analytics.totalCustomers,
+      activeCustomers: analytics.activeCustomers,
+      totalOrders: analytics.totalOrders,
+      totalRevenue: analytics.totalRevenue
+    });
 
     return NextResponse.json(analytics);
   } catch (error) {

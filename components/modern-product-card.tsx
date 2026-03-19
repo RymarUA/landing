@@ -89,10 +89,12 @@ export function ModernProductCard({
     e.stopPropagation();
     
     // Добавляем товар только если его еще нет в корзине
-    const existingItem = items.find((item: CartItem) => item.id === product.id);
+    const existingItem = items.find((item: CartItem) => (item.productId ?? item.id) === product.id);
     if (!existingItem) {
       addItem({
         id: product.id,
+        productId: product.id,
+        variationId: product.variationId,
         name: product.name,
         price: product.price,
         image: product.image,

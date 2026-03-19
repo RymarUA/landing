@@ -50,6 +50,8 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
   const handleAddToCart = (product: FeaturedProduct) => {
     addItem({
       id: product.id,
+      productId: product.id,
+      variationId: product.variationId,
       name: product.name,
       price: product.price,
       image: product.image,

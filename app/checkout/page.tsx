@@ -9,15 +9,14 @@ import Image from "next/image";
 import {
   ShoppingCart, ChevronLeft, Loader2,
   CreditCard, ExternalLink, MapPin,
-  Tag, Check, Banknote, Package
+  Check, Banknote, Package
 } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { useAuth } from "@/hooks/use-auth";
-import { checkoutSchema, applyPromoCode } from "@/lib/checkout-schema";
+import { checkoutSchema } from "@/lib/checkout-schema";
 import { useSavedAddresses } from "@/lib/use-saved-addresses";
 import { isValidUkrainianPhone } from "@/lib/phone-utils";
 import { trackInitiateCheckout } from "@/components/analytics";
-import { fetchNPCities, fetchNPWarehouses, type NPCity, type NPWarehouse } from "@/lib/novaposhta-api";
 import { cachedFetchNPCities, cachedFetchNPWarehouses } from "@/lib/novaposhta-cache";
 import { Field } from "@/components/ui/field";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -86,14 +85,33 @@ export default function CheckoutPage() {
   const [redirecting, setRedirecting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [promoInput, setPromoInput] = useState("");
-  const [promoResult, setPromoResult] = useState<{ discountPct: number; label: string } | null>(null);
-  const [promoError, setPromoError] = useState("");
   const [showAccountSuggestion, setShowAccountSuggestion] = useState(false);
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [accountCreated, setAccountCreated] = useState(false);
   const [orderData, setOrderData] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cod" | "card">("online");
+
+  // Промокод состояние
+  const [promoInput, setPromoInput] = useState("");
+  const [promoResult, setPromoResult] = useState<{ discountPct: number; label: string } | null>(null);
+  const [promoError, setPromoError] = useState("");
+
+  const applyPromoCode = (code: string): { discountPct: number; label: string } | null => {
+    const upperCode = code.toUpperCase().trim();
+    
+    switch (upperCode) {
+      case "EAST12":
+        return { discountPct: 12, label: "Easter Sale" };
+      case "FIRST10":
+        return { discountPct: 10, label: "First Order" };
+      case "WELCOME15":
+        return { discountPct: 15, label: "Welcome" };
+      case "SPECIAL20":
+        return { discountPct: 20, label: "Special" };
+      default:
+        return null;
+    }
+  };
 
   // Состояние Новой Почты
   const [cities, setCities] = useState<NPCity[]>([]);
@@ -244,7 +262,7 @@ export default function CheckoutPage() {
     }, 400);
 
     searchTimeout.current = timeoutId;
-  }, []);
+  }, [setValue]);
 
   // Выбор города
   const onCitySelect = useCallback(async (city: NPCity) => {
@@ -275,7 +293,7 @@ export default function CheckoutPage() {
     } finally {
       setLoadingWarehouses(false);
     }
-  }, [setValue]);
+  }, [setValue]); // Remove cachedFetchNPWarehouses from dependencies
 
   // Поиск отделения
   const onWarehouseSearch = useCallback((val: string) => {
@@ -420,6 +438,12 @@ export default function CheckoutPage() {
     console.log("[checkout] Payment method:", paymentMethod);
     console.log("[checkout] Items:", items);
     
+    // Prevent multiple submissions
+    if (submitting) {
+      console.log("[checkout] Already submitting, ignoring duplicate request");
+      return;
+    }
+    
     setSubmitting(true);
     setServerError(null);
     trackInitiateCheckout({ value: totalPrice, numItems: totalCount });
@@ -440,7 +464,14 @@ export default function CheckoutPage() {
         paymentMethod,
         promoCode: promoResult ? promoInput.trim().toUpperCase() : undefined,
         discountAmount: totalDiscountAmount > 0 ? totalDiscountAmount : undefined,
-        items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+        items: items.map((i) => ({
+          id: i.id,
+          productId: i.productId,
+          variationId: i.variationId,
+          name: i.name,
+          price: i.price,
+          quantity: i.quantity,
+        })),
         totalPrice: finalPrice,
       });
       
@@ -454,7 +485,14 @@ export default function CheckoutPage() {
           paymentMethod,
           promoCode: promoResult ? promoInput.trim().toUpperCase() : undefined,
           discountAmount: totalDiscountAmount > 0 ? totalDiscountAmount : undefined,
-          items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+          items: items.map((i) => ({
+            id: i.id,
+            productId: i.productId,
+            variationId: i.variationId,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+          })),
           totalPrice: finalPrice,
           utm_source,
           utm_medium,

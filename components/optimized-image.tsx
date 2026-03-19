@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import Image, { ImageProps } from "next/image";
 import { cn } from "@/lib/utils";
 

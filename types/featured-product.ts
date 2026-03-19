@@ -16,4 +16,5 @@ export type FeaturedProduct = Pick<
   | "freeShipping"
   | "badge"
   | "badgeColor"
+  | "variationId"
 >;

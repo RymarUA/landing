@@ -57,8 +57,6 @@ import { TikTokIcon } from "@/components/icons/tiktok-icon";
 import { CategoryIconsSlider } from "@/components/category-icons-slider";
 
 const CATALOG_SYNC_EVENT = "catalogparamschange";
-const DESKTOP_SUGGESTION_LIMIT = 6;
-const MOBILE_SUGGESTION_LIMIT = 4;
 
 export function TemuSearchBar() {
   const pathname = usePathname();

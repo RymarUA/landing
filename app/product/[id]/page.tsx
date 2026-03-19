@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Star, ChevronLeft, Flame, Sparkles, Shield, Truck, CreditCard, Package } from "lucide-react";
+import { Star, ChevronLeft, Flame, Shield, Truck, CreditCard, Package } from "lucide-react";
 import {
   getCatalogProducts,
   getCatalogProductById,

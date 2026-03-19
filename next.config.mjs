@@ -22,6 +22,8 @@ const nextConfig = {
   experimental: {
     // Enable partial prerendering for faster loads
     // ppr: true, // Only available in canary
+    // Note: deploymentId not supported in Next.js 15.5.12
+    // Version tracking handled via DEPLOYMENT_ID env variable instead
     // Optimize bundling
     optimizePackageImports: [
       "lucide-react",

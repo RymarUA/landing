@@ -44,8 +44,8 @@ module.exports = {
   apps: [
     {
       name: 'familyhub',
-      script: 'node_modules/next/dist/bin/next',
-      args: 'start -p 3000',
+      script: 'scripts/start-with-build.js',
+      args: '-p 3000',
       cwd: '/var/www/familyhub',
       instances: 1,
       exec_mode: 'fork',

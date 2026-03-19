@@ -32,6 +32,45 @@ function SuccessContent() {
   
   const isCOD = paymentMethod === "cod";
 
+  /* Verify payment status for online payments (fallback if webhook fails) */
+  useEffect(() => {
+    // Only verify online payments
+    if (paymentMethod !== "online" || orderNumber === "—") return;
+    
+    const verifyKey = `verified-${orderNumber}`;
+    const hasVerified = typeof window !== "undefined" ? sessionStorage.getItem(verifyKey) : null;
+    if (hasVerified) return;
+    
+    // Get full orderReference from URL (includes _p suffix from WayForPay)
+    const fullOrderRef = params.get("orderReference");
+    
+    // If no orderReference in URL, skip verification (webhook should handle it)
+    if (!fullOrderRef) {
+      console.log("[Checkout Success] No orderReference in URL, skipping verification");
+      return;
+    }
+    
+    console.log("[Checkout Success] Verifying payment status for:", fullOrderRef);
+    
+    // Call verification endpoint to ensure Sitniks is updated
+    fetch("/api/payment/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderReference: fullOrderRef }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        console.log("[Checkout Success] Payment verification result:", data);
+        if (data.success && data.verified) {
+          console.log("[Checkout Success] ✅ Payment verified and Sitniks updated");
+        }
+        sessionStorage.setItem(verifyKey, "true");
+      })
+      .catch(err => {
+        console.error("[Checkout Success] Payment verification failed:", err);
+      });
+  }, [orderNumber, paymentMethod, params]);
+
   /* Clear cart + fire analytics Purchase event once per order */
   useEffect(() => {
     const trackKey = `tracked-${orderNumber}`;
@@ -63,32 +102,7 @@ function SuccessContent() {
 
     clearCart();
     sessionStorage.setItem(trackKey, "true");
-    
-    // Fallback: Try to update order status if webhook didn't work
-    if (paymentMethod === "online" && orderNumber !== "—") {
-      setTimeout(async () => {
-        try {
-          console.log("[Checkout Success] Checking payment status as fallback...");
-          const response = await fetch("/api/admin/update-payment-status", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${process.env.NEXT_PUBLIC_ADMIN_PASSWORD || ""}`
-            },
-            body: JSON.stringify({ orderReference: orderNumber })
-          });
-          
-          if (response.ok) {
-            console.log("[Checkout Success] Fallback status update completed");
-          } else {
-            console.log("[Checkout Success] Fallback status update failed:", response.status);
-          }
-        } catch (error) {
-          console.error("[Checkout Success] Fallback status update error:", error);
-        }
-      }, 5000); // Wait 5 seconds to let webhook try first
-    }
-  }, [amount, clearCart, items, orderNumber, totalPrice, paymentMethod]);
+  }, [amount, clearCart, items, orderNumber, totalPrice, paymentMethod, params]);
 
   const steps = isCOD ? [
     { icon: "✅", label: "Замовлення прийнято", active: true },

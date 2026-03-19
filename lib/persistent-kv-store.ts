@@ -39,7 +39,8 @@ class VercelKVStore implements PersistentKVStore {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(args),
-      cache: "no-store",
+      // Remove cache: "no-store" to allow static generation
+      next: { revalidate: 300 }, // 5 minutes cache
     });
 
     if (!res.ok) {

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AdminGuard } from "@/components/admin-guard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { createSitniksProduct } from "@/lib/sitniks-products";
-import { Plus, Minus, X, Upload, Image as ImageIcon } from "lucide-react";
+import { Plus, X, Upload, Image as ImageIcon } from "lucide-react";
 
 interface ProductVariation {
   id: string;

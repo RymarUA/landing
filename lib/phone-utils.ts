@@ -41,11 +41,6 @@ export function normalizePhone(raw: string): string {
     return `+380${digits}`;
   }
   
-  // Already has + prefix and correct length
-  if (raw.startsWith("+") && digits.length === 12 && digits.startsWith("380")) {
-    return `+${digits}`;
-  }
-  
   throw new Error("Invalid phone format. Expected Ukrainian number");
 }
 

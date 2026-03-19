@@ -44,7 +44,7 @@ import type { NPCity, NPWarehouse } from "@/lib/types";
 
 
 /* ─── Types ──────────────────────────────────────────── */
-type Step = "loading" | "email" | "otp" | "profile" | "add-phone";
+type Step = "loading" | "auth-method" | "email" | "phone" | "otp" | "profile" | "add-phone";
 
 /** Normalize email for API: lowercase, trimmed */
 function normalizeEmailForApi(email: string): string {
@@ -222,6 +222,7 @@ const generateReferralPromo = (type: ReferralPromo): PromoCode => {
 export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: number; name: string; price: number; image: string; sizes?: string[] }> }) {
   const { is } = useResponsive();
   const [step, setStep]     = useState<Step>("loading");
+  const [authMethod, setAuthMethod] = useState<"email" | "phone">("email");
   const [email, setEmail]   = useState("");
   const [phone, setPhone]   = useState("");
   const [otp, setOtp]       = useState(["", "", "", "", "", ""]);
@@ -297,16 +298,17 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const [warehouseOptions, setWarehouseOptions] = useState<NPWarehouse[]>([]);
   const [warehouseLoading, setWarehouseLoading] = useState(false);
   const [warehouseError, setWarehouseError] = useState<string>("");
-  const [warehouseValue, setWarehouseValue] = useState("");
-  const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
+  // const [warehouseValue, setWarehouseValue] = useState(""); // Unused
   const warehouseSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const warehouseSearchRequestId = useRef(0);
+  // const warehouseSearchRequestId = useRef(0); // Unused
   const warehouseDropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     return () => {
-      if (citySearchTimeoutRef.current) clearTimeout(citySearchTimeoutRef.current);
-      if (warehouseSearchTimeoutRef.current) clearTimeout(warehouseSearchTimeoutRef.current);
+      const cityTimeout = citySearchTimeoutRef.current;
+      if (cityTimeout) clearTimeout(cityTimeout);
+      const warehouseTimeout = warehouseSearchTimeoutRef.current;
+      if (warehouseTimeout) clearTimeout(warehouseTimeout);
     };
   }, []);
 
@@ -314,7 +316,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     const handleClickOutside = (event: MouseEvent) => {
       if (!warehouseDropdownRef.current) return;
       if (!warehouseDropdownRef.current.contains(event.target as Node)) {
-        setShowWarehouseDropdown(false);
+        // Dropdown closed
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -340,10 +342,9 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       if (presetWarehouseRef) {
         const preset = list.find((wh) => wh.Ref === presetWarehouseRef);
         if (preset) {
-          setWarehouseValue(preset.Description);
+          setEditFormData((prev) => ({ ...prev, warehouse: preset.Description, warehouseRef: preset.Ref }));
         } else {
           setEditFormData((prev) => ({ ...prev, warehouse: "", warehouseRef: "" }));
-          setWarehouseValue("");
         }
       }
     } catch (error) {
@@ -363,12 +364,11 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       warehouse: "",
       warehouseRef: ""
     }));
-    setWarehouseValue("");
-    setShowWarehouseDropdown(false);
     setWarehouseOptions([]);
     setWarehouseError("");
-    if (warehouseSearchTimeoutRef.current) {
-      clearTimeout(warehouseSearchTimeoutRef.current);
+    const timeout = warehouseSearchTimeoutRef.current;
+    if (timeout) {
+      clearTimeout(timeout);
     }
     if (!value || value.length < 2) {
       setCityResults([]);
@@ -414,121 +414,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setShowCityDropdown(false);
     setCityResults([]);
     setCitySearchError("");
-    setWarehouseValue("");
-    setShowWarehouseDropdown(false);
-    setWarehouseOptions([]);
     loadWarehouses(city.Ref);
-  }, [loadWarehouses]);
-
-  const handleWarehouseInput = useCallback((value: string) => {
-    const cityRef = editFormData.cityRef;
-    setWarehouseValue(value);
-    setEditFormData((prev) => ({
-      ...prev,
-      warehouse: value,
-      warehouseRef: ""
-    }));
-
-    if (warehouseSearchTimeoutRef.current) {
-      clearTimeout(warehouseSearchTimeoutRef.current);
-    }
-
-    if (!cityRef) {
-      setWarehouseOptions([]);
-      setShowWarehouseDropdown(false);
-      setWarehouseError("Спочатку оберіть місто");
-      setWarehouseLoading(false);
-      return;
-    }
-
-    if (value.length < 2) {
-      setWarehouseOptions([]);
-      setShowWarehouseDropdown(false);
-      setWarehouseError("");
-      setWarehouseLoading(false);
-      return;
-    }
-
-    setWarehouseError("");
-    setWarehouseLoading(true);
-    const requestId = ++warehouseSearchRequestId.current;
-    warehouseSearchTimeoutRef.current = setTimeout(async () => {
-      try {
-        const list = await fetchNPWarehouses(cityRef, value);
-        if (requestId === warehouseSearchRequestId.current) {
-          setWarehouseOptions(list);
-          setShowWarehouseDropdown(true);
-          if (!list.length) {
-            setWarehouseError("Відділень не знайдено");
-          }
-        }
-      } catch (error) {
-        console.error("[profile] Warehouse search error:", error);
-        if (requestId === warehouseSearchRequestId.current) {
-          setWarehouseOptions([]);
-          setShowWarehouseDropdown(false);
-          setWarehouseError("Помилка пошуку відділень");
-        }
-      } finally {
-        if (requestId === warehouseSearchRequestId.current) {
-          setWarehouseLoading(false);
-        }
-      }
-    }, 350);
-  }, [editFormData.cityRef]);
-
-  const handleWarehousePick = useCallback((warehouse: NPWarehouse) => {
-    setEditFormData((prev) => ({
-      ...prev,
-      warehouse: warehouse.Description,
-      warehouseRef: warehouse.Ref
-    }));
-    setWarehouseValue(warehouse.Description);
-    setShowWarehouseDropdown(false);
-    setWarehouseError("");
-  }, []);
-
-  const handleWarehouseFocus = useCallback(() => {
-    if (!editFormData.cityRef) {
-      setWarehouseError("Спочатку оберіть місто");
-      return;
-    }
-    setWarehouseError("");
-    setShowWarehouseDropdown(true);
-    if (!warehouseValue && warehouseOptions.length === 0) {
-      void loadWarehouses(editFormData.cityRef);
-    }
-  }, [editFormData.cityRef, warehouseOptions.length, warehouseValue, loadWarehouses]);
-
-  const handleQuickCityPick = useCallback(async (cityName: string) => {
-    setCitySearchError("");
-    setShowCityDropdown(false);
-    setCitySearchLoading(true);
-    try {
-      const results = await fetchNPCities(cityName);
-      const match = results.find((city) => city.Description === cityName || city.Description?.startsWith(cityName)) || results[0];
-      if (!match) {
-        setCityResults([]);
-        setCitySearchError("Місто не знайдено");
-        return;
-      }
-      setEditFormData((prev) => ({
-        ...prev,
-        city: match.Description,
-        cityRef: match.Ref,
-        warehouse: "",
-        warehouseRef: ""
-      }));
-      setWarehouseValue("");
-      setShowWarehouseDropdown(false);
-      setWarehouseOptions([]);
-      await loadWarehouses(match.Ref);
-    } catch (error) {
-      console.error("[profile] Quick city pick failed:", error);
-      setCitySearchError("Помилка пошуку міста");
-    } finally {
-      setCitySearchLoading(false);
-    }
   }, [loadWarehouses]);
 
   const otpString = otp.join("");
@@ -914,11 +800,11 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
           }
           loadSitniksCustomer(abortController);
         } else {
-          setStep("email");
+          setStep("auth-method");
         }
       } catch {
         if (!abortController.signal.aborted) {
-          setStep("email");
+          setStep("auth-method");
         }
       }
     })();
@@ -948,68 +834,112 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // DEV MODE: Skip OTP for testing
-    if (email === "dev@test.com") {
+    if (authMethod === "email") {
+      // DEV MODE: Skip OTP for testing
+      if (email === "dev@test.com") {
+        try {
+          const res = await fetch("/api/auth/dev-login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setLoggedEmail(data.email);
+            setStep("profile");
+            setError("");
+            setEmailError("");
+            return;
+          }
+        } catch (error) {
+          console.error("Dev login failed:", error);
+        }
+      }
+      
+      const normalized = normalizeEmailForApi(email);
+      if (!isValidEmail(email)) {
+        setEmailError("Email некоректний");
+        setError("Введіть коректну email адресу");
+        return;
+      }
+      
+      setBusy(true);
+      setError("");
+      setEmailError("");
       try {
-        const res = await fetch("/api/auth/dev-login", {
+        const res = await fetch("/api/auth/send-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email: normalized }),
         });
-        if (res.ok) {
-          const data = await res.json();
-          setLoggedEmail(data.email);
-          setStep("profile");
-          setError("");
-          setEmailError("");
-          return;
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 429) {
+            throw new Error(data.error ?? "Спробуйте ще раз через 60 с.");
+          }
+          throw new Error(data.error ?? "Помилка відправлення коду. Спробуйте ще раз.");
         }
-      } catch (error) {
-        console.error("Dev login failed:", error);
+        setStep("otp");
+        startResendTimer();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Помилка. Спробуйте ще раз.");
+      } finally {
+        setBusy(false);
       }
-    }
-    
-    const normalized = normalizeEmailForApi(email);
-    if (!isValidEmail(email)) {
-      setEmailError("Email некоректний");
-      setError("Введіть коректну email адресу");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    setEmailError("");
-    try {
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalized }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 429) {
-          throw new Error(data.error ?? "Спробуйте ще раз через 60 с.");
+    } else {
+      // Phone method
+      const normalized = normalizePhoneForApi(phone);
+      if (!isValidPhone(phone)) {
+        setPhoneError("Номер некоректний");
+        setError("Введіть коректний номер телефону");
+        return;
+      }
+      
+      setBusy(true);
+      setError("");
+      setPhoneError("");
+      try {
+        const res = await fetch("/api/auth/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: normalized }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 429) {
+            throw new Error(data.error ?? "Спробуйте ще раз через 60 с.");
+          }
+          throw new Error(data.error ?? "Помилка відправлення коду. Спробуйте ще раз.");
         }
-        throw new Error(data.error ?? "Помилка відправлення коду. Спробуйте ще раз.");
+        setStep("otp");
+        startResendTimer();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Помилка. Спробуйте ще раз.");
+      } finally {
+        setBusy(false);
       }
-      setStep("otp");
-      startResendTimer();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Помилка. Спробуйте ще раз.");
-    } finally {
-      setBusy(false);
     }
   };
 
   /* ── Resend OTP ── */
   const handleResend = async () => {
-    const normalized = normalizeEmailForApi(email);
     setBusy(true);
     setError("");
     try {
+      let requestBody: { email?: string; phone?: string };
+      
+      if (authMethod === "email") {
+        const normalized = normalizeEmailForApi(email);
+        requestBody = { email: normalized };
+      } else {
+        const normalized = normalizePhoneForApi(phone);
+        requestBody = { phone: normalized };
+      }
+      
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalized }),
+        body: JSON.stringify(requestBody),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1035,14 +965,22 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setBusy(true);
     setError("");
     try {
+      let requestBody: { email?: string; phone?: string; otp: string };
+      
+      if (authMethod === "email") {
+        requestBody = { email: normalizeEmailForApi(email), otp: otpString };
+      } else {
+        requestBody = { phone: normalizePhoneForApi(phone), otp: otpString };
+      }
+      
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizeEmailForApi(email), otp: otpString }),
+        body: JSON.stringify(requestBody),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Невірний код");
-      setLoggedEmail(data.email);
+      setLoggedEmail(data.email || "");
       setLoggedPhone(data.phone || "");
       setStep("profile");
       if (data.phone) {
@@ -1053,7 +991,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     } finally {
       setBusy(false);
     }
-  }, [otpString, email, loadOrders]);
+  }, [otpString, email, phone, authMethod, loadOrders]);
 
   const lastAutoSubmittedOtp = useRef("");
   useEffect(() => {
@@ -1211,18 +1149,16 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   /* ── Profile editing functions ── */
   const handleStartEditProfile = () => {
     setEditFormData({
-      name: profileName,
-      lastName: profileLastName,
+      name: profileName || "",
+      lastName: profileLastName || "",
       email: loggedEmail,
       phone: loggedPhone,
-      city: profileCity,
-      cityRef: profileCityRef,
-      warehouse: profileWarehouse,
-      warehouseRef: profileWarehouseRef
+      city: profileCity || "",
+      cityRef: profileCityRef || "",
+      warehouse: profileWarehouse || "",
+      warehouseRef: profileWarehouseRef || ""
     });
-    setWarehouseValue(profileWarehouse || "");
     setWarehouseError("");
-    setShowWarehouseDropdown(false);
     if (profileCityRef) {
       loadWarehouses(profileCityRef, profileWarehouseRef);
     } else {
@@ -1261,9 +1197,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setProfileWarehouse(editFormData.warehouse);
     setProfileWarehouseRef(editFormData.warehouseRef);
     // TODO: Update email, phone when APIs are available
-    setShowWarehouseDropdown(false);
     setWarehouseOptions([]);
-    setWarehouseValue(editFormData.warehouse);
     setIsEditingProfile(false);
   };
 
@@ -1272,12 +1206,11 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setCityResults([]);
     setShowCityDropdown(false);
     setCitySearchError("");
-    setWarehouseValue(profileWarehouse || "");
-    setShowWarehouseDropdown(false);
     setWarehouseOptions([]);
     setWarehouseError("");
-    if (warehouseSearchTimeoutRef.current) {
-      clearTimeout(warehouseSearchTimeoutRef.current);
+    const timeout = warehouseSearchTimeoutRef.current;
+    if (timeout) {
+      clearTimeout(timeout);
     }
   };
 
@@ -1289,6 +1222,68 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loader2 size={36} className="text-emerald-600 animate-spin" />
+      </div>
+    );
+  }
+
+  /* ── AUTH METHOD STEP ── */
+  if (step === "auth-method") {
+    return (
+      <div className="min-h-screen bg-gray-50 py-16 px-4 transition-opacity duration-300">
+        <div className="max-w-md mx-auto">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-8">
+            <ChevronLeft size={16} />
+            На головну
+          </Link>
+
+          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+            <div className="h-1.5 bg-gradient-to-r from-[#2E7D32] to-[#1B5E20]" />
+            <div className="p-8">
+              <div className="w-16 h-16 bg-[#2E7D32]/10 rounded-full flex items-center justify-center mx-auto mb-5">
+                <User size={30} className="text-[#2E7D32]" />
+              </div>
+              <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Особистий кабінет</h1>
+              <p className="text-sm text-gray-500 text-center mb-7 leading-relaxed">
+                Оберіть спосіб входу в особистий кабінет
+              </p>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setAuthMethod("email");
+                    setStep("email");
+                    setError("");
+                    setEmailError("");
+                  }}
+                  disabled={busy}
+                  className="flex items-center justify-center gap-3 bg-[#2E7D32] hover:bg-[#1B5E20] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-4 rounded-2xl transition-colors shadow-lg shadow-[#2E7D32]/20"
+                >
+                  <Mail size={20} />
+                  <span>Вхід через Email</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setAuthMethod("phone");
+                    setStep("phone");
+                    setError("");
+                    setPhoneError("");
+                  }}
+                  disabled={busy}
+                  className="flex items-center justify-center gap-3 bg-gray-600 hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-4 rounded-2xl transition-colors shadow-lg shadow-gray-600/20"
+                >
+                  <Phone size={20} />
+                  <span>Вхід через Телефон</span>
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-400 text-center mt-6 leading-relaxed">
+                Email: швидкий та надійний спосіб<br />
+                Телефон: SMS або Telegram повідомлення
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1369,6 +1364,82 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     );
   }
 
+  /* ── PHONE STEP ── */
+  if (step === "phone") {
+    return (
+      <div className="min-h-screen bg-gray-50 py-16 px-4 transition-opacity duration-300">
+        <div className="max-w-md mx-auto">
+          <button
+            onClick={() => { setStep("auth-method"); setError(""); setPhoneError(""); setPhone(""); }}
+            className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-8"
+          >
+            <ChevronLeft size={16} />
+            Назад до вибору способу
+          </button>
+
+          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+            <div className="h-1.5 bg-gradient-to-r from-gray-600 to-gray-700" />
+            <div className="p-8">
+              <div className="w-16 h-16 bg-gray-600/10 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Phone size={30} className="text-gray-600" />
+              </div>
+              <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Вхід через телефон</h1>
+              <p className="text-sm text-gray-500 text-center mb-7 leading-relaxed">
+                Введіть ваш номер телефону. Ми надішлемо SMS або Telegram повідомлення з кодом підтвердження.
+              </p>
+
+              <form onSubmit={handleSendOtp} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-gray-700">Номер телефону</label>
+                  <input
+                    type="tel"
+                    value={formatPhoneDisplay(phone)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      setPhone(digits);
+                      setPhoneError("");
+                      setError("");
+                    }}
+                    placeholder="+38 (0XX) XXX-XX-XX"
+                    disabled={busy}
+                    autoComplete="tel"
+                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 transition disabled:opacity-60 disabled:cursor-not-allowed ${phoneError ? "border-red-400 bg-red-50/50" : "border-gray-200"}`}
+                  />
+                  {phoneError && (
+                    <p className="text-sm text-red-600 flex items-center gap-1.5">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      {phoneError}
+                    </p>
+                  )}
+                </div>
+
+                {error && (
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 text-sm text-red-600">
+                    <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={busy || !phone.trim() || !isValidPhone(phone)}
+                  className="flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-gray-600/20"
+                >
+                  {busy ? <Loader2 size={18} className="animate-spin" /> : <Phone size={18} />}
+                  {busy ? "Відправляємо…" : "Отримати код"}
+                </button>
+              </form>
+
+              <p className="text-xs text-gray-400 text-center mt-5 leading-relaxed">
+                Код підтвердження буде надіслано через SMS або Telegram.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /* ── OTP STEP ── */
   if (step === "otp") {
     const setOtpDigit = (index: number, value: string) => {
@@ -1395,24 +1466,31 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
       <div className="min-h-screen bg-gray-50 py-16 px-4 transition-opacity duration-300">
         <div className="max-w-md mx-auto">
           <button
-            onClick={() => { setStep("email"); setError(""); setEmailError(""); setOtp(["", "", "", "", "", ""]); }}
+            onClick={() => { 
+              setStep(authMethod === "email" ? "email" : "phone"); 
+              setError(""); 
+              authMethod === "email" ? setEmailError("") : setPhoneError(""); 
+              setOtp(["", "", "", "", "", ""]); 
+            }}
             className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-8"
           >
             <ChevronLeft size={16} />
-            Змінити email
+            Змінити {authMethod === "email" ? "email" : "телефон"}
           </button>
 
-          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-            <div className="h-1.5 bg-gradient-to-r from-[#2E7D32] to-[#1B5E20]" />
+          <div className={`bg-white rounded-3xl shadow-xl overflow-hidden`}>
+            <div className={`h-1.5 bg-gradient-to-r ${authMethod === "email" ? "from-[#2E7D32] to-[#1B5E20]" : "from-gray-600 to-gray-700"}`} />
             <div className="p-8">
-              <div className="w-16 h-16 bg-[#2E7D32]/10 rounded-full flex items-center justify-center mx-auto mb-5">
-                <KeyRound size={30} className="text-[#2E7D32]" />
+              <div className={`w-16 h-16 ${authMethod === "email" ? "bg-[#2E7D32]/10" : "bg-gray-600/10"} rounded-full flex items-center justify-center mx-auto mb-5`}>
+                <KeyRound size={30} className={authMethod === "email" ? "text-[#2E7D32]" : "text-gray-600"} />
               </div>
               <h1 className="text-2xl font-black text-gray-900 text-center mb-1">Введіть код</h1>
               <p className="text-sm text-gray-500 text-center mb-1 leading-relaxed">
-                Код надіслано на email
+                Код надіслано на {authMethod === "email" ? "email" : "телефон"}
               </p>
-              <p className="text-sm font-black text-gray-900 text-center mb-7">{email}</p>
+              <p className="text-sm font-black text-gray-900 text-center mb-7">
+                {authMethod === "email" ? email : formatPhoneDisplay(phone)}
+              </p>
 
               <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
@@ -1429,7 +1507,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                         onChange={(e) => setOtpDigit(i, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
                         disabled={busy}
-                        className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-black rounded-xl border-2 border-gray-200 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition disabled:opacity-60"
+                        className={`w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-black rounded-xl border-2 border-gray-200 focus:outline-none ${authMethod === "email" ? "focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" : "focus:border-gray-500 focus:ring-2 focus:ring-gray-200"} transition disabled:opacity-60`}
                       />
                     ))}
                   </div>
@@ -1445,7 +1523,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 <button
                   type="submit"
                   disabled={busy || otpString.length !== 6}
-                  className="flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-[#1B5E20] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-[#2E7D32]/20"
+                  className={`flex items-center justify-center gap-2 ${authMethod === "email" ? "bg-[#2E7D32] hover:bg-[#1B5E20]" : "bg-gray-600 hover:bg-gray-700"} disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg ${authMethod === "email" ? "shadow-[#2E7D32]/20" : "shadow-gray-600/20"}`}
                 >
                   {busy ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
                   {busy ? "Перевіряємо…" : "Підтвердити"}
@@ -1456,7 +1534,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                 <button
                   onClick={handleResend}
                   disabled={resendIn > 0 || busy}
-                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
+                  className={`flex items-center gap-1.5 text-sm ${authMethod === "email" ? "hover:text-emerald-600" : "hover:text-gray-600"} text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium`}
                 >
                   <RefreshCw size={14} />
                   {resendIn > 0 ? `Повторний код через ${resendIn}с` : "Надіслати код ще раз"}

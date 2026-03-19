@@ -192,31 +192,49 @@ export async function POST(req: NextRequest) {
 
     // Server-side price: get products from catalog by ID, ignore frontend totalPrice
     let serverTotal = 0;
-    const resolvedItems: Array<{ variationId: number; price: number; quantity: number; name: string; size?: string }> = [];
+    const resolvedItems: Array<{ variationId: number; price: number; quantity: number; name: string; size?: string; weight: number }> = [];
 
     for (const item of body.items) {
-      const productId = item.id ?? item.productId;
+      const productId = item.productId ?? item.id;
       if (productId == null) {
         return NextResponse.json(
           { error: "Кожен товар повинен мати id або productId" },
           { status: 400 }
         );
       }
+      
       const catalogProduct = await getCatalogProductById(Number(productId));
+      
       if (!catalogProduct) {
+        logger.warn("[checkout] Product not found", {
+          requestProductId: Number(productId),
+          itemSize: item.size,
+        });
         return NextResponse.json(
-          { error: `Товар з ID ${productId} не знайдено в каталозі` },
-          { status: 400 }
+          {
+            error: `Товар з ID ${productId} не знайдено в каталозі. Можливо товар був видалений. Будь ласка, оновіть сторінку та спробуйте ще раз.`,
+            missingProductId: Number(productId),
+          },
+          { status: 404 }
         );
       }
-      const variationId = item.variationId ?? catalogProduct.variationId;
-      if (variationId == null) {
-        return NextResponse.json(
-          { error: `Немає варіації для товару ${catalogProduct.name}` },
-          { status: 400 }
+      
+      // Find variation by size if specified
+      const explicitVariationId = item.variationId ?? (item.productId != null ? undefined : item.id);
+      let variationId = explicitVariationId ?? catalogProduct.variationId ?? productId;
+      let price = catalogProduct.price;
+      let weight = catalogProduct.weight ?? 0.5;
+      
+      if (item.size && catalogProduct.allVariations?.length) {
+        const matchingVariation = catalogProduct.allVariations.find(v => 
+          v.properties.some(p => p.name === "Розмір" && p.value === item.size)
         );
+        if (matchingVariation) {
+          variationId = matchingVariation.id;
+          price = matchingVariation.price;
+        }
       }
-      const price = catalogProduct.price;
+      
       const qty = Math.max(1, Number(item.quantity) || 1);
       serverTotal += price * qty;
       resolvedItems.push({
@@ -225,19 +243,18 @@ export async function POST(req: NextRequest) {
         quantity: qty,
         name: item.name || catalogProduct.name,
         size: item.size,
+        weight,
       });
     }
 
     // Validate and recalculate promo code discount on server side
     let serverDiscountAmount = 0;
-    let promoCodeApplied = "";
     
     if (body.promoCode) {
       const promoResult = applyPromoCode(body.promoCode);
       if (promoResult) {
         // Calculate discount based on server total
         serverDiscountAmount = Math.round(serverTotal * promoResult.discountPct / 100);
-        promoCodeApplied = body.promoCode;
         console.log(`[checkout] Promo code ${body.promoCode} applied: ${promoResult.discountPct}% = ${serverDiscountAmount} UAH`);
       } else {
         console.warn(`[checkout] Invalid promo code: ${body.promoCode}`);
@@ -269,10 +286,7 @@ export async function POST(req: NextRequest) {
     // Calculate total weight from products
     let totalWeight = 0;
     for (const item of resolvedItems) {
-      // Use the actual product ID, not variationId
-      const catalogProduct = await getCatalogProductById(item.variationId);
-      const itemWeight = catalogProduct?.weight ?? 0.5; // Default 0.5kg if not specified
-      totalWeight += itemWeight * item.quantity;
+      totalWeight += item.weight * item.quantity;
     }
     // Minimum weight 0.5kg for Nova Poshta
     totalWeight = Math.max(0.5, totalWeight);
@@ -370,12 +384,13 @@ export async function POST(req: NextRequest) {
     if (body.paymentMethod === "online" || body.paymentMethod === "card") {
       try {
         const wfpConfig = getWfpConfig();
-        // Use unique reference for each payment attempt to avoid Duplicate Order ID
-        const paymentOrderReference = `${order.orderNumber}-${Date.now()}`;
+        // Add unique payment attempt ID to prevent "Duplicate Order ID" error
+        // Format: ORDER-123_p1234567890 (original order number + payment timestamp)
+        const paymentAttemptId = `${order.orderNumber}_p${Date.now()}`;
         const paymentParams = {
           merchantAccount: wfpConfig.merchantAccount,
           merchantDomainName: wfpConfig.merchantDomainName,
-          orderReference: paymentOrderReference,
+          orderReference: paymentAttemptId,
           orderDate: Math.floor(Date.now() / 1000),
           amount: finalAmount,
           currency: "UAH" as const,
@@ -387,7 +402,7 @@ export async function POST(req: NextRequest) {
           }),
           productPrice: paymentItems.map((item) => Number(item.lineTotal.toFixed(2))),
           productCount: paymentItems.map(() => 1),
-          returnUrl: `${wfpConfig.siteUrl}/checkout/success?ref=${order.orderNumber}&method=online`,
+          returnUrl: `${wfpConfig.siteUrl}/api/payment/return`,
           serviceUrl: `${wfpConfig.siteUrl}/api/webhooks/wayforpay`,
         };
         paymentFormParams = buildWfpFormParams(paymentParams, wfpConfig.secretKey);

@@ -2,8 +2,8 @@
 
 import { Home, Grid3x3, User, ShoppingBag } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 import { useCart } from "./cart-context";
 
 interface NavItem {
@@ -18,7 +18,6 @@ interface NavItem {
 
 export function TemuBottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const [hash, setHash] = useState("");
   const { totalCount } = useCart();
 
@@ -56,20 +55,20 @@ export function TemuBottomNav() {
     return true;
   };
 
-  const attemptCatalogScroll = () => {
+  const attemptCatalogScroll = useCallback(() => {
     let attempts = 0;
     const maxAttempts = 12;
 
     const tryScroll = () => {
       const success = scrollCatalogIntoView();
       if (!success && attempts < maxAttempts) {
-        attempts += 1;
+        attempts++;
         setTimeout(tryScroll, 150);
       }
     };
 
     tryScroll();
-  };
+  }, []);
 
   const handleCatalogClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -91,7 +90,7 @@ export function TemuBottomNav() {
     if (!hash.includes("catalog")) return;
     const timer = setTimeout(attemptCatalogScroll, 80);
     return () => clearTimeout(timer);
-  }, [hash]);
+  }, [hash, attemptCatalogScroll]);
 
   const shouldShow = pathname === "/";
   

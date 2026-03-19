@@ -8,10 +8,6 @@
 import { createHmac } from "crypto";
 import { getWfpConfig } from "./wayforpay";
 
-interface WfpStatusCheckParams {
-  orderReference: string;
-}
-
 interface WfpStatusResponse {
   reasonCode: number;
   reason: string;

@@ -36,7 +36,6 @@ export class RateLimiter {
   async check(req: any): Promise<RateLimitResult> {
     const key = this.getKey(req);
     const now = Date.now();
-    const windowStart = now - this.config.windowMs;
     
     // Get current rate limit data
     const current = await this.store.get<RateLimitData>(key);

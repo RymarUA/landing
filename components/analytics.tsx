@@ -21,7 +21,7 @@
  */
 
 import Script from "next/script";
-import { useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { useWindow } from "@/hooks/use-isomorphic";
 import { useLocalStorage } from "@/hooks/use-isomorphic";
 
@@ -372,20 +372,11 @@ export function trackInitiateCheckout(params: { value: number; numItems: number 
 }
 
 /* ──────────────────────────────────────────────────────────────────────
-   CLIENT ERROR LOGGING
    Logs JavaScript errors to console and optionally to Telegram
    ────────────────────────────────────────────────────────────────────── */
 
-interface ClientErrorData {
-  label: string;
-  message: string;
-  url: string;
-  timestamp: string;
-  stack?: string;
-}
-
 /** Log client-side JavaScript errors */
-export async function logClientError(errorData: {
+export const logClientError = async function(errorData: {
   label?: string;
   message?: string;
   url?: string;

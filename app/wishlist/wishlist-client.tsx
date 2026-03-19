@@ -68,6 +68,8 @@ export function WishlistPageClient({ allProducts }: Props) {
     const key = `${product.id}-${size ?? ""}`;
     addItem({
       id: product.id,
+      productId: product.id,
+      variationId: product.variationId,
       name: product.name,
       price: product.price,
       image: product.image,

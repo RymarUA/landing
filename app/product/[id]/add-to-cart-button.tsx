@@ -91,6 +91,8 @@ export function AddToCartButton({
     for (let i = 0; i < addQty; i++) {
       addItem({
         id: product.id,
+        productId: product.id,
+        variationId: product.variationId,
         name: product.name,
         price: product.price,
         image: product.image,
@@ -132,6 +134,8 @@ export function AddToCartButton({
     for (let i = 0; i < addQty; i++) {
       addItem({
         id: product.id,
+        productId: product.id,
+        variationId: product.variationId,
         name: product.name,
         price: product.price,
         image: product.image,

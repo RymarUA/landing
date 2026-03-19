@@ -167,8 +167,6 @@ export interface SitniksOrder {
 
 // ─── HTTP Client (from sitniks.ts) ───────────────────────────────────────────────
 
-const SITNIKS_TIMEOUT_MS = 8000;
-
 interface SitniksConfig {
   apiUrl: string;
   apiKey: string;
@@ -252,7 +250,8 @@ export async function sitniksSafe<T>(
 async function sitniksWithoutThrow<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
-  body?: unknown
+  body?: unknown,
+  options?: { revalidate?: number }
 ): Promise<T | null> {
   const config = getSitniksConfig();
   if (!config) {
@@ -271,6 +270,8 @@ async function sitniksWithoutThrow<T>(
       method,
       headers,
       body: JSON.stringify(body),
+      // @ts-ignore Next.js revalidate option for fetch
+      next: options?.revalidate ? { revalidate: options.revalidate } : undefined,
     });
 
     if (!res.ok) {
@@ -344,7 +345,9 @@ export async function getSitniksProducts(options: {
 
   const res = await sitniksWithoutThrow<{ data: SitniksProduct[]; total: number }>(
     "GET",
-    `/open-api/products?${params}`
+    `/open-api/products?${params}`,
+    undefined,
+    { revalidate: 300 } // 5 minutes cache for product listings
   );
   
   if (!res) {
@@ -381,11 +384,11 @@ export async function getAllSitniksProducts(): Promise<SitniksProduct[]> {
 }
 
 export async function getSitniksProductById(productId: number): Promise<SitniksProduct | null> {
-  return await sitniksSafe<SitniksProduct>("GET", `/open-api/products/${productId}`);
+  return await sitniksSafe<SitniksProduct>("GET", `/open-api/products/${productId}`, undefined, { revalidate: 300 }); // 5 minutes cache
 }
 
 export async function getSitniksCategories(): Promise<SitniksCategory[]> {
-  const res = await sitniksSafe<SitniksCategory[]>("GET", "/open-api/products/categories");
+  const res = await sitniksSafe<SitniksCategory[]>("GET", "/open-api/products/categories", undefined, { revalidate: 3600 }); // 1 hour cache
   return res ?? [];
 }
 
@@ -412,7 +415,9 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
     // Спочатку пробуємо знайти товар за SKU через фільтр
     const skuResponse = await sitniksSafe<{ data: SitniksProduct[]; total: number }>(
       "GET",
-      `/open-api/products?query=${encodeURIComponent(SETTINGS_SKU)}&limit=10`
+      `/open-api/products?query=${encodeURIComponent(SETTINGS_SKU)}&limit=10`,
+      undefined,
+      { revalidate: 3600 } // 1 hour cache for settings
     );
     
     let product: SitniksProduct | undefined;
@@ -426,7 +431,9 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
       // Якщо не знайдено за SKU, пробуємо за назвою
       const nameResponse = await sitniksSafe<{ data: SitniksProduct[]; total: number }>(
         "GET",
-        `/open-api/products?query=${encodeURIComponent("Налаштування сайту")}&limit=10`
+        `/open-api/products?query=${encodeURIComponent("Налаштування сайту")}&limit=10`,
+        undefined,
+        { revalidate: 3600 } // 1 hour cache for settings
       );
       
       if (nameResponse?.data?.length) {
@@ -676,7 +683,12 @@ export async function updateSitniksOrder(
   
   // Try to find order by orderNumber or externalId
   console.log(`[sitniks] Searching for order: ${sanitizedReference}`);
-  const search = await sitniksSafe<{ data?: SitniksOrder[] }>("GET", `/open-api/orders?search=${encodeURIComponent(sanitizedReference)}`);
+  const search = await sitniksSafe<{ data?: SitniksOrder[] }>(
+    "GET", 
+    `/open-api/orders?search=${encodeURIComponent(sanitizedReference)}`,
+    undefined,
+    { revalidate: 300 } // 5 minutes cache
+  );
   
   const list = search?.data ?? [];
   console.log(`[sitniks] Search results: ${JSON.stringify(list, null, 2)}`);
@@ -723,7 +735,9 @@ export async function getSitniksOrdersByPhone(phone: string): Promise<any[]> {
     // Use the working endpoint: /open-api/orders with client_phone parameter
     const response = await sitniksSafe<{ data?: any[]; orders?: any[] }>(
       "GET",
-      `/open-api/orders?client_phone=${encodeURIComponent(phone)}`
+      `/open-api/orders?client_phone=${encodeURIComponent(phone)}`,
+      undefined,
+      { revalidate: 300 } // 5 minutes cache
     );
     
     const list = response?.data ?? response?.orders ?? [];

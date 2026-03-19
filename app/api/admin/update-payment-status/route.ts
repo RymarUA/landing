@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   // Simple health check
   return NextResponse.json({ 
     message: "Payment status update endpoint is working",

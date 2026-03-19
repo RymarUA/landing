@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
   let payload: any;
   try {
     payload = await req.json();
+    console.info("[wfp-webhook] Full payload received:", JSON.stringify(payload, null, 2));
   } catch {
     console.error("[wfp-webhook] Failed to parse JSON body");
     return NextResponse.json({ error: "Bad request" }, { status: 400 });

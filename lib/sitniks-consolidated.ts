@@ -656,6 +656,8 @@ export async function updateSitniksOrder(
   status: "paid" | "shipped" | "delivered" | "cancelled",
   statusId?: number
 ): Promise<boolean> {
+  console.log(`[sitniks] Updating order ${orderReference} to status ${status}${statusId ? ` (ID: ${statusId})` : ''}`);
+  
   // Validate and sanitize order reference to prevent injection
   const sanitizedReference = validateOrderReference(orderReference);
   if (!sanitizedReference) {
@@ -673,18 +675,27 @@ export async function updateSitniksOrder(
   const crmStatus = STATUS_MAP[status] ?? "Оплачено";
   
   // Try to find order by orderNumber or externalId
+  console.log(`[sitniks] Searching for order: ${sanitizedReference}`);
   const search = await sitniksSafe<{ data?: SitniksOrder[] }>("GET", `/open-api/orders?search=${encodeURIComponent(sanitizedReference)}`);
   
   const list = search?.data ?? [];
+  console.log(`[sitniks] Search results: ${JSON.stringify(list, null, 2)}`);
+  
   const targetId = Array.isArray(list) && list.length > 0 ? list[0].id : null;
   if (!targetId) {
     console.error(`[sitniks] Order not found: ${sanitizedReference}`);
     return false;
   }
   
+  console.log(`[sitniks] Found order ID: ${targetId}, updating status...`);
+  
   // Use statusId if provided, otherwise use status name
   const payload = statusId ? { statusId } : { status: crmStatus };
+  console.log(`[sitniks] Update payload:`, JSON.stringify(payload, null, 2));
+  
   const res = await sitniksSafe<unknown>("PATCH", `/open-api/orders/${targetId}`, payload);
+  console.log(`[sitniks] Update result:`, JSON.stringify(res, null, 2));
+  
   return res !== null;
 }
 

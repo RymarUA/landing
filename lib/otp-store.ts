@@ -1,103 +1,232 @@
-// @ts-nocheck
 /**
  * lib/otp-store.ts
  *
- * Module-level in-memory store for OTP codes (phone → { code, expires }).
- * Rate limiting: by phone (min interval) and by IP (max requests per window).
- *
- * MVP: process-scoped Map; restart clears all. For production use Redis or similar.
+ * Persistent OTP storage using KV store (Redis/Vercel KV).
+ * Replaces in-memory storage with persistent solution for serverless environments.
  */
 
+import { getKVStore, type PersistentKVStore } from './persistent-kv-store';
+
+// Store interface
 export interface OtpEntry {
   code: string;
-  expires: number; // Unix ms
+  createdAt: number;
+  expiresAt: number;
+  attempts: number;
 }
 
-const store = new Map<string, OtpEntry>();
-const key = (phone: string) => `otp:${phone}`;
+export interface IpRateLimitEntry {
+  count: number;
+  resetTime: number;
+}
 
-/** Rate limit: last send time per phone (min 60s between sends). */
-const lastSentByPhone = new Map<string, number>();
-const OTP_PHONE_COOLDOWN_MS = 60 * 1000;
-const OTP_PHONE_CLEANUP_MS = 24 * 60 * 60 * 1000; // prune entries older than a day
+export interface PhoneCooldownEntry {
+  expiresAt: number;
+}
 
-/** Rate limit by IP: { count, windowStart } — max 5 per 15 min. */
-const ipRateLimit = new Map<string, { count: number; windowStart: number }>();
-const OTP_IP_MAX_REQUESTS = 5;
-const OTP_IP_WINDOW_MS = 15 * 60 * 1000;
+// Key prefixes for KV store
+const OTP_PREFIX = 'otp:';
+const IP_RATE_LIMIT_PREFIX = 'ip_rate:';
+const PHONE_COOLDOWN_PREFIX = 'phone_cooldown:';
 
-function cleanupExpired(now: number = Date.now()) {
-  // Drop expired OTP codes
-  for (const [k, entry] of store.entries()) {
-    if (entry.expires <= now) store.delete(k);
+// TTL constants (in seconds)
+const OTP_TTL = 5 * 60; // 5 minutes
+const IP_RATE_LIMIT_TTL = 15 * 60; // 15 minutes
+const PHONE_COOLDOWN_TTL = 2 * 60; // 2 minutes
+
+let kvStore: PersistentKVStore;
+
+function getStore(): PersistentKVStore {
+  if (!kvStore) {
+    kvStore = getKVStore();
   }
+  return kvStore;
+}
 
-  // Prune phone cooldown entries older than cleanup window
-  for (const [k, ts] of lastSentByPhone.entries()) {
-    if (now - ts > OTP_PHONE_CLEANUP_MS) lastSentByPhone.delete(k);
+// OTP operations
+export async function setOtp(identifier: string, code: string): Promise<void> {
+  const store = getStore();
+  const key = `${OTP_PREFIX}${identifier}`;
+  
+  const entry: OtpEntry = {
+    code,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + OTP_TTL * 1000,
+    attempts: 0,
+  };
+
+  await store.set(key, entry, OTP_TTL);
+  
+  // Log OTP in development only
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[OTP] Code for ${identifier}: ${code}`);
   }
-
-  // Remove IP windows that have elapsed
-  for (const [ip, info] of ipRateLimit.entries()) {
-    if (now - info.windowStart >= OTP_IP_WINDOW_MS) ipRateLimit.delete(ip);
-  }
 }
 
-export function getOtp(phone: string): OtpEntry | undefined {
-  cleanupExpired();
-  return store.get(key(phone));
+export async function getOtp(identifier: string): Promise<OtpEntry | null> {
+  const store = getStore();
+  const key = `${OTP_PREFIX}${identifier}`;
+  
+  return await store.get<OtpEntry>(key);
 }
 
-export function setOtp(phone: string, code: string, ttlMs: number): void {
-  cleanupExpired();
-  store.set(key(phone), { code, expires: Date.now() + ttlMs });
+export async function deleteOtp(identifier: string): Promise<void> {
+  const store = getStore();
+  const key = `${OTP_PREFIX}${identifier}`;
+  
+  await store.delete(key);
 }
 
-export function deleteOtp(phone: string): void {
-  store.delete(key(phone));
+export async function incrementOtpAttempts(identifier: string): Promise<OtpEntry | null> {
+  const store = getStore();
+  const key = `${OTP_PREFIX}${identifier}`;
+  
+  const entry = await store.get<OtpEntry>(key);
+  if (!entry) return null;
+
+  entry.attempts += 1;
+  await store.set(key, entry, OTP_TTL);
+  
+  return entry;
 }
 
-/** Returns true if we're allowed to send OTP to this phone (cooldown elapsed). */
-export function canSendOtpByPhone(phone: string): boolean {
-  cleanupExpired();
-  const last = lastSentByPhone.get(key(phone));
-  if (!last) return true;
-  return Date.now() - last >= OTP_PHONE_COOLDOWN_MS;
+// Phone cooldown operations
+export async function setPhoneCooldown(phone: string): Promise<void> {
+  const store = getStore();
+  const key = `${PHONE_COOLDOWN_PREFIX}${phone}`;
+  
+  const entry: PhoneCooldownEntry = {
+    expiresAt: Date.now() + PHONE_COOLDOWN_TTL * 1000,
+  };
+
+  await store.set(key, entry, PHONE_COOLDOWN_TTL);
 }
 
-/** Call after sending OTP to this phone. */
-export function recordOtpSentByPhone(phone: string): void {
-  cleanupExpired();
-  lastSentByPhone.set(key(phone), Date.now());
+export async function getPhoneCooldown(phone: string): Promise<PhoneCooldownEntry | null> {
+  const store = getStore();
+  const key = `${PHONE_COOLDOWN_PREFIX}${phone}`;
+  
+  return await store.get<PhoneCooldownEntry>(key);
 }
 
-/** Returns true if IP is under limit (max 5 per 15 min). */
-export function canSendOtpByIp(ip: string): boolean {
-  cleanupExpired();
+export async function isPhoneInCooldown(phone: string): Promise<boolean> {
+  const cooldown = await getPhoneCooldown(phone);
+  if (!cooldown) return false;
+
   const now = Date.now();
-  const entry = ipRateLimit.get(ip);
-  if (!entry) return true;
-  if (now - entry.windowStart >= OTP_IP_WINDOW_MS) return true;
-  return entry.count < OTP_IP_MAX_REQUESTS;
+  if (cooldown.expiresAt < now) {
+    // Expired cooldown, clean it up
+    await deletePhoneCooldown(phone);
+    return false;
+  }
+
+  return true;
 }
 
-/** Call after sending OTP from this IP. */
-export function recordOtpSentByIp(ip: string): void {
-  cleanupExpired();
+// Rate limiting functions for OTP sending
+export async function canSendOtpByPhone(phone: string): Promise<boolean> {
+  return !(await isPhoneInCooldown(phone));
+}
+
+export async function recordOtpSentByPhone(phone: string): Promise<void> {
+  await setPhoneCooldown(phone);
+}
+
+export async function canSendOtpByIp(ip: string): Promise<boolean> {
+  return !(await isIpRateLimited(ip));
+}
+
+export async function recordOtpSentByIp(ip: string): Promise<void> {
+  await incrementIpRateLimit(ip);
+}
+
+export async function deletePhoneCooldown(phone: string): Promise<void> {
+  const store = getStore();
+  const key = `${PHONE_COOLDOWN_PREFIX}${phone}`;
+  
+  await store.delete(key);
+}
+
+// IP rate limiting operations
+export async function setIpRateLimit(ip: string, count: number): Promise<void> {
+  const store = getStore();
+  const key = `${IP_RATE_LIMIT_PREFIX}${ip}`;
+  
+  const entry: IpRateLimitEntry = {
+    count,
+    resetTime: Date.now() + IP_RATE_LIMIT_TTL * 1000,
+  };
+
+  await store.set(key, entry, IP_RATE_LIMIT_TTL);
+}
+
+export async function getIpRateLimit(ip: string): Promise<IpRateLimitEntry | null> {
+  const store = getStore();
+  const key = `${IP_RATE_LIMIT_PREFIX}${ip}`;
+  
+  return await store.get<IpRateLimitEntry>(key);
+}
+
+export async function incrementIpRateLimit(ip: string): Promise<number> {
+  const store = getStore();
+  const key = `${IP_RATE_LIMIT_PREFIX}${ip}`;
+  
+  const current = await store.get<IpRateLimitEntry>(key);
+  const newCount = (current?.count || 0) + 1;
+  
+  const entry: IpRateLimitEntry = {
+    count: newCount,
+    resetTime: Date.now() + IP_RATE_LIMIT_TTL * 1000,
+  };
+
+  await store.set(key, entry, IP_RATE_LIMIT_TTL);
+  return newCount;
+}
+
+export async function isIpRateLimited(ip: string, maxAttempts = 5): Promise<boolean> {
+  const rateLimit = await getIpRateLimit(ip);
+  if (!rateLimit) return false;
+
   const now = Date.now();
-  const entry = ipRateLimit.get(ip);
-  if (!entry) {
-    ipRateLimit.set(ip, { count: 1, windowStart: now });
-    return;
+  if (rateLimit.resetTime < now) {
+    // Expired rate limit, clean it up
+    await deleteIpRateLimit(ip);
+    return false;
   }
-  if (now - entry.windowStart >= OTP_IP_WINDOW_MS) {
-    ipRateLimit.set(ip, { count: 1, windowStart: now });
-    return;
-  }
-  entry.count += 1;
+
+  return rateLimit.count >= maxAttempts;
 }
 
-/** 
+export async function deleteIpRateLimit(ip: string): Promise<void> {
+  const store = getStore();
+  const key = `${IP_RATE_LIMIT_PREFIX}${ip}`;
+  
+  await store.delete(key);
+}
+
+// Cleanup functions (for maintenance)
+export async function cleanupExpiredEntries(): Promise<void> {
+  // With TTL, entries auto-expire in Redis
+  // For in-memory store, cleanup happens automatically
+  console.log('[OTP Store] Cleanup completed (handled by TTL)');
+}
+
+// Stats and monitoring
+export async function getOtpStoreStats(): Promise<{
+  otpCount: number;
+  phoneCooldownCount: number;
+  ipRateLimitCount: number;
+}> {
+  // This would require Redis SCAN operation or maintaining counters
+  // For now, return placeholder
+  return {
+    otpCount: 0,
+    phoneCooldownCount: 0,
+    ipRateLimitCount: 0,
+  };
+}
+
+/**
  * Normalize Ukrainian phone to +380XXXXXXXXX.
  * @deprecated Use normalizePhone from @/lib/phone-utils instead
  */

@@ -33,15 +33,16 @@ export async function sendEmailOtp(email: string, otp: string): Promise<EmailRes
     return { success: false, error: "Email service not configured" };
   }
 
-  // Temporarily use test email for development
+  // Only use test email in development
+  const isDevelopment = process.env.NODE_ENV === "development";
   const testEmail = "kateandrosov@gmail.com";
-  const isTestMode = email !== testEmail;
+  const isTestMode = isDevelopment && email !== testEmail;
 
   const resend = new Resend(apiKey);
   
-  // IMPORTANT: In test mode, we need to use the original email for OTP storage consistency
-  // but send to the test email for delivery
-  const targetEmailForDelivery = testEmail;
+  // In development, send to test email for testing
+  // In production, send to actual customer email
+  const targetEmailForDelivery = isDevelopment && email !== testEmail ? testEmail : email;
   const originalEmailForStorage = email;
 
   const htmlTemplate = `
@@ -120,7 +121,7 @@ FamilyHub Market - Код підтвердження
     const { data, error } = await resend.emails.send({
       from: "onboarding@resend.dev", // Use verified Resend domain
       to: targetEmailForDelivery, // Send to verified email
-      subject: `Test OTP for ${originalEmailForStorage}`,
+      subject: `Код підтвердження - FamilyHub Market`,
       html: htmlTemplate,
       text: textTemplate,
     });
@@ -148,7 +149,7 @@ FamilyHub Market - Код підтвердження
     console.log(`[email-otp] OTP sent to ${targetEmail}, message ID: ${data?.id}`);
     
     if (isTestMode) {
-      console.log(`[email-otp] TEST MODE: Original email was ${originalEmailForStorage}, but sent to ${testEmail}`);
+      console.log(`[email-otp] DEV MODE: Original email was ${originalEmailForStorage}, but sent to ${testEmail}`);
     }
     
     return { 

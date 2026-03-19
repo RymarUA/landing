@@ -4,7 +4,7 @@
  * WishlistContext — persists a list of product IDs to localStorage.
  * Key: "fhm_wishlist_v1"
  */
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useLocalStorage } from "@/hooks/use-isomorphic";
 import { useWishlistSync } from "@/hooks/use-product-tracking";
 
@@ -31,24 +31,42 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const { syncWishlist } = useWishlistSync();
   const ids = new Set(idsArray);
+  const syncTimeoutRef = useRef<NodeJS.Timeout>();
+  const lastSyncRef = useRef<number[]>([]);
 
   /* ── Mark as hydrated after localStorage load ── */
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  /* ── Sync wishlist to Sitniks when it changes ── */
+  /* ── Sync wishlist to Sitniks when it changes (with improved debouncing) ── */
   useEffect(() => {
-    if (hydrated && idsArray.length > 0) {
-      console.log("[wishlist-context] Syncing wishlist:", idsArray.length, "items");
-      
-      // Debounce sync to avoid too many requests
-      const timer = setTimeout(() => {
-        syncWishlist(idsArray);
-      }, 2000);
-      
-      return () => clearTimeout(timer);
+    if (!hydrated || idsArray.length === 0) {
+      return;
     }
+
+    // Skip sync if the array hasn't actually changed
+    if (JSON.stringify(idsArray) === JSON.stringify(lastSyncRef.current)) {
+      return;
+    }
+
+    // Clear any pending sync
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+
+    // Debounce sync to avoid too many requests
+    syncTimeoutRef.current = setTimeout(() => {
+      console.log("[wishlist-context] Syncing wishlist:", idsArray.length, "items");
+      syncWishlist(idsArray);
+      lastSyncRef.current = [...idsArray];
+    }, 2000);
+
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
   }, [idsArray, hydrated, syncWishlist]);
 
   const toggle = useCallback((id: number) => {

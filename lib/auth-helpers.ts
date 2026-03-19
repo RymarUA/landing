@@ -27,7 +27,14 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
 
-    const secret = getJwtSecret();
+    let secret: string;
+    try {
+      secret = getJwtSecret();
+    } catch (secretError) {
+      console.error("[auth-helpers] JWT secret not configured:", secretError);
+      return null;
+    }
+
     const payload = await verifyJwt(token, secret);
     
     if (!payload || !payload.userId) {

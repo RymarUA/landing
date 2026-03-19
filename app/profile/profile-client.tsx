@@ -1980,7 +1980,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                         <div className="relative">
                           <select
                             value={editFormData.warehouseRef}
-                            onChange={(e) => handleWarehouseSelect(e.target.value)}
+                            onChange={(e) => handleWarehousePick({ Ref: e.target.value, Description: e.target.value })}
                             disabled={!editFormData.cityRef || warehouseLoading}
                             className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition disabled:bg-gray-50"
                           >

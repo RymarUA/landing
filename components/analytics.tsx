@@ -51,7 +51,11 @@ interface CookieConsent {
 }
 
 /* ─── Analytics script component ────────────────────────── */
-export function Analytics() {
+interface AnalyticsProps {
+  cspNonce?: string;
+}
+
+export function Analytics({ cspNonce }: AnalyticsProps) {
   const { isClient } = useWindow();
   const [consent] = useLocalStorage<CookieConsent | null>(STORAGE_KEY, null);
   
@@ -71,7 +75,7 @@ export function Analytics() {
       {/* ── Meta Pixel (Marketing) ── */}
       {PIXEL_ID && allowMarketing && (
         <>
-          <Script id="meta-pixel" strategy="afterInteractive">{`
+          <Script id="meta-pixel" strategy="afterInteractive" nonce={cspNonce}>{`
             !function(f,b,e,v,n,t,s)
             {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
             n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -89,7 +93,7 @@ export function Analytics() {
             <img
               height="1"
               width="1"
-              style={{ display: "none" }}
+              className="fb-pixel-noscript"
               src={`https://www.facebook.com/tr?id=${PIXEL_ID}&ev=PageView&noscript=1`}
               alt=""
             />
@@ -105,7 +109,7 @@ export function Analytics() {
             src={`https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`}
             strategy="afterInteractive"
           />
-          <Script id="ga4-init" strategy="afterInteractive">{`
+          <Script id="ga4-init" strategy="afterInteractive" nonce={cspNonce}>{`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());

@@ -61,16 +61,22 @@
   --background-end-rgb: 255, 255, 255;
 }
 
-/* Base styles for elements - Light mode by default */
-* {
-  border-color: hsl(240 5.9% 90%);
+img.fb-pixel-noscript {
+  display: none;
 }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
+/* Base styles for elements - Light mode by default */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+  }
 }
 
 body {

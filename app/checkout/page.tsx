@@ -18,6 +18,7 @@ import { useSavedAddresses } from "@/lib/use-saved-addresses";
 import { isValidUkrainianPhone } from "@/lib/phone-utils";
 import { trackInitiateCheckout } from "@/components/analytics";
 import { fetchNPCities, fetchNPWarehouses, type NPCity, type NPWarehouse } from "@/lib/novaposhta-api";
+import { cachedFetchNPCities, cachedFetchNPWarehouses } from "@/lib/novaposhta-cache";
 import { Field } from "@/components/ui/field";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { ShopFooter } from "@/components/shop-footer";
@@ -216,7 +217,7 @@ export default function CheckoutPage() {
       abortController.current = controller;
       
       try {
-        const data = await fetchNPCities(val);
+        const data = await cachedFetchNPCities(val);
         
         // Check if this is still the current search
         if (searchId === currentSearchId.current && !controller.signal.aborted) {
@@ -262,7 +263,7 @@ export default function CheckoutPage() {
     setLoadingWarehouses(true);
     
     try {
-      const data = await fetchNPWarehouses(city.Ref, "");
+      const data = await cachedFetchNPWarehouses(city.Ref, "");
       setWarehouses(data);
       if (data.length === 0) {
         setWarehouseError("Відділень не знайдено");
@@ -306,7 +307,7 @@ export default function CheckoutPage() {
     searchTimeout.current = setTimeout(async () => {
       const searchId = ++currentSearchId.current;
       try {
-        const data = await fetchNPWarehouses(selectedCityRef, val);
+        const data = await cachedFetchNPWarehouses(selectedCityRef, val);
         if (searchId === currentSearchId.current) {
           setWarehouses(data);
           setShowWarehouseResults(true);
@@ -682,7 +683,7 @@ export default function CheckoutPage() {
                       if (savedAddress.cityRef) {
                         setSelectedCityRef(savedAddress.cityRef);
                         setLoadingWarehouses(true);
-                        const list = await fetchNPWarehouses(savedAddress.cityRef, "");
+                        const list = await cachedFetchNPWarehouses(savedAddress.cityRef, "");
                         setWarehouses(list);
                         setLoadingWarehouses(false);
                       }
@@ -741,7 +742,7 @@ export default function CheckoutPage() {
                         setLoadingCities(true);
                         const searchId = ++currentSearchId.current;
                         try {
-                          const data = await fetchNPCities(cityName);
+                          const data = await cachedFetchNPCities(cityName);
                           if (searchId === currentSearchId.current) {
                             setCities(data);
                             const exact = data.find((c: NPCity) => c.Description === cityName || c.Description?.startsWith(cityName));
@@ -758,7 +759,7 @@ export default function CheckoutPage() {
                               setLoadingWarehouses(true);
                               setWarehouseError("");
                               try {
-                                const list = await fetchNPWarehouses(exact.Ref, "");
+                                const list = await cachedFetchNPWarehouses(exact.Ref, "");
                                 if (searchId === currentSearchId.current) {
                                   setWarehouses(list);
                                   if (list.length === 0) {

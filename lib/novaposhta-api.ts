@@ -5,21 +5,21 @@
  * Centralized functions for city, warehouse lookups, and tracking.
  */
 
-interface NPCity {
+export interface NPCity {
   Ref: string;
   Description: string;
   DescriptionRu?: string;
   Area?: string;
 }
 
-interface NPWarehouse {
+export interface NPWarehouse {
   Ref: string;
   Description: string;
   Number?: string;
   CityRef?: string;
 }
 
-interface NPTrackingStatus {
+export interface NPTrackingStatus {
   Status?: string;
   StatusDescription?: string;
   WarehouseRecipient?: string;

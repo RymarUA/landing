@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   }
 
   const code = generateOtp();
-  setOtp(identifier, code, OTP_TTL_MS);
+  await setOtp(identifier, code);
   
   // Development: Log OTP code for testing
   if (process.env.NODE_ENV === "development") {

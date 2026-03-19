@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   }
 
   const code = generateOtp();
-  setOtp(identifier, code, OTP_TTL_MS);
+  await setOtp(identifier, code);
   recordOtpSentByPhone(identifier);
   recordOtpSentByIp(ip);
 

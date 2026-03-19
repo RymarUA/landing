@@ -93,19 +93,47 @@ ${xmlProducts}
 </rss>`;
 }
 
-export async function OPTIONS() {
+// Allowed origins for Facebook feed
+const ALLOWED_ORIGINS = [
+  'https://www.facebook.com',
+  'https://facebook.com',
+  'https://business.facebook.com',
+  'https://www.instagram.com',
+  'https://instagram.com',
+  process.env.NEXT_PUBLIC_SITE_URL,
+].filter(Boolean) as string[];
+
+function getCorsHeaders(origin?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  } else if (!origin) {
+    // For same-origin requests
+    headers['Access-Control-Allow-Origin'] = process.env.NEXT_PUBLIC_SITE_URL || '*';
+  }
+
+  return headers;
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin') || undefined;
+  const headers = getCorsHeaders(origin);
+
   return new NextResponse(null, {
     status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
+    headers,
   });
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
+    const origin = request.headers.get('origin') || undefined;
+    const headers = getCorsHeaders(origin);
+    
     console.log('[fb-feed] Starting feed generation...');
     
     // Отримуємо товари з Sitniks
@@ -113,7 +141,10 @@ export async function GET(_request: NextRequest) {
     
     if (!products || products.length === 0) {
       console.warn('[fb-feed] No products found');
-      return new NextResponse('No products found', { status: 404 });
+      return new NextResponse('No products found', { 
+        status: 404,
+        headers
+      });
     }
 
     console.log(`[fb-feed] Found ${products.length} products`);
@@ -125,11 +156,9 @@ export async function GET(_request: NextRequest) {
     return new NextResponse(xml, {
       status: 200,
       headers: {
+        ...headers,
         'Content-Type': 'application/rss+xml; charset=utf-8',
         'Cache-Control': 'public, max-age=3600, s-maxage=3600', // Кеш на 1 годину
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
       },
     });
     
@@ -146,6 +175,7 @@ export async function GET(_request: NextRequest) {
         status: 500,
         headers: {
           'Content-Type': 'application/xml; charset=utf-8',
+          ...getCorsHeaders(request.headers.get('origin') || undefined),
         },
       }
     );

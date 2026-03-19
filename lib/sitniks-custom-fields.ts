@@ -8,6 +8,9 @@
  * - Истории активности
  */
 
+import { sitniksRequest } from "./sitniks-customers";
+import { getSitniksCustomer } from "./sitniks-customers";
+
 export interface CustomField {
   id?: number;
   code: string;
@@ -223,7 +226,3 @@ export async function addNotificationSubscription(customerId: number, type: stri
   
   return await updateCustomerActivity(customerId, updatedActivity);
 }
-
-// Импортируем sitniksRequest и getSitniksCustomer
-import { sitniksRequest } from "./sitniks-customers";
-import { getSitniksCustomer } from "./sitniks-customers";

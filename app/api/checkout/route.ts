@@ -93,6 +93,8 @@ function validateBody(body: unknown): body is CheckoutBody {
   );
 }
 
+import { applyPromoCode } from "@/lib/checkout-schema";
+
 function buildPaymentItemsForWayForPay(
   items: Array<{ name: string; price: number; quantity: number }>,
   discountAmount: number
@@ -138,8 +140,26 @@ function buildPaymentItemsForWayForPay(
   });
 }
 
+import { applyRateLimit, checkoutRateLimiter } from "@/lib/rate-limiting";
+
 export async function POST(req: NextRequest) {
   try {
+    // Apply rate limiting
+    const rateLimitResult = await applyRateLimit(req, checkoutRateLimiter);
+    
+    if (!rateLimitResult.allowed) {
+      const headers = new Headers(rateLimitResult.headers);
+      headers.set('Content-Type', 'application/json');
+      
+      return new NextResponse(
+        JSON.stringify(rateLimitResult.error),
+        { 
+          status: 429,
+          headers
+        }
+      );
+    }
+
     // Get current authenticated user if available
     const currentUser = await getCurrentUser();
     
@@ -208,8 +228,38 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Validate and recalculate promo code discount on server side
+    let serverDiscountAmount = 0;
+    let promoCodeApplied = "";
+    
+    if (body.promoCode) {
+      const promoResult = applyPromoCode(body.promoCode);
+      if (promoResult) {
+        // Calculate discount based on server total
+        serverDiscountAmount = Math.round(serverTotal * promoResult.discountPct / 100);
+        promoCodeApplied = body.promoCode;
+        console.log(`[checkout] Promo code ${body.promoCode} applied: ${promoResult.discountPct}% = ${serverDiscountAmount} UAH`);
+      } else {
+        console.warn(`[checkout] Invalid promo code: ${body.promoCode}`);
+      }
+    }
+    
+    // Add online payment discount if applicable
+    let onlinePaymentDiscount = 0;
+    if (body.paymentMethod === "online" || body.paymentMethod === "card") {
+      onlinePaymentDiscount = Math.round((serverTotal - serverDiscountAmount) * 0.05);
+    }
+    
+    // Total discount is promo discount + online payment discount
+    const totalServerDiscount = serverDiscountAmount + onlinePaymentDiscount;
+    
+    // Use the lesser of server-calculated discount and client-requested discount
     const requestedDiscount = Math.max(0, Number(body.discountAmount) || 0);
-    const discountAmount = Math.min(requestedDiscount, serverTotal);
+    const discountAmount = Math.min(totalServerDiscount, requestedDiscount, serverTotal);
+    
+    if (discountAmount !== requestedDiscount) {
+      console.warn(`[checkout] Discount mismatch: client=${requestedDiscount}, server=${totalServerDiscount}, applied=${discountAmount}`);
+    }
 
     const paymentItems = buildPaymentItemsForWayForPay(resolvedItems, discountAmount);
     const finalAmount = Number(
@@ -219,7 +269,8 @@ export async function POST(req: NextRequest) {
     // Calculate total weight from products
     let totalWeight = 0;
     for (const item of resolvedItems) {
-      const catalogProduct = await getCatalogProductById(Number(item.variationId));
+      // Use the actual product ID, not variationId
+      const catalogProduct = await getCatalogProductById(item.variationId);
       const itemWeight = catalogProduct?.weight ?? 0.5; // Default 0.5kg if not specified
       totalWeight += itemWeight * item.quantity;
     }
@@ -242,7 +293,14 @@ export async function POST(req: NextRequest) {
       managerComment += `. Referrer: ${body.referrer}`;
     }
     if (discountAmount > 0) {
-      managerComment += `. Знижка: ${discountAmount} грн`;
+      const discountParts = [];
+      if (serverDiscountAmount > 0) {
+        discountParts.push(`Промокод: ${serverDiscountAmount} грн`);
+      }
+      if (onlinePaymentDiscount > 0) {
+        discountParts.push(`Онлайн-оплата: ${onlinePaymentDiscount} грн`);
+      }
+      managerComment += `. Знижка: ${discountParts.join(", ")} (всього: ${discountAmount} грн)`;
     }
 
     const dto: CreateOrderDto = {

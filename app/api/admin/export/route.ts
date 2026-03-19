@@ -1,5 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Helper functions for sanitization
+function sanitizeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function sanitizeCsvField(str: string): string {
+  // Escape quotes and wrap in quotes if contains comma, quote, or newline
+  const sanitized = str.replace(/"/g, "\"");
+  if (sanitized.includes(",") || sanitized.includes("\"") || sanitized.includes("\n")) {
+    return `"${sanitized}"`;
+  }
+  return sanitized;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -15,35 +34,20 @@ export async function GET(req: NextRequest) {
 
     if (format === "csv") {
       // Генерируем CSV
-      const csvHeaders = [
-        "Customer ID",
-        "Name",
-        "Email",
-        "Phone",
-        "Wishlist Items",
-        "View Count",
-        "Categories",
-        "Price Range",
-        "Last Activity"
-      ];
-
+      const csvHeader = ["Customer ID", "Name", "Email", "Wishlist Count", "Views", "Categories", "Price Range", "Last Activity"];
       const csvRows = customers.map((customer: any) => [
-        customer.customerId,
-        customer.fullname,
-        customer.email,
-        customer.phone,
-        customer.wishlist.length,
-        customer.viewCount,
-        customer.categories.join("; "),
-        customer.priceRange,
-        new Date(customer.lastActivity).toLocaleString()
+        sanitizeCsvField(String(customer.customerId)),
+        sanitizeCsvField(String(customer.fullname)),
+        sanitizeCsvField(String(customer.email)),
+        sanitizeCsvField(String(customer.wishlist.length)),
+        sanitizeCsvField(String(customer.viewCount)),
+        sanitizeCsvField(String(customer.categories.join(", "))),
+        sanitizeCsvField(String(customer.priceRange)),
+        sanitizeCsvField(new Date(customer.lastActivity).toLocaleString())
       ]);
-
-      const csvContent = [
-        csvHeaders.join(","),
-        ...csvRows.map((row: string[]) => row.map(cell => `"${cell}"`).join(","))
-      ].join("\n");
-
+      
+      const csvContent = [csvHeader, ...csvRows].map(row => row.join(",")).join("\n");
+      
       return new NextResponse(csvContent, {
         headers: {
           "Content-Type": "text/csv",
@@ -54,7 +58,7 @@ export async function GET(req: NextRequest) {
 
     if (format === "pdf") {
       // Для PDF нужна библиотека типа puppeteer или jsPDF
-      // Возвращаем простую HTML версию для демонстрации
+      // Пока возвращаем HTML который можно сконвертировать в PDF
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -90,14 +94,14 @@ export async function GET(req: NextRequest) {
             <tbody>
               ${customers.map((customer: any) => `
                 <tr>
-                  <td>${customer.customerId}</td>
-                  <td>${customer.fullname}</td>
-                  <td>${customer.email}</td>
-                  <td>${customer.wishlist.length}</td>
-                  <td>${customer.viewCount}</td>
-                  <td>${customer.categories.join(", ")}</td>
-                  <td>${customer.priceRange}</td>
-                  <td>${new Date(customer.lastActivity).toLocaleString()}</td>
+                  <td>${sanitizeHtml(String(customer.customerId))}</td>
+                  <td>${sanitizeHtml(String(customer.fullname))}</td>
+                  <td>${sanitizeHtml(String(customer.email))}</td>
+                  <td>${sanitizeHtml(String(customer.wishlist.length))}</td>
+                  <td>${sanitizeHtml(String(customer.viewCount))}</td>
+                  <td>${sanitizeHtml(String(customer.categories.join(", ")))}</td>
+                  <td>${sanitizeHtml(String(customer.priceRange))}</td>
+                  <td>${sanitizeHtml(new Date(customer.lastActivity).toLocaleString())}</td>
                 </tr>
               `).join("")}
             </tbody>

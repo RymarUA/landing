@@ -627,6 +627,26 @@ export async function getSitniksOrderStatuses(): Promise<Array<{ id: number; nam
 }
 
 /**
+ * Validate order reference to prevent injection attacks
+ */
+function validateOrderReference(orderReference: string): string | null {
+  if (!orderReference || typeof orderReference !== 'string') {
+    return null;
+  }
+  
+  // Allow only alphanumeric characters, hyphens, and underscores
+  // Remove any potentially dangerous characters
+  const sanitized = orderReference.replace(/[^a-zA-Z0-9\-_]/g, '').trim();
+  
+  // Check if result is valid after sanitization
+  if (sanitized.length === 0 || sanitized.length > 50) {
+    return null;
+  }
+  
+  return sanitized;
+}
+
+/**
  * Update order status by orderReference (e.g. FHM-123 or order number).
  * Used from WayForPay webhook and notify-shipping.
  * This is the recommended function for status updates.
@@ -636,6 +656,13 @@ export async function updateSitniksOrder(
   status: "paid" | "shipped" | "delivered" | "cancelled",
   statusId?: number
 ): Promise<boolean> {
+  // Validate and sanitize order reference to prevent injection
+  const sanitizedReference = validateOrderReference(orderReference);
+  if (!sanitizedReference) {
+    console.error(`[sitniks] Invalid order reference format: ${orderReference}`);
+    return false;
+  }
+
   const STATUS_MAP: Record<string, string> = {
     paid: "Оплачено",
     shipped: "Відправлено",
@@ -646,12 +673,12 @@ export async function updateSitniksOrder(
   const crmStatus = STATUS_MAP[status] ?? "Оплачено";
   
   // Try to find order by orderNumber or externalId
-  const search = await sitniksSafe<{ data?: SitniksOrder[] }>("GET", `/open-api/orders?search=${encodeURIComponent(orderReference)}`);
+  const search = await sitniksSafe<{ data?: SitniksOrder[] }>("GET", `/open-api/orders?search=${encodeURIComponent(sanitizedReference)}`);
   
   const list = search?.data ?? [];
   const targetId = Array.isArray(list) && list.length > 0 ? list[0].id : null;
   if (!targetId) {
-    console.error(`[sitniks] Order not found: ${orderReference}`);
+    console.error(`[sitniks] Order not found: ${sanitizedReference}`);
     return false;
   }
   

@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  const entry = getOtp(identifier);
+  const entry = await getOtp(identifier);
 
   if (!entry) {
     return NextResponse.json(
@@ -56,10 +56,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (Date.now() > entry.expires) {
-    deleteOtp(identifier);
+  if (Date.now() > entry.expiresAt) {
+    await deleteOtp(identifier);
     return NextResponse.json(
-      { error: "Код не знайдено або прострочений" },
+      { error: "Код не знайдено либо прострочений" },
       { status: 400 }
     );
   }
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  deleteOtp(identifier);
+  await deleteOtp(identifier);
 
   // Sync with Sitniks CRM
   let sitniksCustomerId: number | undefined;

@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   const normalizedPhone = normalizePhoneForAuth(phoneRaw);
 
   // Verify OTP
-  const storedOtpEntry = getOtp(normalizedPhone);
+  const storedOtpEntry = await getOtp(normalizedPhone);
   if (!storedOtpEntry) {
     return NextResponse.json({ error: "OTP not found or expired" }, { status: 400 });
   }
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Delete OTP after successful verification
-  deleteOtp(normalizedPhone);
+  await deleteOtp(normalizedPhone);
 
   // Create new JWT payload with phone
   const newPayload = {

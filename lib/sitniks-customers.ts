@@ -133,7 +133,14 @@ export async function sitniksRequest<T>(
   }
 }
 
-// ─── Customer Operations ────────────────────────────────────────────
+/**
+ * Generate unique fallback phone number for customers without phone
+ */
+function generateFallbackPhone(): string {
+  // Generate random mobile number to avoid collisions
+  const randomSuffix = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+  return `+38050${randomSuffix}`;
+}
 
 /**
  * Search customers by email or phone
@@ -220,11 +227,11 @@ export async function createSitniksCustomer(
       }
       // Ensure it's a mobile number (starts with +380 and has 12 digits total)
       if (!/^\+380[0-9]{9}$/.test(phone)) {
-        console.warn("[sitniks-customers] Invalid mobile phone format, using default");
-        phone = '+380500000000'; // Default mobile number
+        console.warn("[sitniks-customers] Invalid mobile phone format, using generated fallback");
+        phone = generateFallbackPhone();
       }
     } else {
-      phone = '+380500000000'; // Default mobile number if not provided
+      phone = generateFallbackPhone(); // Generate unique fallback if not provided
     }
 
     const customer = await sitniksRequest<SitniksCustomer>("/open-api/clients", {
@@ -251,7 +258,7 @@ export async function updateSitniksCustomer(
   data: UpdateCustomerDto
 ): Promise<SitniksCustomer | null> {
   try {
-    const customer = await sitniksRequest<SitniksCustomer>(`/api/v1/customers/${id}`, {
+    const customer = await sitniksRequest<SitniksCustomer>(`/open-api/clients/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     });
@@ -275,14 +282,22 @@ export function generateReferralCode(customerId: number): string {
 
 /**
  * Поиск клиента по реферальному коду через Sitniks Open API
+ * Использует поиск по comment для оптимизации вместо загрузки всех клиентов
  */
 export async function findCustomerByReferralCode(referralCode: string): Promise<SitniksCustomer | null> {
   try {
-    // Шукаємо по custom field або comment
-    const response = await sitniksRequest<any>(`/open-api/clients?limit=100`);
+    // Валидация входных данных
+    if (!referralCode || typeof referralCode !== 'string') {
+      console.error("[sitniks-customers] Invalid referral code provided");
+      return null;
+    }
+
+    // Используем поиск по comment поле через API фильтр
+    const searchQuery = encodeURIComponent(referralCode);
+    const response = await sitniksRequest<any>(`/open-api/clients?search=${searchQuery}&limit=10`);
     
     if (response.clients && response.clients.length > 0) {
-      // Шукаємо клієнта з реферальним кодом в custom fields або comment
+      // Дополнительная проверка точного совпадения
       const customer = response.clients.find((client: any) => 
         client.comment?.includes(referralCode) ||
         client.customFields?.some((field: any) => field.value === referralCode)
@@ -290,6 +305,7 @@ export async function findCustomerByReferralCode(referralCode: string): Promise<
       
       return customer || null;
     }
+    
     return null;
   } catch (error) {
     console.error("[sitniks-customers] Find by referral code failed:", error);

@@ -17,6 +17,7 @@ import { validateEnv } from "@/lib/env-validation";
 import { WebVitals } from "./web-vitals";
 import { getCachedSiteSettings } from "@/lib/cached-data";
 import { CatalogSearchPrefetcher } from "@/components/catalog-search-prefetcher";
+import { headers } from "next/headers";
 
 // Validate environment variables on server startup (single evaluation)
 validateEnv();
@@ -123,6 +124,8 @@ export default async function RootLayout({
 }>) {
   // Load site settings from Sitniks (with fallback to site-config)
   const { settings } = await getSettings();
+  const incomingHeaders = await headers();
+  const nonce = incomingHeaders.get("x-nonce") ?? undefined;
 
   return (
     <html lang="uk" data-scroll-behavior="smooth" className="h-full">
@@ -139,7 +142,7 @@ export default async function RootLayout({
           "bg-[#FAF9F4] antialiased min-h-screen flex flex-col",
         )}
       >
-        <Analytics />
+        <Analytics cspNonce={nonce} />
         <CatalogSearchPrefetcher />
         <WebVitals />
         <DevToolsGuard />

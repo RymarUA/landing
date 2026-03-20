@@ -519,10 +519,9 @@ export default function CheckoutPage() {
         warehouse: data.warehouse
       });
 
-      // Clear cart after successful order creation
-      items.forEach(item => removeItem(item.id));
-
       if (paymentMethod === "cod") {
+        // Clear cart immediately for COD (order is confirmed, success page also clears but items needed for analytics)
+        items.forEach(item => removeItem(item.id));
         // Show account creation suggestion for non-authenticated users
         if (!isAuthenticated && data.email) {
           setShowAccountSuggestion(true);

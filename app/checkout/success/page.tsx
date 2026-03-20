@@ -32,42 +32,39 @@ function SuccessContent() {
   
   const isCOD = paymentMethod === "cod";
 
-  /* Verify payment status for online payments (fallback if webhook fails) */
+  /* Update Sitniks order status for online payments (fallback if webhook fails) */
   useEffect(() => {
-    // Only verify online payments
+    // Only for online payments with approved status
     if (paymentMethod !== "online" || orderNumber === "—") return;
     
     const verifyKey = `verified-${orderNumber}`;
     const hasVerified = typeof window !== "undefined" ? sessionStorage.getItem(verifyKey) : null;
     if (hasVerified) return;
     
-    // Get full orderReference from URL (includes _p suffix from WayForPay)
-    const fullOrderRef = params.get("orderReference");
+    // WayForPay passes status in URL via /api/payment/return
+    const paymentStatus = params.get("status");
     
-    // If no orderReference in URL, skip verification (webhook should handle it)
-    if (!fullOrderRef) {
-      console.log("[Checkout Success] No orderReference in URL, skipping verification");
-      return;
-    }
+    console.log("[Checkout Success] Online payment detected, orderNumber:", orderNumber, "status:", paymentStatus);
     
-    console.log("[Checkout Success] Verifying payment status for:", fullOrderRef);
-    
-    // Call verification endpoint to ensure Sitniks is updated
+    // Call verify endpoint to update Sitniks order status
     fetch("/api/payment/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderReference: fullOrderRef }),
+      body: JSON.stringify({ 
+        orderNumber,
+        status: paymentStatus || "Approved"
+      }),
     })
       .then(res => res.json())
       .then(data => {
-        console.log("[Checkout Success] Payment verification result:", data);
-        if (data.success && data.verified) {
-          console.log("[Checkout Success] ✅ Payment verified and Sitniks updated");
+        console.log("[Checkout Success] Payment verify result:", data);
+        if (data.success) {
+          console.log("[Checkout Success] ✅ Sitniks order updated");
         }
         sessionStorage.setItem(verifyKey, "true");
       })
       .catch(err => {
-        console.error("[Checkout Success] Payment verification failed:", err);
+        console.error("[Checkout Success] Payment verify failed:", err);
       });
   }, [orderNumber, paymentMethod, params]);
 

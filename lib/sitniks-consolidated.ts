@@ -216,7 +216,7 @@ export async function sitniksSafe<T>(
       body: JSON.stringify(body),
       signal: controller.signal,
       // @ts-ignore Next.js revalidate option for fetch
-      next: options?.revalidate ? { revalidate: options.revalidate } : undefined,
+      next: options?.revalidate !== undefined ? { revalidate: options.revalidate } : undefined,
     });
 
     clearTimeout(timeoutId);
@@ -271,7 +271,7 @@ async function sitniksWithoutThrow<T>(
       headers,
       body: JSON.stringify(body),
       // @ts-ignore Next.js revalidate option for fetch
-      next: options?.revalidate ? { revalidate: options.revalidate } : undefined,
+      next: options?.revalidate !== undefined ? { revalidate: options.revalidate } : undefined,
     });
 
     if (!res.ok) {
@@ -682,12 +682,13 @@ export async function updateSitniksOrder(
   const crmStatus = STATUS_MAP[status] ?? "Оплачено";
   
   // Try to find order by orderNumber or externalId
+  // NOTE: no-cache is critical here - searching for a newly created order
   console.log(`[sitniks] Searching for order: ${sanitizedReference}`);
   const search = await sitniksSafe<{ data?: SitniksOrder[] }>(
     "GET", 
     `/open-api/orders?search=${encodeURIComponent(sanitizedReference)}`,
     undefined,
-    { revalidate: 300 } // 5 minutes cache
+    { revalidate: 0 } // no cache - order may have just been created
   );
   
   const list = search?.data ?? [];

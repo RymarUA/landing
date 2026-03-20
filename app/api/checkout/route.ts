@@ -32,6 +32,7 @@ import { getCatalogProductById } from "@/lib/instagram-catalog";
 import { logger } from "@/lib/logger";
 import { buildWfpFormParams, getWfpConfig, sanitizeProductName } from "@/lib/wayforpay";
 import { getCurrentUser } from "@/lib/auth-helpers";
+import { savePendingOrder } from "@/lib/pending-orders-store";
 
 // ── Отримай ці ID з Sitniks: Налаштування → Нова Пошта → ID інтеграції
 const NP_INTEGRATION_ID = Number(process.env.SITNIKS_NP_INTEGRATION_ID ?? 0);
@@ -317,6 +318,8 @@ export async function POST(req: NextRequest) {
       managerComment += `. Знижка: ${discountParts.join(", ")} (всього: ${discountAmount} грн)`;
     }
 
+    const isOnlinePayment = body.paymentMethod === "online" || body.paymentMethod === "card";
+
     const dto: CreateOrderDto = {
       client: {
         fullname: body.name,
@@ -346,56 +349,46 @@ export async function POST(req: NextRequest) {
           payerType: "Recipient",
           cargoType: "Parcel",
           paymentMethod: "Cash",
-          // Після оплати карткою — контроль плати, при накладеному — постоплата
-          productPaymentMethod: (body.paymentMethod === "card" || body.paymentMethod === "online") ? "payment-control" : "postpaid",
+          productPaymentMethod: isOnlinePayment ? "payment-control" : "postpaid",
           weight: totalWeight,
           description: resolvedItems.map((i) => `${i.name} x${i.quantity}`).join(", "),
         }
       } : {}),
 
-      // Використовуємо різні статуси для COD та онлайн-оплати
       ...(SALES_CHANNEL_ID > 0 ? { salesChannelId: SALES_CHANNEL_ID } : {}),
-      // Для онлайн-оплати: "Очікує оплати", для COD: "Новий"
-      ...((body.paymentMethod === "card" || body.paymentMethod === "online") && PENDING_PAYMENT_STATUS > 0
-        ? { statusId: PENDING_PAYMENT_STATUS }
-        : NEW_ORDER_STATUS > 0
-        ? { statusId: NEW_ORDER_STATUS }
-        : {}),
+      // COD orders created with "Новий" status; online orders created AFTER payment (see below)
+      ...(NEW_ORDER_STATUS > 0 ? { statusId: NEW_ORDER_STATUS } : {}),
 
       clientComment: body.comment,
       managerComment: managerComment,
 
-      // Зберігаємо унікальний ID щоб уникнути дублікатів
       externalId: `web-${Date.now()}${currentUser ? `-user-${currentUser.userId}` : ""}`,
     };
 
-    console.log("[/api/checkout] Creating order with DTO:", JSON.stringify(dto, null, 2));
-    const order = await createSitniksOrder(dto);
-
-    if (!order) {
-      return NextResponse.json(
-        { error: "Не вдалося створити замовлення в Sitniks CRM" },
-        { status: 500 }
-      );
-    }
-
-    // Generate WayForPay payment form parameters for online payments
-    let paymentFormParams: Record<string, string> | undefined;
-    if (body.paymentMethod === "online" || body.paymentMethod === "card") {
+    // ── Online payments: save order data to pending store, create Sitniks order AFTER payment ──
+    if (isOnlinePayment) {
       try {
         const wfpConfig = getWfpConfig();
-        // Add unique payment attempt ID to prevent "Duplicate Order ID" error
-        // Format: ORDER-123_p1234567890 (original order number + payment timestamp)
-        const paymentAttemptId = `${order.orderNumber}_p${Date.now()}`;
+        // orderReference format: op{timestamp} (no Sitniks order number - order doesn't exist yet)
+        const orderRef = `op${Date.now()}`;
+
+        // Store full order DTO for later creation in Sitniks after payment confirmed
+        await savePendingOrder(orderRef, {
+          orderRef,
+          dto: dto as unknown as Record<string, unknown>,
+          amount: finalAmount,
+          customerName: body.name,
+          customerPhone: phone,
+          createdAt: Date.now(),
+        });
+
         const paymentParams = {
           merchantAccount: wfpConfig.merchantAccount,
           merchantDomainName: wfpConfig.merchantDomainName,
-          orderReference: paymentAttemptId,
+          orderReference: orderRef,
           orderDate: Math.floor(Date.now() / 1000),
           amount: finalAmount,
           currency: "UAH" as const,
-          // Each payment item represents a full line total (count = 1) to ensure
-          // sum(productPrice * productCount) === amount even with discounts
           productName: paymentItems.map((item) => {
             const label = item.quantity > 1 ? `${item.name} x${item.quantity}` : item.name;
             return sanitizeProductName(label);
@@ -405,9 +398,18 @@ export async function POST(req: NextRequest) {
           returnUrl: `${wfpConfig.siteUrl}/api/payment/return`,
           serviceUrl: `${wfpConfig.siteUrl}/api/webhooks/wayforpay`,
         };
-        paymentFormParams = buildWfpFormParams(paymentParams, wfpConfig.secretKey);
+        const paymentFormParams = buildWfpFormParams(paymentParams, wfpConfig.secretKey);
+
+        console.log(`[/api/checkout] Online payment pending, orderRef=${orderRef}, amount=${finalAmount}`);
+
+        return NextResponse.json({
+          success: true,
+          pending: true,
+          orderRef,
+          paymentFormParams,
+        });
       } catch (error) {
-        logger.error("[/api/checkout] Failed to generate WayForPay form params:", error);
+        logger.error("[/api/checkout] Failed to prepare online payment:", error);
         return NextResponse.json(
           { error: "Не вдалося створити посилання для оплати. Спробуйте пізніше або оберіть накладений платіж." },
           { status: 500 }
@@ -415,11 +417,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── COD orders: create Sitniks order immediately ──
+    console.log("[/api/checkout] Creating COD order in Sitniks:", JSON.stringify(dto, null, 2));
+    const order = await createSitniksOrder(dto);
+
+    if (!order) {
+      return NextResponse.json(
+        { error: "Не вдалося створити замовлення в Sitniks CRM" },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       orderId: order.id,
       orderNumber: order.orderNumber,
-      paymentFormParams,
     });
 
   } catch (err) {

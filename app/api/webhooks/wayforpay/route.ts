@@ -25,8 +25,9 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWfpWebhookSignature, buildWfpResponseSignature } from "@/lib/wayforpay";
-import { updateSitniksOrder } from "@/lib/sitniks-consolidated";
+import { updateSitniksOrder, createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
 import { sendTelegramNotification } from "@/lib/telegram";
+import { getPendingOrder, deletePendingOrder } from "@/lib/pending-orders-store";
 
 // Load status IDs from environment
 const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
@@ -86,64 +87,88 @@ export async function POST(req: NextRequest) {
   /* ── 3. Process payment result ── */
   if (transactionStatus === "Approved") {
     console.log(`[wfp-webhook] Payment APPROVED for order ${orderReference}`);
-    
-    // Extract original order number from payment attempt ID
-    // Format: ORDER-123_p1234567890 → ORDER-123
-    const originalOrderNumber = orderReference.includes('_p') 
-      ? orderReference.split('_p')[0] 
-      : orderReference;
-    
-    console.log(`[wfp-webhook] Payment attempt ID: ${orderReference}`);
-    console.log(`[wfp-webhook] Original order number: ${originalOrderNumber}`);
-    console.log(`[wfp-webhook] Attempting to update Sitniks order status...`);
-    console.log(`[wfp-webhook] Using statusId: ${PAID_STATUS_ID > 0 ? PAID_STATUS_ID : 'by name (Оплачено)'}`);
-    
+
+    const cardMask = cardPan ? `${cardPan.slice(0, 4)}****${cardPan.slice(-4)}` : "—";
+
     try {
-      // Always use the better updateSitniksOrder function
-      // Pass PAID_STATUS_ID if available for direct status ID update
-      const success = await updateSitniksOrder(originalOrderNumber, "paid", PAID_STATUS_ID > 0 ? PAID_STATUS_ID : undefined);
-      
-      if (!success) {
-        console.error(`[wfp-webhook] ❌ FAILED to update Sitniks order #${orderReference}`);
-        console.error(`[wfp-webhook] Order may not exist in Sitniks or API error occurred`);
+      // Check if this is a new-style pending order (starts with "op")
+      const pending = await getPendingOrder(orderReference);
+
+      if (pending) {
+        // ── New flow: create Sitniks order now with "Оплачено" status ──
+        console.log(`[wfp-webhook] Found pending order, creating in Sitniks with PAID status`);
+        const paidDto = {
+          ...pending.dto,
+          ...(PAID_STATUS_ID > 0 ? { statusId: PAID_STATUS_ID } : {}),
+        } as CreateOrderDto;
+
+        const sitniksOrder = await createSitniksOrder(paidDto);
+
+        if (sitniksOrder) {
+          console.info(`[wfp-webhook] ✅ Created Sitniks order #${sitniksOrder.orderNumber} as Оплачено`);
+          await deletePendingOrder(orderReference);
+
+          const msg = [
+            "✅ Оплата підтверджена!",
+            "",
+            `📋 Замовлення: #${sitniksOrder.orderNumber}`,
+            `👤 Клієнт: ${pending.customerName}`,
+            `📞 Телефон: ${pending.customerPhone}`,
+            `💰 Сума: ${amount} грн`,
+            `💳 Картка: ${cardMask}`,
+          ].join("\n");
+          sendTelegramNotification(msg).catch((e) => console.error("[wfp-webhook] Telegram failed:", e));
+        } else {
+          console.error(`[wfp-webhook] ❌ Failed to create Sitniks order for pending ${orderReference}`);
+        }
       } else {
-        console.info(`[wfp-webhook] ✅ SUCCESS: Sitniks order #${orderReference} marked as Оплачено (statusId: ${PAID_STATUS_ID || 'by name'})`);
+        // ── Old flow: update existing Sitniks order by order number ──
+        const originalOrderNumber = orderReference.includes("_p")
+          ? orderReference.split("_p")[0]
+          : orderReference;
+
+        console.log(`[wfp-webhook] No pending order found, updating existing Sitniks order ${originalOrderNumber}`);
+        const success = await updateSitniksOrder(originalOrderNumber, "paid", PAID_STATUS_ID > 0 ? PAID_STATUS_ID : undefined);
+
+        if (success) {
+          console.info(`[wfp-webhook] ✅ Updated order ${originalOrderNumber} to Оплачено`);
+        } else {
+          console.error(`[wfp-webhook] ❌ Failed to update order ${originalOrderNumber}`);
+        }
+
+        const msg = [
+          "✅ Оплата підтверджена!",
+          "",
+          `📋 Замовлення: ${originalOrderNumber}`,
+          `💰 Сума: ${amount} грн`,
+          `💳 Картка: ${cardMask}`,
+        ].join("\n");
+        sendTelegramNotification(msg).catch((e) => console.error("[wfp-webhook] Telegram failed:", e));
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[wfp-webhook] ❌ EXCEPTION during Sitniks update for order #${orderReference}:`, msg);
-      console.error(`[wfp-webhook] Full error:`, err);
+      console.error(`[wfp-webhook] ❌ Exception for order ${orderReference}:`, msg);
     }
-    const cardMask = cardPan ? `${cardPan.slice(0, 4)}****${cardPan.slice(-4)}` : "—";
-    const msg = [
-      "✅ Оплата підтверджена!",
-      "",
-      `📋 Замовлення: ${originalOrderNumber}`,
-      `💰 Сума: ${amount.toLocaleString("uk-UA")} грн`,
-      `💳 Картка: ${cardMask}`,
-    ].join("\n");
-    sendTelegramNotification(msg).catch((err) => console.error("[wfp-webhook] Telegram failed:", err));
   } else if (transactionStatus === "Declined" || transactionStatus === "Expired") {
-    // Extract original order number from payment attempt ID
-    const originalOrderNumber = orderReference.includes('_p') 
-      ? orderReference.split('_p')[0] 
-      : orderReference;
-    
-    try {
-      // Always use the better updateSitniksOrder function
-      const success = await updateSitniksOrder(originalOrderNumber, "cancelled");
-      
-      if (!success) {
-        console.error(`[wfp-webhook] Failed to cancel Sitniks order #${orderReference}`);
-      } else {
-        console.info(`[wfp-webhook] Sitniks order #${orderReference} marked as Скасовано`);
+    // For pending orders: just delete the pending file (no Sitniks order was created)
+    const pending = await getPendingOrder(orderReference);
+    if (pending) {
+      await deletePendingOrder(orderReference);
+      console.info(`[wfp-webhook] Deleted pending order ${orderReference} (${transactionStatus})`);
+    } else {
+      // Old flow: cancel existing Sitniks order
+      const originalOrderNumber = orderReference.includes("_p")
+        ? orderReference.split("_p")[0]
+        : orderReference;
+      try {
+        await updateSitniksOrder(originalOrderNumber, "cancelled");
+        console.info(`[wfp-webhook] Sitniks order ${originalOrderNumber} marked as Скасовано`);
+      } catch (err) {
+        console.error(`[wfp-webhook] Failed to cancel order ${originalOrderNumber}:`, err);
       }
-    } catch (err: unknown) {
-      console.error(`[wfp-webhook] Sitniks status update failed (${transactionStatus}):`, err);
     }
   } else {
-    // InProcessing, Waiting, Refunded, Voided — no action needed
-    console.info(`[wfp-webhook] Non-actionable status ${transactionStatus} for order #${orderReference}`);
+    console.info(`[wfp-webhook] Non-actionable status ${transactionStatus} for order ${orderReference}`);
   }
 
   /* ── 4. Return WayForPay acceptance response ── */

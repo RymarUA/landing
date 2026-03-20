@@ -11,7 +11,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { checkWayForPayStatus } from "@/lib/wayforpay-status-check";
-import { updateSitniksOrder } from "@/lib/sitniks-consolidated";
+import { updateSitniksOrder, createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
+import { getPendingOrder, deletePendingOrder } from "@/lib/pending-orders-store";
 
 const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
 
@@ -41,16 +42,51 @@ export async function POST(req: NextRequest) {
       : orderReference;
 
     if (statusInfo.transactionStatus === "Approved") {
-      console.log(`[payment-verify] ✅ Payment APPROVED, updating Sitniks order ${orderNumber}`);
+      console.log(`[payment-verify] ✅ Payment APPROVED for ${orderReference}`);
 
-      const updated = await updateSitniksOrder(
-        orderNumber,
-        "paid",
-        PAID_STATUS_ID > 0 ? PAID_STATUS_ID : undefined
-      );
+      // Check if this is a new-style pending order
+      const pending = await getPendingOrder(orderReference);
 
-      console.log(`[payment-verify] Sitniks update result: ${updated}`);
-      return NextResponse.json({ success: true, updated, orderNumber, status: "Approved" });
+      if (pending) {
+        // ── New flow: create Sitniks order with PAID status ──
+        console.log(`[payment-verify] Found pending order, creating in Sitniks`);
+        const paidDto = {
+          ...pending.dto,
+          ...(PAID_STATUS_ID > 0 ? { statusId: PAID_STATUS_ID } : {}),
+        } as CreateOrderDto;
+
+        const sitniksOrder = await createSitniksOrder(paidDto);
+
+        if (sitniksOrder) {
+          await deletePendingOrder(orderReference);
+          console.log(`[payment-verify] ✅ Created Sitniks order #${sitniksOrder.orderNumber} as Оплачено`);
+          return NextResponse.json({
+            success: true,
+            updated: true,
+            orderNumber: sitniksOrder.orderNumber,
+            status: "Approved",
+          });
+        } else {
+          console.error(`[payment-verify] ❌ Failed to create Sitniks order from pending`);
+          return NextResponse.json({ success: false, error: "Failed to create Sitniks order" }, { status: 500 });
+        }
+      } else {
+        // ── Old flow: update existing Sitniks order ──
+        const updated = await updateSitniksOrder(
+          orderNumber,
+          "paid",
+          PAID_STATUS_ID > 0 ? PAID_STATUS_ID : undefined
+        );
+        console.log(`[payment-verify] Sitniks update result: ${updated}`);
+        return NextResponse.json({ success: true, updated, orderNumber, status: "Approved" });
+      }
+    }
+
+    // Payment not approved — clean up pending order if exists
+    const pending = await getPendingOrder(orderReference);
+    if (pending && (statusInfo.transactionStatus === "Declined" || statusInfo.transactionStatus === "Expired")) {
+      await deletePendingOrder(orderReference);
+      console.log(`[payment-verify] Deleted pending order (${statusInfo.transactionStatus})`);
     }
 
     console.log(`[payment-verify] Status is ${statusInfo.transactionStatus}, no Sitniks update`);

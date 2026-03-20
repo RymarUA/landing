@@ -29,6 +29,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# Pending online orders (temporary pre-payment storage)
+data/pending-orders/
+
 # vercel
 .vercel
 

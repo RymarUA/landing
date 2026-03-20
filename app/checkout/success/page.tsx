@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Instagram, Home, Package, ArrowRight } from "lucide-react";
@@ -18,10 +18,14 @@ import { ShopFooter } from "@/components/shop-footer";
 function SuccessContent() {
   const params = useSearchParams();
   
-  // Try multiple parameter names that WayForPay might send
-  const orderNumber = params.get("ref") || params.get("orderReference") || params.get("orderNo") || "—";
+  const rawRef = params.get("ref") || params.get("orderReference") || params.get("orderNo") || "—";
   const paymentMethod = params.get("method") ?? "online";
   const amount = Number(params.get("amount") ?? 0);
+  
+  // For new-style pending orders (op{timestamp}), real order number is set after verify
+  const isPendingRef = rawRef.startsWith("op") && /^op\d+$/.test(rawRef);
+  const [realOrderNumber, setRealOrderNumber] = useState<string | null>(null);
+  const orderNumber = realOrderNumber ?? (isPendingRef ? "—" : rawRef);
   
   // Debug: log all received parameters
   if (typeof window !== "undefined") {
@@ -59,8 +63,9 @@ function SuccessContent() {
       .then(res => res.json())
       .then(data => {
         console.log("[Checkout Success] Verify result:", data);
-        if (data.updated) {
-          console.log("[Checkout Success] ✅ Sitniks updated to Оплачено");
+        if (data.updated && data.orderNumber) {
+          console.log("[Checkout Success] ✅ Sitniks order created:", data.orderNumber);
+          setRealOrderNumber(String(data.orderNumber));
         } else {
           console.log("[Checkout Success] Status from WayForPay:", data.status);
         }
@@ -69,7 +74,7 @@ function SuccessContent() {
       .catch(err => {
         console.error("[Checkout Success] Verify failed:", err);
       });
-  }, [orderNumber, paymentMethod, params]);
+  }, [rawRef, paymentMethod, params]);
 
   /* Clear cart + fire analytics Purchase event once per order */
   useEffect(() => {

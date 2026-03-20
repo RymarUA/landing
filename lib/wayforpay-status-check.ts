@@ -12,9 +12,12 @@ interface WfpStatusResponse {
   reasonCode: number;
   reason: string;
   transactionStatus: string;
-  amount: string;
+  amount: string | number;
   currency: string;
   orderReference: string;
+  merchantAccount?: string;
+  authCode?: string;
+  cardPan?: string;
   merchantSignature: string;
 }
 
@@ -61,12 +64,28 @@ export async function checkWayForPayStatus(
     
     // Verify response signature
     if (data.merchantSignature) {
+      // ИСПРАВЛЕНО: Правильная последовательность полей для проверки подписи CHECK_STATUS
+      // merchantAccount;orderReference;amount;currency;authCode;cardPan;transactionStatus;reasonCode
+      const parts = [
+        data.merchantAccount || config.merchantAccount,
+        data.orderReference || orderReference,
+        data.amount,
+        data.currency,
+        data.authCode || "",
+        data.cardPan || "",
+        data.transactionStatus,
+        data.reasonCode
+      ];
+      
+      const expectedSignatureString = parts.join(";");
       const expectedSignature = createHmac("md5", config.secretKey)
-        .update(`${orderReference};${data.transactionStatus};${data.reasonCode}`, "utf8")
+        .update(expectedSignatureString, "utf8")
         .digest("hex");
       
       if (data.merchantSignature.toLowerCase() !== expectedSignature.toLowerCase()) {
         console.error("[WFP Status Check] Invalid response signature");
+        console.error("[WFP Status Check] Expected:", expectedSignature, "Got:", data.merchantSignature);
+        console.error("[WFP Status Check] Signature string:", expectedSignatureString);
         return null;
       }
     }

@@ -38,20 +38,20 @@ function SuccessContent() {
 
   /* Verify payment via WayForPay API and update Sitniks (fallback if webhook fails) */
   useEffect(() => {
-    if (paymentMethod !== "online" || orderNumber === "—") return;
-    
-    const verifyKey = `verified-${orderNumber}`;
-    const hasVerified = typeof window !== "undefined" ? sessionStorage.getItem(verifyKey) : null;
-    if (hasVerified) return;
-    
-    // Use full orderReference (e.g. "4_p1774017855622") for real WayForPay status check
-    // Do NOT trust the "status" URL param - WayForPay returnUrl status is unreliable
+    if (paymentMethod !== "online") return;
+
+    // Use the full orderReference from URL for WayForPay CHECK_STATUS
     const orderReference = params.get("orderReference");
-    
+
     if (!orderReference) {
       console.log("[Checkout Success] No orderReference in URL, skipping verify");
       return;
     }
+
+    // Use orderReference as key (not orderNumber which may be "—" for pending orders)
+    const verifyKey = `verified-${orderReference}`;
+    const hasVerified = typeof window !== "undefined" ? sessionStorage.getItem(verifyKey) : null;
+    if (hasVerified) return;
     
     console.log("[Checkout Success] Verifying via WayForPay API:", orderReference);
     

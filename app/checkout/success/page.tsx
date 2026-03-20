@@ -32,39 +32,42 @@ function SuccessContent() {
   
   const isCOD = paymentMethod === "cod";
 
-  /* Update Sitniks order status for online payments (fallback if webhook fails) */
+  /* Verify payment via WayForPay API and update Sitniks (fallback if webhook fails) */
   useEffect(() => {
-    // Only for online payments with approved status
     if (paymentMethod !== "online" || orderNumber === "—") return;
     
     const verifyKey = `verified-${orderNumber}`;
     const hasVerified = typeof window !== "undefined" ? sessionStorage.getItem(verifyKey) : null;
     if (hasVerified) return;
     
-    // WayForPay passes status in URL via /api/payment/return
-    const paymentStatus = params.get("status");
+    // Use full orderReference (e.g. "4_p1774017855622") for real WayForPay status check
+    // Do NOT trust the "status" URL param - WayForPay returnUrl status is unreliable
+    const orderReference = params.get("orderReference");
     
-    console.log("[Checkout Success] Online payment detected, orderNumber:", orderNumber, "status:", paymentStatus);
+    if (!orderReference) {
+      console.log("[Checkout Success] No orderReference in URL, skipping verify");
+      return;
+    }
     
-    // Call verify endpoint to update Sitniks order status
+    console.log("[Checkout Success] Verifying via WayForPay API:", orderReference);
+    
     fetch("/api/payment/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        orderNumber,
-        status: paymentStatus || "Approved"
-      }),
+      body: JSON.stringify({ orderReference }),
     })
       .then(res => res.json())
       .then(data => {
-        console.log("[Checkout Success] Payment verify result:", data);
-        if (data.success) {
-          console.log("[Checkout Success] ✅ Sitniks order updated");
+        console.log("[Checkout Success] Verify result:", data);
+        if (data.updated) {
+          console.log("[Checkout Success] ✅ Sitniks updated to Оплачено");
+        } else {
+          console.log("[Checkout Success] Status from WayForPay:", data.status);
         }
         sessionStorage.setItem(verifyKey, "true");
       })
       .catch(err => {
-        console.error("[Checkout Success] Payment verify failed:", err);
+        console.error("[Checkout Success] Verify failed:", err);
       });
   }, [orderNumber, paymentMethod, params]);
 

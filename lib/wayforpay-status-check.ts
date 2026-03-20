@@ -28,8 +28,8 @@ export async function checkWayForPayStatus(
   try {
     const config = getWfpConfig();
     
-    // Build signature for status check
-    const signatureString = orderReference;
+    // Build signature for CHECK_STATUS: merchantAccount;orderReference
+    const signatureString = `${config.merchantAccount};${orderReference}`;
     const merchantSignature = createHmac("md5", config.secretKey)
       .update(signatureString, "utf8")
       .digest("hex");

@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const department = body.warehouse ?? "";
+    const department = body.warehouse ?? body.department ?? "";
     const departmentRef = body.departmentRef ?? "";
     
     console.log("[/api/checkout] Received data:");

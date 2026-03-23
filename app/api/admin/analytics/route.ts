@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sitniksSafe } from "@/lib/sitniks-consolidated";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
+  return requireAdminAuth(req, async (_req, admin) => {
+    try {
+      const { searchParams } = new URL(_req.url);
+      console.log(`[api/admin/analytics] Fetching analytics for admin: ${admin.email}`);
     const startDate = searchParams.get("start");
     const endDate = searchParams.get("end");
 
@@ -135,4 +138,5 @@ export async function GET(req: NextRequest) {
     console.error("[api/admin/analytics] Error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
+  });
 }

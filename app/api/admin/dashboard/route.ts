@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { sitniksSafe } from "@/lib/sitniks-consolidated";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 interface DashboardStats {
   todayOrders: number;
@@ -37,9 +38,10 @@ interface DashboardData {
   stats: DashboardStats;
 }
 
-export async function GET(_req: NextRequest) {
-  try {
-    console.log("[api/admin/dashboard] Fetching dashboard data");
+export async function GET(req: NextRequest) {
+  return requireAdminAuth(req, async (_req, admin) => {
+    try {
+      console.log(`[api/admin/dashboard] Fetching dashboard data for admin: ${admin.email}`);
 
     // Get today's date range
     const today = new Date();
@@ -104,4 +106,5 @@ export async function GET(_req: NextRequest) {
     console.error("[api/admin/dashboard] Error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
+  });
 }

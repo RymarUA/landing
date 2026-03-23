@@ -271,12 +271,14 @@ export async function POST(req: NextRequest) {
     // Total discount is promo discount + online payment discount
     const totalServerDiscount = serverDiscountAmount + onlinePaymentDiscount;
     
-    // Use the lesser of server-calculated discount and client-requested discount
-    const requestedDiscount = Math.max(0, Number(body.discountAmount) || 0);
-    const discountAmount = Math.min(totalServerDiscount, requestedDiscount, serverTotal);
+    // SECURITY: Always use server-calculated discount, ignore client-requested amount
+    // Client could manipulate discountAmount to reduce their discount
+    const discountAmount = Math.min(totalServerDiscount, serverTotal);
     
-    if (discountAmount !== requestedDiscount) {
-      console.warn(`[checkout] Discount mismatch: client=${requestedDiscount}, server=${totalServerDiscount}, applied=${discountAmount}`);
+    // Log if client sent different discount (for debugging)
+    const requestedDiscount = Math.max(0, Number(body.discountAmount) || 0);
+    if (requestedDiscount !== totalServerDiscount) {
+      console.warn(`[checkout] Client discount ignored: client=${requestedDiscount}, server=${totalServerDiscount}, applied=${discountAmount}`);
     }
 
     const paymentItems = buildPaymentItemsForWayForPay(resolvedItems, discountAmount);

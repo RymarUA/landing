@@ -8,10 +8,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getOtp, deleteOtp, normalizePhoneForAuth } from "@/lib/otp-store";
+import { getOtp, deleteOtp, normalizePhoneForAuth, incrementOtpAttempts } from "@/lib/otp-store";
 import { signJwt } from "@/lib/auth-jwt";
 import { normalizeEmail } from "@/lib/email-otp";
 import { findOrCreateSitniksCustomer } from "@/lib/sitniks-customers";
+
+// Maximum OTP verification attempts before blocking
+const MAX_OTP_ATTEMPTS = 5;
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -64,9 +67,36 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (entry.code !== otp) {
+  // Check if too many attempts
+  if (entry.attempts >= MAX_OTP_ATTEMPTS) {
+    await deleteOtp(identifier);
     return NextResponse.json(
-      { error: "Невірний код" },
+      { error: "Занадто багато невірних спроб. Запросіть новий код" },
+      { status: 429 }
+    );
+  }
+
+  if (entry.code !== otp) {
+    // Increment attempt counter on failed verification
+    const updatedEntry = await incrementOtpAttempts(identifier);
+    
+    const remainingAttempts = updatedEntry 
+      ? MAX_OTP_ATTEMPTS - updatedEntry.attempts 
+      : 0;
+    
+    if (remainingAttempts <= 0) {
+      await deleteOtp(identifier);
+      return NextResponse.json(
+        { error: "Занадто багато невірних спроб. Запросіть новий код" },
+        { status: 429 }
+      );
+    }
+    
+    return NextResponse.json(
+      { 
+        error: "Невірний код",
+        remainingAttempts 
+      },
       { status: 400 }
     );
   }

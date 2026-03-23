@@ -11,12 +11,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkWayForPayStatus } from "@/lib/wayforpay-status-check";
 import { updateSitniksOrder } from "@/lib/sitniks-consolidated";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
+  return requireAdminAuth(req, async (_req, admin) => {
+    try {
+      console.log(`[check-payment] Request from admin: ${admin.email}`);
+      const body = await _req.json();
     const { orderReference } = body;
     
     if (!orderReference) {
@@ -81,4 +84,5 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  });
 }

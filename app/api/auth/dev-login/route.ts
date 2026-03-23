@@ -12,6 +12,14 @@ import { signJwt } from "@/lib/auth-jwt";
 import { findOrCreateSitniksCustomer } from "@/lib/sitniks-customers";
 
 export async function POST(req: NextRequest) {
+  // SECURITY: Only allow dev-login in development environment
+  if (process.env.NODE_ENV !== "development") {
+    return NextResponse.json(
+      { error: "This endpoint is only available in development" },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await req.json();
     const email = body.email;

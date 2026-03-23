@@ -35,9 +35,6 @@ const baseEnv = {
   NODE_ENV: 'production',
   PORT: 3000,
   ...sharedEnv,
-  // ⚠️ ВАЖНО: НЕ устанавливайте VERCEL переменные для CDN режима!
-  // VERCEL: '1',  ❌ НЕТ! Это отключит CDN и стили не загрузятся
-  // NEXT_PUBLIC_VERCEL: '1',  ❌ НЕТ!
 };
 
 module.exports = {
@@ -46,7 +43,7 @@ module.exports = {
       name: 'familyhub',
       script: 'scripts/start-with-build.js',
       args: '-p 3000',
-      cwd: '/var/www/familyhub',
+      cwd: process.cwd(), // Use current working directory instead of hardcoded path
       instances: 1,
       exec_mode: 'fork',
       env: baseEnv,

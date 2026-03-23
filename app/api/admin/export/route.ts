@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 // Helper functions for sanitization
 function sanitizeHtml(str: string): string {
@@ -20,8 +21,10 @@ function sanitizeCsvField(str: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
+  return requireAdminAuth(req, async (_req, admin) => {
+    try {
+      console.log(`[api/admin/export] Export request from admin: ${admin.email}`);
+      const { searchParams } = new URL(_req.url);
     const format = searchParams.get("format") as "csv" | "pdf";
 
     if (!format || !["csv", "pdf"].includes(format)) {
@@ -123,4 +126,5 @@ export async function GET(req: NextRequest) {
     console.error("[api/admin/export] Error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
+  });
 }

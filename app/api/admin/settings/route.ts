@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 interface SiteSettings {
   siteName: string;
@@ -90,9 +91,10 @@ function getSettingsFromEnv(): SiteSettings {
   };
 }
 
-export async function GET(_req: NextRequest) {
-  try {
-    console.log("[api/admin/settings] Fetching settings");
+export async function GET(req: NextRequest) {
+  return requireAdminAuth(req, async (_req, admin) => {
+    try {
+      console.log(`[api/admin/settings] Fetching settings for admin: ${admin.email}`);
     
     const settings = getSettingsFromEnv();
     
@@ -101,13 +103,15 @@ export async function GET(_req: NextRequest) {
     console.error("[api/admin/settings] GET Error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
+  });
 }
 
 export async function PUT(req: NextRequest) {
-  try {
-    console.log("[api/admin/settings] Updating settings");
+  return requireAdminAuth(req, async (_req, admin) => {
+    try {
+      console.log(`[api/admin/settings] Updating settings for admin: ${admin.email}`);
     
-    const body = await req.json();
+    const body = await _req.json();
     console.log("[api/admin/settings] Received body:", body);
     
     const newSettings = body.settings as SiteSettings;
@@ -155,4 +159,5 @@ export async function PUT(req: NextRequest) {
       error: error instanceof Error ? error.message : "Internal error" 
     }, { status: 500 });
   }
+  });
 }

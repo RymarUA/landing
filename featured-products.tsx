@@ -2,6 +2,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Flame, ChevronRight, ChevronLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { ModernProductCard } from "@/components/modern-product-card";
@@ -17,18 +18,44 @@ interface FeaturedProductsProps {
 }
 
 export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
+  const router = useRouter();
   const { addItem } = useCart();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const filteredProducts = products.filter((p) =>
-    type === "hits" ? p.isHit : p.isNew
-  ).slice(0, 10);
+  const filteredProducts = products
+    .filter((p) => type === "hits" ? p.isHit : p.isNew)
+    .sort((a, b) => {
+      // Sort hits by rating/popularity (if available), otherwise by ID
+      if (type === "hits") {
+        const ratingA = a.rating ?? 0;
+        const ratingB = b.rating ?? 0;
+        if (ratingA !== ratingB) return ratingB - ratingA;
+      }
+      // Sort new products by ID (assuming higher ID = newer)
+      return b.id - a.id;
+    })
+    .slice(0, 10);
 
-  useEffect(() => {
+  // Start auto-scroll interval
+  const startAutoScroll = () => {
     const container = scrollRef.current;
     if (!container || filteredProducts.length <= 3) return;
 
-    const interval = setInterval(() => {
+    // Clear existing interval
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current);
+    }
+
+    autoScrollIntervalRef.current = setInterval(() => {
+      // Check if container still exists before scrolling
+      if (!container || !container.isConnected) {
+        if (autoScrollIntervalRef.current) {
+          clearInterval(autoScrollIntervalRef.current);
+        }
+        return;
+      }
+
       const scrollWidth = container.scrollWidth;
       const clientWidth = container.clientWidth;
       const currentScroll = container.scrollLeft;
@@ -39,8 +66,27 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
         container.scrollBy({ left: 200, behavior: 'smooth' });
       }
     }, 3000);
+  };
 
-    return () => clearInterval(interval);
+  // Reset auto-scroll when user manually scrolls
+  const handleManualScroll = () => {
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current);
+    }
+    // Restart auto-scroll after 5 seconds of inactivity
+    setTimeout(() => {
+      startAutoScroll();
+    }, 5000);
+  };
+
+  useEffect(() => {
+    startAutoScroll();
+
+    return () => {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+      }
+    };
   }, [filteredProducts.length]);
 
   const handleAddToCart = (product: CatalogProduct) => {
@@ -64,14 +110,13 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
   };
 
   const handleViewAll = () => {
-    const baseUrl = "/#catalog";
-    
+    // Use Next.js router to preserve app state (cart, etc.)
     if (type === "hits") {
-      window.location.href = `${baseUrl}?category=Хіти продажів`;
+      router.push("/?category=Хіти продажів#catalog");
     } else if (type === "new") {
-      window.location.href = `${baseUrl}?sort=newest`;
+      router.push("/?sort=newest#catalog");
     } else {
-      window.location.href = baseUrl;
+      router.push("/#catalog");
     }
   };
 
@@ -82,6 +127,8 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
       left: direction === "left" ? -scrollAmount : scrollAmount,
       behavior: "smooth",
     });
+    // Reset auto-scroll after manual navigation
+    handleManualScroll();
   };
 
   if (filteredProducts.length === 0) return null;
@@ -147,6 +194,7 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
           <div
             ref={scrollRef}
             className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth"
+            onScroll={handleManualScroll}
           >
             {filteredProducts.map((product, index) => (
               <motion.div

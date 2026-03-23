@@ -10,10 +10,11 @@ process.env.NEXT_PUBLIC_SITE_URL = 'http://localhost:3000';
 // Mock console methods to reduce noise in tests
 global.console = {
   ...console,
-  // Uncomment to suppress console output during tests
-  // log: jest.fn(),
-  // debug: jest.fn(),
-  // info: jest.fn(),
-  // warn: jest.fn(),
-  // error: jest.fn(),
+  // Suppress console output during tests for cleaner CI logs
+  log: jest.fn(),
+  debug: jest.fn(),
+  info: jest.fn(),
+  // Keep warn and error for important messages
+  warn: console.warn,
+  error: console.error,
 };

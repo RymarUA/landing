@@ -6,18 +6,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCatalogProducts } from "@/lib/instagram-catalog";
 import type { CatalogProduct } from "@/lib/instagram-catalog";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 export async function POST(req: NextRequest) {
-  try {
-    // Check admin authentication
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-    const authHeader = req.headers.get("Authorization");
-    
-    if (!adminPassword || !authHeader || !authHeader.includes(`Bearer ${adminPassword}`)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    
-    const body = await req.json();
+  return requireAdminAuth(req, async (_req, admin) => {
+    try {
+      console.log(`[Cart Migration] Request from admin: ${admin.email}`);
+      const body = await _req.json();
     const { cart } = body;
     
     if (!cart || !Array.isArray(cart.items)) {
@@ -73,4 +68,5 @@ export async function POST(req: NextRequest) {
       error: "Internal server error" 
     }, { status: 500 });
   }
+  });
 }

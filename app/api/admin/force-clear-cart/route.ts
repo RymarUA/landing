@@ -4,18 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 export async function POST(req: NextRequest) {
-  try {
-    // Check admin authentication
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-    const authHeader = req.headers.get("Authorization");
-    
-    if (!adminPassword || !authHeader || !authHeader.includes(`Bearer ${adminPassword}`)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    
-    // This endpoint will be called from client-side to clear localStorage
+  return requireAdminAuth(req, async (_req, admin) => {
+    try {
+      console.log(`[Force Clear Cart] Request from admin: ${admin.email}`);
+      // This endpoint will be called from client-side to clear localStorage
     return NextResponse.json({
       success: true,
       message: "Cart cleared successfully",
@@ -28,6 +23,7 @@ export async function POST(req: NextRequest) {
       error: "Internal server error" 
     }, { status: 500 });
   }
+  });
 }
 
 export async function GET() {

@@ -41,12 +41,6 @@ export function middleware(request: NextRequest) {
     
     const key = `${ip}:${request.nextUrl.pathname}`;
     
-    for (const [k, v] of rateLimitMap.entries()) {
-      if (v.resetTime < now) {
-        rateLimitMap.delete(k);
-      }
-    }
-    
     const limit = rateLimitMap.get(key);
     
     if (limit && limit.resetTime > now) {

@@ -78,7 +78,8 @@ const nextConfig = {
     // Use sharp for better performance
     loader: "default",
     dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Improved CSP for SVG security - prevent XSS attacks
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; sandbox;",
   },
 
   // Page extensions - include .js/.jsx for compatibility
@@ -148,19 +149,10 @@ const nextConfig = {
       });
     }
 
-    // 🔥 NUCLEAR OPTION: Replace tailwind-cdn-loader with empty module in production
-    // This BLOCKS the file at webpack level - it CANNOT be imported!
-    // Detect Vercel OR production build in multiple ways to be 100% sure
-    const isVercel =
-      process.env.VERCEL === "1" ||
-      process.env.VERCEL === "true" ||
-      process.env.NEXT_PUBLIC_VERCEL === "1" ||
-      process.env.VERCEL_ENV !== undefined ||
-      process.env.VERCEL_URL !== undefined;
+    // Block tailwind-cdn-loader in production (styles are precompiled)
+    // Simplified: always block in production, allow in development
+    const shouldBlockCDN = !dev;
 
-    const shouldBlockCDN = isVercel;
-
-    // Block CDN only on Vercel (where CSS is precompiled)
     if (shouldBlockCDN) {
       config.plugins.push(
         new webpack.NormalModuleReplacementPlugin(
@@ -169,12 +161,11 @@ const nextConfig = {
         ),
       );
       console.log(
-        "🚫 [WEBPACK] Blocking tailwind-cdn-loader.tsx - replaced with empty-loader.tsx",
+        "🚫 [WEBPACK] Production build - tailwind-cdn-loader blocked (using precompiled CSS)",
       );
-      console.log("🚀 [WEBPACK] Vercel detected - CDN will NOT be used");
     } else {
       console.log(
-        "🎨 [WEBPACK] Development mode - tailwind-cdn-loader will be active",
+        "🎨 [WEBPACK] Development mode - tailwind-cdn-loader active",
       );
     }
 

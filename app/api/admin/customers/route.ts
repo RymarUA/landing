@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { sitniksSafe } from "@/lib/sitniks-consolidated";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 interface Customer {
   id: number;
@@ -20,9 +21,10 @@ interface Customer {
   lastOrderAt?: string;
 }
 
-export async function GET(_req: NextRequest) {
-  try {
-    console.log("[api/admin/customers] Fetching customers data");
+export async function GET(req: NextRequest) {
+  return requireAdminAuth(req, async (_req, admin) => {
+    try {
+      console.log(`[api/admin/customers] Fetching customers data for admin: ${admin.email}`);
 
     // Fetch all customers
     const customersResponse = await sitniksSafe<{ data?: Customer[] }>(
@@ -81,4 +83,5 @@ export async function GET(_req: NextRequest) {
     console.error("[api/admin/customers] Error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
+  });
 }

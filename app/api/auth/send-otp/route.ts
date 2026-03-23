@@ -96,11 +96,8 @@ export async function POST(req: NextRequest) {
   if (process.env.NODE_ENV === "development") {
     console.log(`🔐 DEV MODE: OTP for ${identifier} is ${code}`);
   }
-  
-  if (type === "phone") {
-    recordOtpSentByPhone(identifier);
-  }
-  recordOtpSentByIp(ip);
+
+  let deliverySuccess = false;
 
   try {
     if (type === "email") {
@@ -110,9 +107,12 @@ export async function POST(req: NextRequest) {
         // Fallback to Telegram if email fails
         const message = `🔐 OTP для ${identifier}: ${code}\nДійсний 5 хвилин.`;
         const { sendTelegramNotification } = await import("@/lib/telegram");
-        sendTelegramNotification(message).catch((err) =>
+        await sendTelegramNotification(message).catch((err) =>
           console.error("[auth/send-otp] Telegram fallback failed:", err)
         );
+        deliverySuccess = true; // Telegram fallback succeeded
+      } else {
+        deliverySuccess = true;
       }
     } else {
       // Phone: try SMS first, fallback to Telegram
@@ -124,17 +124,21 @@ export async function POST(req: NextRequest) {
           console.error("[auth/send-otp] SMS failed:", smsResult.error);
           // Fallback to Telegram if SMS fails
           const { sendTelegramNotification } = await import("@/lib/telegram");
-          sendTelegramNotification(message).catch((err) =>
+          await sendTelegramNotification(message).catch((err) =>
             console.error("[auth/send-otp] Telegram fallback failed:", err)
           );
+          deliverySuccess = true; // Telegram fallback succeeded
+        } else {
+          deliverySuccess = true;
         }
       } catch (err: any) {
         console.error("[auth/send-otp] SMS service error:", err);
         // Fallback to Telegram if SMS service fails
         const { sendTelegramNotification } = await import("@/lib/telegram");
-        sendTelegramNotification(message).catch((err) =>
+        await sendTelegramNotification(message).catch((err) =>
           console.error("[auth/send-otp] Telegram fallback failed:", err)
         );
+        deliverySuccess = true; // Telegram fallback succeeded
       }
     }
   } catch (err: any) {
@@ -142,8 +146,24 @@ export async function POST(req: NextRequest) {
     // Final fallback to Telegram
     const message = `🔐 OTP для ${identifier}: ${code}\nДійсний 5 хвилин.`;
     const { sendTelegramNotification } = await import("@/lib/telegram");
-    sendTelegramNotification(message).catch((err) =>
+    await sendTelegramNotification(message).catch((err) =>
       console.error("[auth/send-otp] Telegram fallback failed:", err)
+    );
+    deliverySuccess = true; // Telegram fallback succeeded
+  }
+
+  // SECURITY: Only record rate limiting AFTER successful delivery
+  // This prevents users from exhausting attempts when delivery fails
+  if (deliverySuccess) {
+    if (type === "phone") {
+      await recordOtpSentByPhone(identifier);
+    }
+    await recordOtpSentByIp(ip);
+  } else {
+    console.error("[auth/send-otp] All delivery methods failed, not recording rate limit");
+    return NextResponse.json(
+      { error: "Не вдалося відправити код. Спробуйте пізніше." },
+      { status: 500 }
     );
   }
 

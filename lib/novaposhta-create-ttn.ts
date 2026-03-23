@@ -150,7 +150,7 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
     if (params.backwardDeliveryMoney) {
       methodProperties.BackwardDeliveryData = [{
         PayerType: 'Recipient',
-        CargoType: 'Money',
+        CargoType: 'Cash',
         RedeliveryString: String(Math.round(params.backwardDeliveryMoney)),
       }];
     }

@@ -78,14 +78,15 @@ export default async function ProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const product = await getCatalogProductById(Number(id));
+  const [product, allProducts] = await Promise.all([
+    getCatalogProductById(Number(id)),
+    getCatalogProducts(),
+  ]);
   if (!product) notFound();
 
   const discount = product.oldPrice
     ? Math.round((1 - product.price / product.oldPrice) * 100)
     : null;
-
-  const allProducts = await getCatalogProducts();
   const related: typeof allProducts = [];
   for (const p of allProducts) {
     if (p.category === product.category && p.id !== product.id) {

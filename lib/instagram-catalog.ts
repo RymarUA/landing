@@ -22,6 +22,7 @@
 
 import {
   getAllSitniksProducts,
+  getSitniksProducts,
   getSitniksProductById as getSitniksProductByIdRaw,
   type SitniksProduct,
   type SitniksVariation,
@@ -77,56 +78,33 @@ const DEFAULT_BADGE_COLOR: Record<string, string> = {
   "Акція":   "bg-purple-500 text-white",
 };
 
-// In-memory cache for variation → product mapping (avoids repeated API calls)
-const variationToProductCache = new Map<number, number>();
-let variationCacheBuildPromise: Promise<void> | null = null;
-let variationCacheBuilt = false;
+/**
+ * Find a product by its variation ID using a targeted Sitniks API search.
+ * Avoids fetching the entire catalog — only fetches first page (50 products).
+ */
+async function findProductByVariationIdDirect(variationId: number): Promise<SitniksProduct | null> {
+  const res = await getSitniksProducts({ limit: 50, skip: 0 });
+  if (!res?.data) return null;
 
-async function buildVariationCache(): Promise<void> {
-  if (variationCacheBuilt) return;
-  if (variationCacheBuildPromise) {
-    await variationCacheBuildPromise;
-    return;
-  }
-
-  variationCacheBuildPromise = (async () => {
-    try {
-      const allProducts = await getAllSitniksProducts();
-      
-      for (const product of allProducts) {
-        if (!product?.variations?.length) continue;
-        for (const variation of product.variations) {
-          if (variation?.id) {
-            variationToProductCache.set(variation.id, product.id);
-          }
-        }
+  // Search first page only — if variation is not here, skip (avoid full scan)
+  for (const product of res.data) {
+    if (!product?.variations?.length) continue;
+    for (const variation of product.variations) {
+      if (variation?.id === variationId) {
+        return product;
       }
-      variationCacheBuilt = true;
-      console.log(`[catalog] Built variation cache: ${variationToProductCache.size} variations`);
-    } catch (error) {
-      console.error("[catalog] Failed to build variation cache:", error);
-    } finally {
-      variationCacheBuildPromise = null;
     }
-  })();
-
-  await variationCacheBuildPromise;
+  }
+  return null;
 }
 
 async function findProductByVariationId(variationId: number): Promise<number | null> {
-  const cached = variationToProductCache.get(variationId);
-  if (cached) {
-    console.log(`[catalog] Found variation ${variationId} → product ${cached} in cache`);
-    return cached;
+  const found = await findProductByVariationIdDirect(variationId);
+  if (found) {
+    console.log(`[catalog] Found variation ${variationId} → product ${found.id} via direct search`);
+    return found.id;
   }
-
-  await buildVariationCache();
-
-  const resolved = variationToProductCache.get(variationId) ?? null;
-  if (resolved) {
-    console.log(`[catalog] Found variation ${variationId} → product ${resolved} after cache build`);
-  }
-  return resolved;
+  return null;
 }
 
 /** Шукає значення характеристики по імені (без урахування регістру та пробілів) */
@@ -369,6 +347,18 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
  * Якщо API недоступний, повертає порожній масив для розробки.
  */
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
+  const TIMEOUT_MS = 12000;
+  const timeoutPromise = new Promise<CatalogProduct[]>((resolve) =>
+    setTimeout(() => {
+      console.error(`[getCatalogProducts] Timed out after ${TIMEOUT_MS}ms`);
+      resolve([]);
+    }, TIMEOUT_MS)
+  );
+
+  return Promise.race([timeoutPromise, _getCatalogProducts()]);
+}
+
+async function _getCatalogProducts(): Promise<CatalogProduct[]> {
   try {
     const sitniksProducts = await getAllSitniksProducts();
     
@@ -401,6 +391,18 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
  * Спочатку пробує знайти як productId, якщо не знайдено - шукає як variationId (для старих товарів у кошику)
  */
 export async function getCatalogProductById(id: number): Promise<CatalogProduct | null> {
+  const TIMEOUT_MS = 9000;
+  const timeoutPromise = new Promise<null>((resolve) =>
+    setTimeout(() => {
+      console.error(`[getCatalogProductById] Timed out after ${TIMEOUT_MS}ms for id=${id}`);
+      resolve(null);
+    }, TIMEOUT_MS)
+  );
+
+  return Promise.race([timeoutPromise, _getCatalogProductById(id)]);
+}
+
+async function _getCatalogProductById(id: number): Promise<CatalogProduct | null> {
   try {
     // Try direct product lookup first
     const product = await getSitniksProductByIdRaw(id);
@@ -408,8 +410,8 @@ export async function getCatalogProductById(id: number): Promise<CatalogProduct 
       return mapSitniksProduct(product);
     }
 
-    // Fallback: search for parent product by variation ID
-    console.log(`[getCatalogProductById] Product ${id} not found, searching as variationId...`);
+    // Fallback: search first page only (no full catalog scan)
+    console.log(`[getCatalogProductById] Product ${id} not found, searching as variationId in first page...`);
     
     const parentProductId = await findProductByVariationId(id);
     if (parentProductId) {

@@ -71,7 +71,6 @@ async function createRecipientCounterparty(
       Email: '',
       CounterpartyType: 'PrivatePerson',
       CounterpartyProperty: 'Recipient',
-      CityRef: cityRef,
     },
   });
 
@@ -150,7 +149,7 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
     if (params.backwardDeliveryMoney) {
       methodProperties.BackwardDeliveryData = [{
         PayerType: 'Recipient',
-        CargoType: 'Cash',
+        CargoType: 'Money',
         RedeliveryString: String(Math.round(params.backwardDeliveryMoney)),
       }];
     }

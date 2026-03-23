@@ -92,6 +92,7 @@ async function buildVariationCache(): Promise<void> {
   variationCacheBuildPromise = (async () => {
     try {
       const allProducts = await getAllSitniksProducts();
+      
       for (const product of allProducts) {
         if (!product?.variations?.length) continue;
         for (const variation of product.variations) {
@@ -370,8 +371,9 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   try {
     const sitniksProducts = await getAllSitniksProducts();
+    
     // Виключаємо товар з налаштуваннями сайту (SKU = "SITE_SETTINGS" або назва "Налаштування сайту")
-    const catalogProducts = sitniksProducts.filter(p => {
+    const catalogProducts = sitniksProducts.filter((p: SitniksProduct) => {
       const sku = p.sku?.toUpperCase();
       const title = p.title?.toLowerCase();
       const name = p.name?.toLowerCase();

@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkWayForPayStatus } from "@/lib/wayforpay-status-check";
 import { updateSitniksOrder, createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
 import { getPendingOrder, deletePendingOrder } from "@/lib/pending-orders-store";
+import { acquireOrderLock, releaseOrderLock, markOrderProcessed } from "@/lib/order-processing-lock";
 
 const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
 
@@ -49,26 +50,49 @@ export async function POST(req: NextRequest) {
 
       if (pending) {
         // ── New flow: create Sitniks order with PAID status ──
-        console.log(`[payment-verify] Found pending order, creating in Sitniks`);
-        const paidDto = {
-          ...pending.dto,
-          ...(PAID_STATUS_ID > 0 ? { statusId: PAID_STATUS_ID } : {}),
-        } as CreateOrderDto;
-
-        const sitniksOrder = await createSitniksOrder(paidDto);
-
-        if (sitniksOrder) {
-          await deletePendingOrder(orderReference);
-          console.log(`[payment-verify] ✅ Created Sitniks order #${sitniksOrder.orderNumber} as Оплачено`);
+        // CRITICAL: Acquire lock to prevent race condition with webhook endpoint
+        const lockAcquired = await acquireOrderLock(orderReference);
+        
+        if (!lockAcquired) {
+          console.log(`[payment-verify] Order ${orderReference} already being processed or completed`);
           return NextResponse.json({
             success: true,
-            updated: true,
-            orderNumber: sitniksOrder.orderNumber,
+            updated: false,
+            orderNumber,
             status: "Approved",
+            message: "Order already processed"
           });
-        } else {
-          console.error(`[payment-verify] ❌ Failed to create Sitniks order from pending`);
-          return NextResponse.json({ success: false, error: "Failed to create Sitniks order" }, { status: 500 });
+        }
+
+        try {
+          console.log(`[payment-verify] Found pending order, creating in Sitniks`);
+          const paidDto = {
+            ...pending.dto,
+            ...(PAID_STATUS_ID > 0 ? { statusId: PAID_STATUS_ID } : {}),
+          } as CreateOrderDto;
+
+          const sitniksOrder = await createSitniksOrder(paidDto);
+
+          if (sitniksOrder) {
+            await deletePendingOrder(orderReference);
+            await markOrderProcessed(orderReference);
+            await releaseOrderLock(orderReference);
+            console.log(`[payment-verify] ✅ Created Sitniks order #${sitniksOrder.orderNumber} as Оплачено`);
+            return NextResponse.json({
+              success: true,
+              updated: true,
+              orderNumber: sitniksOrder.orderNumber,
+              status: "Approved",
+            });
+          } else {
+            await releaseOrderLock(orderReference);
+            console.error(`[payment-verify] ❌ Failed to create Sitniks order from pending`);
+            return NextResponse.json({ success: false, error: "Failed to create Sitniks order" }, { status: 500 });
+          }
+        } catch (createError) {
+          await releaseOrderLock(orderReference);
+          console.error(`[payment-verify] Exception during order creation:`, createError);
+          throw createError;
         }
       } else {
         // ── Old flow: update existing Sitniks order ──

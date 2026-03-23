@@ -184,10 +184,11 @@ export async function POST(req: NextRequest) {
     }
 
     const department = body.warehouse ?? "";
+    const departmentRef = body.departmentRef ?? "";
     
     console.log("[/api/checkout] Received data:");
     console.log("  cityRef:", body.cityRef);
-    console.log("  departmentRef:", body.departmentRef);
+    console.log("  departmentRef:", departmentRef);
     console.log("  city:", body.city);
     console.log("  warehouse:", body.warehouse);
 
@@ -286,6 +287,22 @@ export async function POST(req: NextRequest) {
       paymentItems.reduce((sum, item) => sum + item.lineTotal, 0).toFixed(2)
     );
 
+    // Calculate discounted price per product for Sitniks CRM
+    // Distribute discount proportionally across all items
+    const productsWithDiscount = resolvedItems.map((item, index) => {
+      const originalLineTotal = item.price * item.quantity;
+      const discountedLineTotal = paymentItems[index].lineTotal;
+      const discountedPrice = item.quantity > 0 
+        ? Number((discountedLineTotal / item.quantity).toFixed(2))
+        : item.price;
+      
+      return {
+        ...item,
+        discountedPrice,
+        originalPrice: item.price,
+      };
+    });
+
     // Calculate total weight from products
     let totalWeight = 0;
     for (const item of resolvedItems) {
@@ -329,16 +346,16 @@ export async function POST(req: NextRequest) {
         email: body.email,
       },
 
-      products: resolvedItems.map((item) => ({
+      products: productsWithDiscount.map((item) => ({
         productVariationId: item.variationId,
         isUpsale: false,
-        price: item.price,
+        price: item.discountedPrice, // Use discounted price so CRM total matches payment
         quantity: item.quantity,
         title: item.size ? `${item.name} (${item.size})` : item.name,
       })),
 
       // Нова Пошта
-      ...(NP_INTEGRATION_ID > 0 && body.cityRef && body.departmentRef ? {
+      ...(NP_INTEGRATION_ID > 0 && body.cityRef && departmentRef ? {
         npDelivery: {
           integrationNovaposhtaId: NP_INTEGRATION_ID,
           price: finalAmount,
@@ -346,7 +363,7 @@ export async function POST(req: NextRequest) {
           city: body.city,
           cityRef: body.cityRef,
           department,
-          departmentRef: body.departmentRef,
+          departmentRef: departmentRef,
           serviceType: "WarehouseWarehouse",
           payerType: "Recipient",
           cargoType: "Parcel",
@@ -371,8 +388,9 @@ export async function POST(req: NextRequest) {
     if (isOnlinePayment) {
       try {
         const wfpConfig = getWfpConfig();
-        // orderReference format: op{timestamp} (no Sitniks order number - order doesn't exist yet)
-        const orderRef = `op${Date.now()}`;
+        // CRITICAL: Use crypto.randomUUID() to prevent collisions when multiple users checkout simultaneously
+        // Format: op_{uuid} - guaranteed unique even with concurrent requests
+        const orderRef = `op_${crypto.randomUUID()}`;
 
         // Store full order DTO for later creation in Sitniks after payment confirmed
         await savePendingOrder(orderRef, {

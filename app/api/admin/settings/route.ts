@@ -9,6 +9,9 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/admin-auth";
+import { getKVStore } from "@/lib/persistent-kv-store";
+
+const SETTINGS_KEY = "admin:site_settings";
 
 interface SiteSettings {
   siteName: string;
@@ -62,9 +65,26 @@ const defaultSettings: SiteSettings = {
   },
 };
 
-// In a real application, you would store settings in a database
-// For now, we'll use environment variables and fallback to defaults
-function getSettingsFromEnv(): SiteSettings {
+/**
+ * Get settings from KV Store (Redis) or fallback to ENV/defaults
+ */
+async function getSettings(): Promise<SiteSettings> {
+  const kv = getKVStore();
+  
+  try {
+    // Try to get saved settings from KV Store
+    const savedSettings = await kv.get<SiteSettings>(SETTINGS_KEY);
+    
+    if (savedSettings) {
+      console.log("[admin/settings] Loaded settings from KV Store");
+      return savedSettings;
+    }
+  } catch (error) {
+    console.error("[admin/settings] Failed to load from KV Store:", error);
+  }
+  
+  // Fallback to ENV variables and defaults
+  console.log("[admin/settings] Using ENV/default settings");
   return {
     siteName: process.env.NEXT_PUBLIC_SITE_NAME || defaultSettings.siteName,
     siteDescription: process.env.NEXT_PUBLIC_SITE_DESCRIPTION || defaultSettings.siteDescription,
@@ -91,12 +111,23 @@ function getSettingsFromEnv(): SiteSettings {
   };
 }
 
+/**
+ * Save settings to KV Store (Redis)
+ */
+async function saveSettings(settings: SiteSettings): Promise<void> {
+  const kv = getKVStore();
+  
+  // Save settings without expiration (persistent)
+  await kv.set(SETTINGS_KEY, settings);
+  console.log("[admin/settings] Settings saved to KV Store");
+}
+
 export async function GET(req: NextRequest) {
   return requireAdminAuth(req, async (_req, admin) => {
     try {
       console.log(`[api/admin/settings] Fetching settings for admin: ${admin.email}`);
     
-    const settings = getSettingsFromEnv();
+    const settings = await getSettings();
     
     return NextResponse.json({ settings });
   } catch (error) {
@@ -137,22 +168,22 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
 
-    // In a real application, you would save settings to a database
-    // For now, we'll just log the changes and return success
-    console.log("[api/admin/settings] Settings updated successfully:", newSettings);
-    
-    // TODO: Implement actual settings persistence
-    // Options:
-    // 1. Save to database (PostgreSQL, MongoDB, etc.)
-    // 2. Save to JSON file (for simple setups)
-    // 3. Update environment variables (requires restart)
-    // 4. Save to Redis/KV for temporary storage
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: "Settings updated successfully",
-      settings: newSettings 
-    });
+    // Save settings to KV Store (Redis)
+    try {
+      await saveSettings(newSettings);
+      console.log("[api/admin/settings] Settings saved successfully:", newSettings);
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: "Settings updated successfully",
+        settings: newSettings 
+      });
+    } catch (saveError) {
+      console.error("[api/admin/settings] Failed to save settings:", saveError);
+      return NextResponse.json({ 
+        error: "Failed to save settings to storage" 
+      }, { status: 500 });
+    }
   } catch (error) {
     console.error("[api/admin/settings] PUT Error:", error);
     return NextResponse.json({ 

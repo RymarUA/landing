@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { AdminGuard } from "@/components/admin-guard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { createSitniksProduct } from "@/lib/sitniks-products";
 import { Plus, X, Upload, Image as ImageIcon } from "lucide-react";
+import Image from "next/image";
 
 interface ProductVariation {
   id: string;
@@ -53,6 +54,8 @@ function AdminProductsContent() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
@@ -87,6 +90,64 @@ function AdminProductsContent() {
         ...prev.dimensions,
         [dimension]: value,
       },
+    }));
+  };
+
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setUploadingImage(true);
+    setError(null);
+
+    try {
+      const file = files[0];
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Будь ласка, оберіть файл зображення');
+      }
+
+      // Validate file size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error('Розмір файлу не повинен перевищувати 10MB');
+      }
+
+      // Convert to base64 for preview and storage
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, base64],
+        }));
+        setUploadingImage(false);
+      };
+      reader.onerror = () => {
+        setError('Помилка завантаження зображення');
+        setUploadingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка завантаження зображення');
+      setUploadingImage(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleImageUpload(e.dataTransfer.files);
+  };
+
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
     }));
   };
 
@@ -565,15 +626,69 @@ function AdminProductsContent() {
           <Card className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-xl font-bold text-[#0F2D2A] mb-6">Зображення товару</h2>
             
-            <div className="border-2 border-dashed border-[#E7EFEA] rounded-xl p-8 text-center">
+            {/* Upload Area */}
+            <div 
+              className="border-2 border-dashed border-[#E7EFEA] rounded-xl p-8 text-center hover:border-[#7A8A84] transition-colors cursor-pointer"
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleImageUpload(e.target.files)}
+              />
               <ImageIcon size={48} className="mx-auto text-[#7A8A84] mb-4" />
               <p className="text-[#7A8A84] mb-4">Перетягніть зображення сюди або натисніть для вибору</p>
-              <Button type="button" variant="outline" className="border-[#E7EFEA] text-[#24312E] hover:bg-[#F6F4EF]">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="border-[#E7EFEA] text-[#24312E] hover:bg-[#F6F4EF]"
+                disabled={uploadingImage}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+              >
                 <Upload size={16} className="mr-2" />
-                Обрати зображення
+                {uploadingImage ? 'Завантаження...' : 'Обрати зображення'}
               </Button>
               <p className="text-xs text-[#7A8A84] mt-2">PNG, JPG до 10MB</p>
             </div>
+
+            {/* Image Preview */}
+            {formData.images.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-medium text-[#0F2D2A] mb-3">Завантажені зображення:</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {formData.images.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-square rounded-lg overflow-hidden border-2 border-[#E7EFEA]">
+                        <Image
+                          src={image}
+                          alt={`Product ${index + 1}`}
+                          width={200}
+                          height={200}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={16} />
+                      </button>
+                      {index === 0 && (
+                        <span className="absolute bottom-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">Головне</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* Помилки та кнопка відправки */}

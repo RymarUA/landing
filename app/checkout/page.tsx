@@ -154,6 +154,7 @@ export default function CheckoutPage() {
   const nameValue = watch("name") ?? "";
   const surnameValue = watch("surname") ?? "";
   const phoneValue = watch("phone") ?? "";
+  const emailValue = watch("email") ?? "";
   const cityValue = watch("city") ?? "";
 
   const promoDiscountAmount = promoResult ? Math.round(totalPrice * promoResult.discountPct / 100) : 0;
@@ -399,10 +400,12 @@ export default function CheckoutPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sessionId: sessionId.current,
-            name: name || "—",
+            cartData: {
+              items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+              totalPrice,
+            },
             phone,
-            items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
-            totalPrice,
+            email: emailValue || undefined,
           }),
         });
       } catch (error) {
@@ -418,7 +421,7 @@ export default function CheckoutPage() {
     if (fullName && phoneValue && isValidUkrainianPhone(phoneValue)) {
       registerAbandonedCart(fullName, phoneValue);
     }
-  }, [nameValue, surnameValue, phoneValue, registerAbandonedCart]);
+  }, [nameValue, surnameValue, phoneValue, emailValue, registerAbandonedCart]);
 
   const cancelAbandonedCart = useCallback(async () => {
     if (!abandonedRegistered.current) return;

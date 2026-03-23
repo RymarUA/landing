@@ -163,6 +163,7 @@ export interface SitniksOrder {
   totalAmount: number;
   createdAt: string;
   updatedAt: string;
+  managerComment?: string; // Комментарий менеджера с информацией об оплате
 }
 
 // ─── HTTP Client (from sitniks.ts) ───────────────────────────────────────────────

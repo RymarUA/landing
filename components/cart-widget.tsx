@@ -81,7 +81,11 @@ export function CartWidget() {
     };
 
     loadRecommendations();
-  }, [cartItemsKey, hydrated, items]);
+    // CRITICAL: Only cartItemsKey in dependencies, not items array
+    // items changes reference on every cart update, causing unnecessary re-renders
+    // cartItemsKey is a stable identifier that only changes when cart composition changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartItemsKey, hydrated]);
 
   // const isProductPage = pathname?.startsWith("/product/");
 

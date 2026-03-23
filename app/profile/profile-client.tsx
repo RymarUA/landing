@@ -107,6 +107,35 @@ interface Order {
   total: number;
   trackingNumber?: string;
   items: Array<{ id?: number; name: string; quantity: number; price: number; image?: string }>;
+  managerComment?: string; // Комментарий менеджера с информацией об оплате
+}
+
+// Функция для определения способа оплаты из комментария менеджера
+function getPaymentMethod(order: Order): { label: string; icon: string; color: string } {
+  const comment = order.managerComment?.toLowerCase() || '';
+  
+  // Проверяем различные варианты указания оплаты карткой
+  if (
+    comment.includes('оплата: картка') || 
+    comment.includes('оплата:card') || 
+    comment.includes('оплата: онлайн') ||
+    comment.includes('online') ||
+    comment.includes('wayforpay') ||
+    comment.includes('картка') && comment.includes('оплата')
+  ) {
+    return {
+      label: 'Картка онлайн',
+      icon: '💳',
+      color: 'text-green-700 bg-green-50 border-green-200'
+    };
+  }
+  
+  // По умолчанию - наложенный платеж
+  return {
+    label: 'Наложений платіж',
+    icon: '💵',
+    color: 'text-amber-700 bg-amber-50 border-amber-200'
+  };
 }
 
 /* ─── Status label map ───────────────────────────────── */
@@ -2699,9 +2728,9 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                           </div>
                           <div className="text-right">
                             <p className="text-xs text-gray-400 mb-2">Оплата:</p>
-                            <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg border border-amber-200">
-                              <CreditCard size={12} />
-                              Наложений платіж
+                            <span className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border ${getPaymentMethod(order).color}`}>
+                              <span className="text-sm">{getPaymentMethod(order).icon}</span>
+                              {getPaymentMethod(order).label}
                             </span>
                           </div>
                         </div>

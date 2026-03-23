@@ -28,6 +28,7 @@ import { verifyWfpWebhookSignature, buildWfpResponseSignature } from "@/lib/wayf
 import { updateSitniksOrder, createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { getPendingOrder, deletePendingOrder } from "@/lib/pending-orders-store";
+import { acquireOrderLock, releaseOrderLock, markOrderProcessed } from "@/lib/order-processing-lock";
 
 // Load status IDs from environment
 const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
@@ -96,17 +97,28 @@ export async function POST(req: NextRequest) {
 
       if (pending) {
         // ── New flow: create Sitniks order now with "Оплачено" status ──
-        console.log(`[wfp-webhook] Found pending order, creating in Sitniks with PAID status`);
-        const paidDto = {
-          ...pending.dto,
-          ...(PAID_STATUS_ID > 0 ? { statusId: PAID_STATUS_ID } : {}),
-        } as CreateOrderDto;
+        // CRITICAL: Acquire lock to prevent race condition with /verify endpoint
+        const lockAcquired = await acquireOrderLock(orderReference);
+        
+        if (!lockAcquired) {
+          console.log(`[wfp-webhook] Order ${orderReference} already being processed or completed`);
+          return buildAcceptanceResponse(orderReference, secret);
+        }
 
-        const sitniksOrder = await createSitniksOrder(paidDto);
+        try {
+          console.log(`[wfp-webhook] Found pending order, creating in Sitniks with PAID status`);
+          const paidDto = {
+            ...pending.dto,
+            ...(PAID_STATUS_ID > 0 ? { statusId: PAID_STATUS_ID } : {}),
+          } as CreateOrderDto;
 
-        if (sitniksOrder) {
-          console.info(`[wfp-webhook] ✅ Created Sitniks order #${sitniksOrder.orderNumber} as Оплачено`);
-          await deletePendingOrder(orderReference);
+          const sitniksOrder = await createSitniksOrder(paidDto);
+
+          if (sitniksOrder) {
+            console.info(`[wfp-webhook] ✅ Created Sitniks order #${sitniksOrder.orderNumber} as Оплачено`);
+            await deletePendingOrder(orderReference);
+            await markOrderProcessed(orderReference);
+            await releaseOrderLock(orderReference);
 
           const msg = [
             "✅ Оплата підтверджена!",
@@ -118,8 +130,14 @@ export async function POST(req: NextRequest) {
             `💳 Картка: ${cardMask}`,
           ].join("\n");
           sendTelegramNotification(msg).catch((e) => console.error("[wfp-webhook] Telegram failed:", e));
-        } else {
-          console.error(`[wfp-webhook] ❌ Failed to create Sitniks order for pending ${orderReference}`);
+          } else {
+            console.error(`[wfp-webhook] ❌ Failed to create Sitniks order for pending ${orderReference}`);
+            await releaseOrderLock(orderReference);
+          }
+        } catch (createError) {
+          console.error(`[wfp-webhook] Exception during order creation:`, createError);
+          await releaseOrderLock(orderReference);
+          throw createError;
         }
       } else {
         // ── Old flow: update existing Sitniks order by order number ──

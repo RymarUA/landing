@@ -193,26 +193,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const addItem = useCallback((item: Omit<CartItem, "quantity">, showToast: boolean = true): AddItemResult => {
-    let wasExisting = false;
-    let finalQuantity = 1;
-
+    // CRITICAL: Must calculate return values synchronously using a ref to capture them
+    // from inside the setItems callback
+    const resultRef = { wasExisting: false, finalQuantity: 1 };
+    
     setItems((prev) => {
       const existing = prev.find((i) => matchItem(i, item.id, item.size));
 
       if (existing) {
-        wasExisting = true;
-        finalQuantity = existing.quantity + 1;
+        resultRef.wasExisting = true;
+        resultRef.finalQuantity = existing.quantity + 1;
         if (showToast) {
-          setLastQuantityToast({ name: item.name, quantity: finalQuantity });
+          setLastQuantityToast({ name: item.name, quantity: resultRef.finalQuantity });
         }
         return prev.map((i) =>
-          matchItem(i, item.id, item.size) ? { ...i, quantity: finalQuantity } : i
+          matchItem(i, item.id, item.size) ? { ...i, quantity: resultRef.finalQuantity } : i
         );
       }
 
-      finalQuantity = 1;
+      resultRef.wasExisting = false;
+      resultRef.finalQuantity = 1;
       if (showToast) {
-        setLastQuantityToast({ name: item.name, quantity: finalQuantity });
+        setLastQuantityToast({ name: item.name, quantity: resultRef.finalQuantity });
       }
       return [...prev, { ...item, quantity: 1 }];
     });
@@ -229,7 +231,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }, 2000);
     }
 
-    return { wasExisting, quantity: finalQuantity };
+    return { wasExisting: resultRef.wasExisting, quantity: resultRef.finalQuantity };
   }, [matchItem]);
 
   const removeItem = useCallback(

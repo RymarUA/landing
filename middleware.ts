@@ -3,26 +3,39 @@ import type { NextRequest } from 'next/server';
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
-// Periodic cleanup to prevent memory leak
-// Runs every minute to remove expired entries
-if (typeof setInterval !== 'undefined') {
-  const cleanupInterval = setInterval(() => {
-    const now = Date.now();
-    let cleaned = 0;
-    for (const [key, value] of rateLimitMap.entries()) {
-      if (value.resetTime < now) {
-        rateLimitMap.delete(key);
-        cleaned++;
+// Track last cleanup time to avoid cleaning on every request
+let lastCleanup = 0;
+const CLEANUP_INTERVAL = 60000; // Cleanup every 60 seconds
+const CLEANUP_BATCH_SIZE = 100; // Max entries to clean per request
+
+/**
+ * Lazy cleanup: removes expired entries during request processing
+ * This is serverless/edge-compatible (no setInterval antipattern)
+ */
+function cleanupExpiredEntries(now: number): void {
+  // Only cleanup if enough time has passed since last cleanup
+  if (now - lastCleanup < CLEANUP_INTERVAL) {
+    return;
+  }
+  
+  lastCleanup = now;
+  let cleaned = 0;
+  
+  // Cleanup expired entries (limit batch size to avoid blocking)
+  for (const [key, value] of rateLimitMap.entries()) {
+    if (value.resetTime < now) {
+      rateLimitMap.delete(key);
+      cleaned++;
+      
+      // Limit cleanup batch size to avoid performance impact
+      if (cleaned >= CLEANUP_BATCH_SIZE) {
+        break;
       }
     }
-    if (cleaned > 0) {
-      console.log(`[middleware] Cleaned ${cleaned} expired rate limit entries`);
-    }
-  }, 60000); // Cleanup every minute
+  }
   
-  // Prevent the interval from keeping the process alive
-  if (cleanupInterval.unref) {
-    cleanupInterval.unref();
+  if (cleaned > 0) {
+    console.log(`[middleware] Cleaned ${cleaned} expired rate limit entries (map size: ${rateLimitMap.size})`);
   }
 }
 
@@ -32,6 +45,10 @@ export function middleware(request: NextRequest) {
                request.headers.get('x-real-ip') ?? 
                'unknown';
     const now = Date.now();
+    
+    // Lazy cleanup: remove expired entries (serverless/edge-compatible)
+    cleanupExpiredEntries(now);
+    
     const windowMs = 60000;
     let maxRequests = 100;
     

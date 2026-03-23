@@ -3,11 +3,15 @@
  * app/api/user/orders/route.ts
  * 
  * Get orders for authenticated user from Sitniks CRM
+ * 
+ * FIXED: Now uses direct phone-based query instead of fetching all orders
+ * and filtering client-side. This prevents orders from disappearing when
+ * store has >50 total orders.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth-helpers";
-import { sitniksSafe } from "@/lib/sitniks-consolidated";
+import { getSitniksOrdersByPhone } from "@/lib/sitniks-consolidated";
 
 export async function GET(_req: NextRequest) {
   try {
@@ -21,28 +25,35 @@ export async function GET(_req: NextRequest) {
       );
     }
 
-    // Get orders from Sitniks CRM
-    // Search by phone number since that's what we have in the order
-    const orders = await sitniksSafe<{ data: any[] }>(
-      "GET",
-      `/open-api/orders?limit=50&sort=-createdAt`
-    );
-
-    if (!orders || !orders.data) {
-      return NextResponse.json({ orders: [] });
+    // Require phone number for order lookup
+    if (!currentUser.phone) {
+      return NextResponse.json({ 
+        orders: [],
+        total: 0,
+        message: "Phone number required to fetch orders"
+      });
     }
 
-    // Filter orders by userId in managerComment or externalId
-    const userOrders = orders.data.filter((order: any) => {
+    // FIXED: Use direct phone-based query instead of global fetch + filter
+    // This ensures ALL user orders are returned, not just those in the last 50 global orders
+    const orders = await getSitniksOrdersByPhone(currentUser.phone);
+
+    if (!orders || !Array.isArray(orders)) {
+      return NextResponse.json({ orders: [], total: 0 });
+    }
+
+    // Optional: Additional filtering by userId if needed for extra security
+    const userOrders = orders.filter((order: any) => {
+      // If order has userId in metadata, verify it matches
       const hasUserId = 
         order.managerComment?.includes(`UserID: ${currentUser.userId}`) ||
         order.externalId?.includes(`-user-${currentUser.userId}`);
       
-      // Also match by phone if available
-      const hasPhone = currentUser.phone && 
-        order.client?.phone === currentUser.phone;
+      // If no userId metadata, trust phone match (orders created before userId tracking)
+      const noUserId = !order.managerComment?.includes("UserID:") && 
+                       !order.externalId?.includes("-user-");
       
-      return hasUserId || hasPhone;
+      return hasUserId || noUserId;
     });
 
     // Transform orders to simplified format

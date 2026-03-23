@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth-jwt";
-import { normalizePhoneForAuth, getOtp, deleteOtp } from "@/lib/otp-store";
+import { normalizePhoneForAuth, getOtp, deleteOtp, incrementOtpAttempts } from "@/lib/otp-store";
+
+// Maximum OTP verification attempts before blocking
+const MAX_OTP_ATTEMPTS = 5;
 
 export async function POST(req: NextRequest) {
   // Verify authentication
@@ -68,8 +71,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "OTP not found or expired" }, { status: 400 });
   }
 
+  // Check if OTP expired
+  if (Date.now() > storedOtpEntry.expiresAt) {
+    await deleteOtp(normalizedPhone);
+    return NextResponse.json({ error: "OTP expired" }, { status: 400 });
+  }
+
+  // Check if too many attempts
+  if (storedOtpEntry.attempts >= MAX_OTP_ATTEMPTS) {
+    await deleteOtp(normalizedPhone);
+    return NextResponse.json(
+      { error: "Too many failed attempts. Request a new code" },
+      { status: 429 }
+    );
+  }
+
+  // CRITICAL: Increment attempt counter on failed verification to prevent brute-force
   if (storedOtpEntry.code !== otpRaw) {
-    return NextResponse.json({ error: "Invalid OTP code" }, { status: 400 });
+    const updatedEntry = await incrementOtpAttempts(normalizedPhone);
+    
+    const remainingAttempts = updatedEntry 
+      ? MAX_OTP_ATTEMPTS - updatedEntry.attempts 
+      : 0;
+    
+    if (remainingAttempts <= 0) {
+      await deleteOtp(normalizedPhone);
+      return NextResponse.json(
+        { error: "Too many failed attempts. Request a new code" },
+        { status: 429 }
+      );
+    }
+    
+    return NextResponse.json(
+      { 
+        error: "Invalid OTP code",
+        remainingAttempts 
+      },
+      { status: 400 }
+    );
   }
 
   // Delete OTP after successful verification

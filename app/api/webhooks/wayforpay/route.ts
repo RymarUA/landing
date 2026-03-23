@@ -150,11 +150,11 @@ export async function POST(req: NextRequest) {
       console.error(`[wfp-webhook] ❌ Exception for order ${orderReference}:`, msg);
     }
   } else if (transactionStatus === "Declined" || transactionStatus === "Expired") {
-    // For pending orders: just delete the pending file (no Sitniks order was created)
+    // For declined payments: keep pending order for retry attempts
+    // Only delete when payment is approved. This allows customers to try again.
     const pending = await getPendingOrder(orderReference);
     if (pending) {
-      await deletePendingOrder(orderReference);
-      console.info(`[wfp-webhook] Deleted pending order ${orderReference} (${transactionStatus})`);
+      console.info(`[wfp-webhook] Payment ${transactionStatus} for order ${orderReference} - keeping pending order for retry`);
     } else {
       // Old flow: cancel existing Sitniks order
       const originalOrderNumber = orderReference.includes("_p")

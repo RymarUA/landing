@@ -213,7 +213,7 @@ export async function sitniksSafe<T>(
     const res = await fetch(`${config.apiUrl}${path}`, {
       method,
       headers,
-      body: JSON.stringify(body),
+      body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
       signal: controller.signal,
       // @ts-ignore Next.js revalidate option for fetch
       next: options?.revalidate !== undefined ? { revalidate: options.revalidate } : undefined,
@@ -269,7 +269,7 @@ async function sitniksWithoutThrow<T>(
     const res = await fetch(`${config.apiUrl}${path}`, {
       method,
       headers,
-      body: JSON.stringify(body),
+      body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
       // @ts-ignore Next.js revalidate option for fetch
       next: options?.revalidate !== undefined ? { revalidate: options.revalidate } : undefined,
     });
@@ -362,6 +362,8 @@ export async function getAllSitniksProducts(): Promise<SitniksProduct[]> {
   const all: SitniksProduct[] = [];
   let skip = 0;
   const limit = 50;
+  const maxRetries = 3;
+  let consecutiveErrors = 0;
 
   while (true) {
     const page = await getSitniksProducts({ limit, skip });
@@ -369,9 +371,46 @@ export async function getAllSitniksProducts(): Promise<SitniksProduct[]> {
     // Debug: log what we get
     console.log(`[sitniks] Page ${skip}-${skip + limit}:`, page ? `${page.data.length} products, total ${page.total}` : 'null');
     
-    // If API fails and returns empty, stop pagination
-    if (!page || page.data.length === 0) {
-      break;
+    // If API fails completely (null), retry up to maxRetries times
+    if (!page) {
+      consecutiveErrors++;
+      console.error(`[sitniks] API request failed (attempt ${consecutiveErrors}/${maxRetries})`);
+      
+      if (consecutiveErrors >= maxRetries) {
+        console.error(`[sitniks] Failed after ${maxRetries} consecutive errors. Stopping pagination to prevent data loss.`);
+        console.error(`[sitniks] Current progress: ${all.length} products loaded. Last successful skip: ${skip - limit}`);
+        throw new Error(`Sitniks API failed after ${maxRetries} consecutive attempts. Catalog update aborted to prevent data loss.`);
+      }
+      
+      // Wait before retry (exponential backoff)
+      const delay = Math.min(1000 * Math.pow(2, consecutiveErrors - 1), 5000);
+      console.log(`[sitniks] Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      continue;
+    }
+    
+    // Reset error counter on successful request
+    consecutiveErrors = 0;
+    
+    // If we get empty data but expected products, this might be an API issue
+    if (page.data.length === 0) {
+      if (skip === 0) {
+        // First page is empty - likely no products at all
+        console.warn(`[sitniks] First page returned no products. Catalog might be empty.`);
+        break;
+      } else {
+        // Middle page is empty - this is suspicious, might be API issue
+        console.warn(`[sitniks] Page ${skip} returned empty data but we have ${all.length} products already. This might indicate API issues.`);
+        console.warn(`[sitniks] Expected total: ${page.total}, but got 0 products on page ${skip}.`);
+        
+        // If we have some products and total > 0, this is likely an API error
+        if (all.length > 0 && page.total > all.length) {
+          throw new Error(`Sitniks API returned empty page ${skip} but expected more products (total: ${page.total}, loaded: ${all.length}). Stopping to prevent data loss.`);
+        }
+        
+        // Otherwise, this might be legitimate end of pagination
+        break;
+      }
     }
     
     all.push(...page.data);
@@ -423,8 +462,12 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
     let product: SitniksProduct | undefined;
     
     if (skuResponse?.data?.length) {
-      // Знайдено товар за SKU
-      product = skuResponse.data.find(p => p.sku === SETTINGS_SKU);
+      // Знайдено товар за SKU - отримуємо повний товар через точковий запит
+      const foundProduct = skuResponse.data.find(p => p.sku === SETTINGS_SKU);
+      if (foundProduct) {
+        console.log(`[sitniks] Found settings product by SKU, fetching full product data...`);
+        product = await getSitniksProductById(foundProduct.id);
+      }
     }
     
     if (!product) {
@@ -437,10 +480,14 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
       );
       
       if (nameResponse?.data?.length) {
-        product = nameResponse.data.find(p => 
+        const foundByName = nameResponse.data.find(p => 
           p.title === "Налаштування сайту" || 
           p.name === "Налаштування сайту"
         );
+        if (foundByName) {
+          console.log(`[sitniks] Found settings product by name, fetching full product data...`);
+          product = await getSitniksProductById(foundByName.id);
+        }
       }
     }
     
@@ -694,9 +741,15 @@ export async function updateSitniksOrder(
   const list = search?.data ?? [];
   console.log(`[sitniks] Search results: ${JSON.stringify(list, null, 2)}`);
   
-  const targetId = Array.isArray(list) && list.length > 0 ? list[0].id : null;
+  // Ищем точное совпадение по номеру заказа или ID
+  const targetOrder = list.find(
+    o => String(o.orderNumber) === sanitizedReference || String(o.id) === sanitizedReference
+  );
+  const targetId = targetOrder ? targetOrder.id : null;
+  
   if (!targetId) {
-    console.error(`[sitniks] Order not found: ${sanitizedReference}`);
+    console.error(`[sitniks] Order exact match not found for: ${sanitizedReference}`);
+    console.error(`[sitniks] Available orders in search results:`, list.map(o => ({ id: o.id, orderNumber: o.orderNumber })));
     return false;
   }
   
@@ -738,7 +791,7 @@ export async function getSitniksOrdersByPhone(phone: string): Promise<any[]> {
       "GET",
       `/open-api/orders?client_phone=${encodeURIComponent(phone)}`,
       undefined,
-      { revalidate: 300 } // 5 minutes cache
+      { revalidate: 0 } // no cache - user orders must be real-time
     );
     
     const list = response?.data ?? response?.orders ?? [];

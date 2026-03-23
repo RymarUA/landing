@@ -154,7 +154,7 @@ export function verifyWfpWebhookSignature(
   payload: {
     merchantAccount: string;
     orderReference: string;
-    amount: number;
+    amount: number | string;
     currency: string;
     authCode: string;
     cardPan: string;
@@ -167,7 +167,8 @@ export function verifyWfpWebhookSignature(
   const parts = [
     payload.merchantAccount,
     payload.orderReference,
-    payload.amount,
+    // CRITICAL: Format amount with 2 decimal places for signature consistency
+    Number(payload.amount).toFixed(2),
     payload.currency,
     payload.authCode,
     payload.cardPan,

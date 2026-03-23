@@ -36,6 +36,19 @@ function SuccessContent() {
   
   const isCOD = paymentMethod === "cod";
 
+  /* Clear cart for COD orders immediately */
+  useEffect(() => {
+    if (isCOD) {
+      const clearKey = `cleared-${rawRef}`;
+      const hasCleared = typeof window !== "undefined" ? sessionStorage.getItem(clearKey) : null;
+      if (hasCleared) return;
+      
+      console.log("[Checkout Success] Clearing cart for COD order");
+      clearCart();
+      sessionStorage.setItem(clearKey, "true");
+    }
+  }, [isCOD, rawRef, clearCart]);
+
   /* Verify payment via WayForPay API and update Sitniks (fallback if webhook fails) */
   useEffect(() => {
     if (paymentMethod !== "online") return;
@@ -66,6 +79,8 @@ function SuccessContent() {
         if (data.updated && data.orderNumber) {
           console.log("[Checkout Success] ✅ Sitniks order created:", data.orderNumber);
           setRealOrderNumber(String(data.orderNumber));
+          // Clear cart immediately after successful verification
+          clearCart();
         } else {
           console.log("[Checkout Success] Status from WayForPay:", data.status);
         }
@@ -76,7 +91,7 @@ function SuccessContent() {
       });
   }, [rawRef, paymentMethod, params]);
 
-  /* Clear cart + fire analytics Purchase event once per order */
+  /* Track analytics Purchase event once per order */
   useEffect(() => {
     const trackKey = `tracked-${orderNumber}`;
     const hasTracked = typeof window !== "undefined" ? sessionStorage.getItem(trackKey) : null;
@@ -105,9 +120,8 @@ function SuccessContent() {
       contents,
     });
 
-    clearCart();
     sessionStorage.setItem(trackKey, "true");
-  }, [amount, clearCart, items, orderNumber, totalPrice, paymentMethod, params]);
+  }, [amount, items, orderNumber, totalPrice, paymentMethod, params]);
 
   const steps = isCOD ? [
     { icon: "✅", label: "Замовлення прийнято", active: true },

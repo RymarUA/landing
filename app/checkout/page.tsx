@@ -15,7 +15,7 @@ import { useCart } from "@/components/cart-context";
 import { useAuth } from "@/hooks/use-auth";
 import { checkoutSchema } from "@/lib/checkout-schema";
 import { useSavedAddresses } from "@/lib/use-saved-addresses";
-import { isValidUkrainianPhone } from "@/lib/phone-utils";
+import { isValidUkrainianPhone, normalizePhone } from "@/lib/phone-utils";
 import { trackInitiateCheckout } from "@/components/analytics";
 import { cachedFetchNPCities, cachedFetchNPWarehouses } from "@/lib/novaposhta-cache";
 import { Field } from "@/components/ui/field";
@@ -444,6 +444,16 @@ export default function CheckoutPage() {
       return;
     }
     
+    // Ensure phone is properly normalized before validation
+    if (data.phone) {
+      try {
+        data.phone = normalizePhone(data.phone);
+        setValue("phone", data.phone, { shouldValidate: true });
+      } catch (error) {
+        console.log("[checkout] Phone normalization failed:", error);
+      }
+    }
+    
     setSubmitting(true);
     setServerError(null);
     trackInitiateCheckout({ value: totalPrice, numItems: totalCount });
@@ -516,7 +526,8 @@ export default function CheckoutPage() {
         phone: data.phone,
         email: data.email,
         city: data.city,
-        warehouse: data.warehouse
+        warehouse: data.warehouse,
+        orderNumber: json.orderNumber
       });
 
       if (paymentMethod === "cod") {
@@ -583,7 +594,7 @@ export default function CheckoutPage() {
       if (response.ok) {
         setAccountCreated(true);
         setTimeout(() => {
-          window.location.href = `/checkout/success?ref=order&method=cod`;
+          window.location.href = `/checkout/success?ref=${orderData?.orderNumber}&method=cod`;
         }, 2000);
       } else {
         const error = await response.json();
@@ -599,7 +610,7 @@ export default function CheckoutPage() {
   };
 
   const skipAccountCreation = () => {
-    window.location.href = `/checkout/success?ref=order&method=cod`;
+    window.location.href = `/checkout/success?ref=${orderData?.orderNumber}&method=cod`;
   };
 
   if (!mounted) return null;

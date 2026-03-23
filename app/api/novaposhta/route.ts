@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
 
     const response = await fetch(NP_API_URL, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         apiKey: API_KEY,
         modelName,

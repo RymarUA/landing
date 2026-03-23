@@ -79,9 +79,25 @@ function isValidPhone(phone: string): boolean {
 function formatPhoneDisplay(digitsOnly: string): string {
   const digits = digitsOnly.replace(/\D/g, "").slice(0, 10);
   if (!digits.length) return "";
-  if (digits.length <= 3) return "+38 (" + digits;
-  if (digits.length <= 6) return "+38 (" + digits.slice(0, 3) + ") " + digits.slice(3);
-  return "+38 (" + digits.slice(0, 3) + ") " + digits.slice(3, 6) + "-" + digits.slice(6, 8) + "-" + digits.slice(8, 10);
+  
+  // Build format progressively based on digit count
+  let formatted = "+38 (";
+  
+  formatted += digits.slice(0, Math.min(3, digits.length));
+  
+  if (digits.length > 3) {
+    formatted += ") " + digits.slice(3, Math.min(6, digits.length));
+  }
+  
+  if (digits.length > 6) {
+    formatted += "-" + digits.slice(6, Math.min(8, digits.length));
+  }
+  
+  if (digits.length > 8) {
+    formatted += "-" + digits.slice(8, 10);
+  }
+  
+  return formatted;
 }
 
 interface Order {
@@ -297,10 +313,11 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const citySearchRequestId = useRef(0);
   const [warehouseOptions, setWarehouseOptions] = useState<NPWarehouse[]>([]);
   const [warehouseLoading, setWarehouseLoading] = useState(false);
+  const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
+  const warehouseSearchRequestId = useRef(0);
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [warehouseError, setWarehouseError] = useState<string>("");
-  // const [warehouseValue, setWarehouseValue] = useState(""); // Unused
   const warehouseSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  // const warehouseSearchRequestId = useRef(0); // Unused
   const warehouseDropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -416,6 +433,12 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     setCitySearchError("");
     loadWarehouses(city.Ref);
   }, [loadWarehouses]);
+
+  useEffect(() => {
+    if (loggedPhone) {
+      setNewPhone("");
+    }
+  }, [loggedPhone]);
 
   const otpString = otp.join("");
   const router = useRouter();
@@ -539,6 +562,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         setSitniksCustomer(data.customer);
       }
     } catch (error) {
+      // Don't log abort errors as they're expected during cleanup
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       console.error("[profile] Failed to load Sitniks customer:", error);
       if (!abortController?.signal.aborted) setSitniksCustomer(null);
     } finally {
@@ -771,6 +798,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
         setOrders(transformedOrders);
       }
     } catch (error) {
+      // Don't log abort errors as they're expected during cleanup
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       console.error("[profile] Failed to load orders:", error);
       if (!abortController?.signal.aborted) setOrders([]);
     } finally {
@@ -810,7 +841,9 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
     })();
     
     return () => { 
-      abortController.abort(); 
+      if (!abortController.signal.aborted) {
+        abortController.abort(); 
+      }
     };
   }, [loadOrders, loadSitniksCustomer]);
 
@@ -1625,7 +1658,23 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                               next[i] = digit;
                               return next;
                             });
+                            
+                            // Auto-focus next input
+                            if (digit && i < 5) {
+                              setTimeout(() => {
+                                otpInputRefs.current[i + 1]?.focus();
+                              }, 0);
+                            }
                           }}
+                          onKeyDown={(e) => {
+                            // Handle backspace to go to previous input
+                            if (e.key === "Backspace" && !phoneOtp[i] && i > 0) {
+                              setTimeout(() => {
+                                otpInputRefs.current[i - 1]?.focus();
+                              }, 0);
+                            }
+                          }}
+                          ref={(el) => (otpInputRefs.current[i] = el)}
                           disabled={busy}
                           className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-black rounded-xl border-2 border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition disabled:opacity-60"
                         />
@@ -1983,18 +2032,49 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                       <div className="flex items-center gap-2">
                         <input
                           type="tel"
-                          value={loggedPhone ? formatPhoneDisplay(loggedPhone.replace(/\D/g, "").slice(-10)) : "Не додано"}
-                          disabled
-                          className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                          value={newPhone}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Extract only digits
+                            let digits = value.replace(/\D/g, "");
+                            
+                            // Remove leading "38" if user is typing it (we add it automatically)
+                            if (digits.startsWith("38") && digits.length > 2) {
+                              digits = digits.slice(2);
+                            }
+                            
+                            // If empty, clear
+                            if (!digits) {
+                              setNewPhone("");
+                              setError("");
+                              return;
+                            }
+                            
+                            // Limit to 10 digits (Ukrainian phone without country code)
+                            digits = digits.slice(0, 10);
+                            
+                            // Format and save
+                            setNewPhone(formatPhoneDisplay(digits));
+                            setError("");
+                          }}
+                          onFocus={() => {
+                            // When focusing, if showing logged phone, clear it to allow new input
+                            if (!newPhone && loggedPhone) {
+                              setNewPhone("");
+                            }
+                          }}
+                          placeholder="+38 (067) 123-45-67"
+                          className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                         />
                         <button
-                          onClick={() => setIsChangingPhone(true)}
-                          className="px-3 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors text-sm"
+                          onClick={loggedPhone ? () => setIsChangingPhone(true) : handleChangePhone}
+                          disabled={loggedPhone ? false : (!newPhone.trim() || !isValidPhone(newPhone) || busy)}
+                          className="px-3 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-sm"
                         >
-                          Змінити
+                          {loggedPhone ? "Змінити" : "Додати"}
                         </button>
                       </div>
-                      <p className="text-xs text-gray-500">Натисніть &quot;Змінити&quot; для оновлення номера</p>
+                      <p className="text-xs text-gray-500">{loggedPhone ? "Натисніть «Змінити» для оновлення номера" : "Натисніть «Додати» для додавання номера"}</p>
                     </div>
 
                     {/* Address Field */}
@@ -2170,7 +2250,7 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
                         className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-2xl transition-colors shadow-lg shadow-blue-200"
                       >
                         {busy ? <Loader2 size={18} className="animate-spin" /> : <Phone size={18} />}
-                        {busy ? "Відправляємо…" : "Отримати код"}
+                        {busy ? "Відправляємо…" : "Додати"}
                       </button>
                     </div>
                   ) : (

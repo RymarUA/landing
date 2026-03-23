@@ -92,26 +92,26 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cod" | "card">("online");
 
   // Промокод состояние
-  const [promoInput, setPromoInput] = useState("");
-  const [promoResult, setPromoResult] = useState<{ discountPct: number; label: string } | null>(null);
-  const [promoError, setPromoError] = useState("");
+  const promoInput = "";
+  // const [promoResult, setPromoResult] = useState<{ discountPct: number; label: string } | null>(null);
+  // const [promoError, setPromoError] = useState("");
 
-  const applyPromoCode = (code: string): { discountPct: number; label: string } | null => {
-    const upperCode = code.toUpperCase().trim();
-    
-    switch (upperCode) {
-      case "EAST12":
-        return { discountPct: 12, label: "Easter Sale" };
-      case "FIRST10":
-        return { discountPct: 10, label: "First Order" };
-      case "WELCOME15":
-        return { discountPct: 15, label: "Welcome" };
-      case "SPECIAL20":
-        return { discountPct: 20, label: "Special" };
-      default:
-        return null;
-    }
-  };
+  // const applyPromoCode = (code: string): { discountPct: number; label: string } | null => {
+  //   const upperCode = code.toUpperCase().trim();
+  //   
+  //   switch (upperCode) {
+  //     case "EAST12":
+  //       return { discountPct: 12, label: "Easter Sale" };
+  //     case "FIRST10":
+  //       return { discountPct: 10, label: "First Order" };
+  //     case "WELCOME15":
+  //       return { discountPct: 15, label: "Welcome" };
+  //     case "SPECIAL20":
+  //       return { discountPct: 20, label: "Special" };
+  //     default:
+  //       return null;
+  //   }
+  // };
 
   // Состояние Новой Почты
   const [cities, setCities] = useState<NPCity[]>([]);
@@ -157,7 +157,8 @@ export default function CheckoutPage() {
   const emailValue = watch("email") ?? "";
   const cityValue = watch("city") ?? "";
 
-  const promoDiscountAmount = promoResult ? Math.round(totalPrice * promoResult.discountPct / 100) : 0;
+  const promoResult = null;
+  const promoDiscountAmount = 0;
   const onlinePaymentDiscount = paymentMethod === "online" ? Math.round((totalPrice - promoDiscountAmount) * 0.05) : 0;
   const totalDiscountAmount = promoDiscountAmount + onlinePaymentDiscount;
   const finalPrice = totalPrice - totalDiscountAmount;
@@ -412,7 +413,7 @@ export default function CheckoutPage() {
         console.error("[abandoned-cart] Failed to register:", error);
       }
     },
-    [items, totalPrice]
+    [items, totalPrice, emailValue]
   );
 
   // Register abandoned cart when name and phone are entered

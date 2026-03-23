@@ -31,7 +31,7 @@ import {
   User, Phone, Mail, KeyRound, LogOut, Package, ChevronLeft,
   Loader2, CheckCircle, RefreshCw, ShoppingBag,
   AlertCircle, ChevronRight, Heart, Copy, Truck, RotateCcw,
-  Shield, CreditCard, X, Edit3, Plus, Tag, Sparkles, Users
+  Shield, X, Edit3, Plus, Tag, Sparkles, Users
 } from "lucide-react";
 import { useWishlist } from "@/components/wishlist-context";
 import { useCart } from "@/components/cart-context";
@@ -342,8 +342,8 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
   const citySearchRequestId = useRef(0);
   const [warehouseOptions, setWarehouseOptions] = useState<NPWarehouse[]>([]);
   const [warehouseLoading, setWarehouseLoading] = useState(false);
-  const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
-  const warehouseSearchRequestId = useRef(0);
+  // const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
+  // const warehouseSearchRequestId = useRef(0);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [warehouseError, setWarehouseError] = useState<string>("");
   const warehouseSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);

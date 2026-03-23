@@ -20,7 +20,7 @@ export interface AdminUser {
  * Verify if the current user is an admin based on JWT token
  * Returns admin user data if authenticated, null otherwise
  */
-export async function verifyAdminAuth(req: NextRequest): Promise<AdminUser | null> {
+export async function verifyAdminAuth(_req: NextRequest): Promise<AdminUser | null> {
   try {
     // Get JWT token from cookie
     const cookieStore = await cookies();
@@ -103,7 +103,7 @@ export async function isAdmin(): Promise<boolean> {
     }
 
     return ADMIN_EMAILS.includes(String(payload.email));
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 }

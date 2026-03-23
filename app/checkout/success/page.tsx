@@ -22,8 +22,8 @@ function SuccessContent() {
   const paymentMethod = params.get("method") ?? "online";
   const amount = Number(params.get("amount") ?? 0);
   
-  // For new-style pending orders (op{timestamp}), real order number is set after verify
-  const isPendingRef = rawRef.startsWith("op") && /^op\d+$/.test(rawRef);
+  // For new-style pending orders (op{timestamp} or op_{uuid}), real order number is set after verify
+  const isPendingRef = rawRef.startsWith("op") && (/^op\d+$/.test(rawRef) || /^op_[a-f0-9-]+$/.test(rawRef));
   const [realOrderNumber, setRealOrderNumber] = useState<string | null>(null);
   const orderNumber = realOrderNumber ?? (isPendingRef ? "—" : rawRef);
   
@@ -89,6 +89,7 @@ function SuccessContent() {
       .catch(err => {
         console.error("[Checkout Success] Verify failed:", err);
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawRef, paymentMethod, params]);
 
   /* Track analytics Purchase event once per order */
@@ -162,7 +163,9 @@ function SuccessContent() {
             {/* Order number */}
             <p className="text-[#7A8A84] text-sm mb-1">Номер вашого замовлення:</p>
             <div className="inline-block bg-[#F6F4EF] border border-[#C9B27C]/40 rounded-2xl px-6 py-2 mb-6">
-              <span className="text-2xl font-black text-[#1F6B5E] tracking-widest">#{orderNumber}</span>
+              <span className="text-2xl font-black text-[#1F6B5E] tracking-widest">
+                {orderNumber !== "—" ? `#${orderNumber}` : orderNumber}
+              </span>
             </div>
 
             <p className="text-[#24312E] text-sm leading-relaxed mb-8 max-w-sm mx-auto">

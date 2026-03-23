@@ -26,7 +26,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
+import { createSitniksOrder } from "@/lib/sitniks-consolidated";
+import { createNovaPoshtaTTN } from "@/lib/novaposhta-create-ttn";
 import { normalizePhone } from "@/lib/phone-utils";
 import { getCatalogProductById } from "@/lib/instagram-catalog";
 import { logger } from "@/lib/logger";
@@ -290,7 +291,7 @@ export async function POST(req: NextRequest) {
     // Calculate discounted price per product for Sitniks CRM
     // Distribute discount proportionally across all items
     const productsWithDiscount = resolvedItems.map((item, index) => {
-      const originalLineTotal = item.price * item.quantity;
+      // const originalLineTotal = item.price * item.quantity;
       const discountedLineTotal = paymentItems[index].lineTotal;
       const discountedPrice = item.quantity > 0 
         ? Number((discountedLineTotal / item.quantity).toFixed(2))
@@ -367,8 +368,10 @@ export async function POST(req: NextRequest) {
           serviceType: "WarehouseWarehouse",
           payerType: "Recipient",
           cargoType: "Parcel",
-          paymentMethod: "Cash",
-          productPaymentMethod: isOnlinePayment ? "payment-control" : "postpaid",
+          // Если оплачено онлайн - NonCash, иначе - Cash (наложенный платеж)
+          paymentMethod: isOnlinePayment ? "NonCash" : "Cash",
+          // Если оплачено онлайн - без доплаты, иначе - с доплатой при получении
+          productPaymentMethod: isOnlinePayment ? "without-backward-delivery" : "postpaid",
           weight: totalWeight,
           description: resolvedItems.map((i) => `${i.name} x${i.quantity}`).join(", "),
         }
@@ -448,10 +451,56 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Автоматичне створення ТТН, якщо є дані Нової Пошти
+    let ttnNumber: string | undefined;
+    if (body.cityRef && body.departmentRef) {
+      const senderCityRef = process.env.NOVAPOSHTA_SENDER_CITY_REF;
+      const senderWarehouseRef = process.env.NOVAPOSHTA_SENDER_WAREHOUSE_REF;
+      const senderCounterpartyRef = process.env.NOVAPOSHTA_SENDER_COUNTERPARTY_REF;
+      const senderContactRef = process.env.NOVAPOSHTA_SENDER_CONTACT_REF;
+      const senderPhone = process.env.NOVAPOSHTA_SENDER_PHONE;
+
+      if (!senderCityRef || !senderWarehouseRef || !senderCounterpartyRef || !senderContactRef || !senderPhone) {
+        console.warn('[/api/checkout] Не задані змінні відправника НП. ТТН не буде створено. Потрібно: NOVAPOSHTA_SENDER_CITY_REF, NOVAPOSHTA_SENDER_WAREHOUSE_REF, NOVAPOSHTA_SENDER_COUNTERPARTY_REF, NOVAPOSHTA_SENDER_CONTACT_REF, NOVAPOSHTA_SENDER_PHONE');
+      } else {
+        try {
+          console.log(`[/api/checkout] Створення ТТН для замовлення ${order.orderNumber}`);
+          const ttnResult = await createNovaPoshtaTTN({
+            senderCityRef,
+            senderWarehouseRef,
+            senderCounterpartyRef,
+            senderContactRef,
+            senderPhone,
+            recipientCityRef: body.cityRef,
+            recipientWarehouseRef: body.departmentRef,
+            recipientName: body.name,
+            recipientPhone: phone,
+            description: resolvedItems.map((i) => `${i.name} x${i.quantity}`).join(", "),
+            weight: totalWeight,
+            cost: finalAmount,
+            seatsAmount: 1,
+            paymentMethod: isOnlinePayment ? 'NonCash' : 'Cash',
+            payerType: 'Recipient',
+            backwardDeliveryMoney: isOnlinePayment ? undefined : finalAmount
+          });
+
+          if (ttnResult.success && ttnResult.ttn) {
+            ttnNumber = ttnResult.ttn;
+            console.log(`[/api/checkout] ✓ ТТН створено: ${ttnNumber}`);
+          } else {
+            console.warn(`[/api/checkout] Не вдалося створити ТТН: ${ttnResult.error}`);
+          }
+        } catch (ttnError) {
+          console.error('[/api/checkout] Помилка створення ТТН:', ttnError);
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       orderId: order.id,
       orderNumber: order.orderNumber,
+      ttn: ttnNumber
     });
 
   } catch (err) {

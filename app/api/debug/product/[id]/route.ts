@@ -12,8 +12,8 @@ interface RouteParams {
   }>;
 }
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
-  // const { id } = await params; // Unused - using hardcoded targetId instead
+export async function GET(_req: NextRequest, { params: _params }: RouteParams) {
+  // const { id } = await _params; // Unused - using hardcoded targetId instead
   try {
     const products = await getCatalogProducts();
     const targetId = 19469412;

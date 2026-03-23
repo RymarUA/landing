@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/components/cart-context";
-import { getCrossSellRecommendations, getCrossSellTitle, isGoodDeal, getDiscountPercentage, type CrossSellProduct } from "@/lib/cross-sell-recommendations";
+import { getCrossSellTitle, isGoodDeal, getDiscountPercentage, type CrossSellProduct } from "@/lib/cross-sell-recommendations";
 import { OptimizedImage } from "./optimized-image";
 
 export function CartWidget() {
@@ -70,10 +70,14 @@ export function CartWidget() {
     const loadRecommendations = async () => {
       setLoadingCrossSell(true);
       try {
-        const recommendations = await getCrossSellRecommendations(items, 500, 3);
+        const res = await fetch("/api/cross-sell", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cartItems: items.map((i) => ({ id: i.id })), maxPrice: 500, limit: 3 }),
+        });
+        const recommendations: CrossSellProduct[] = res.ok ? await res.json() : [];
         setCrossSellItems(recommendations);
       } catch {
-        // Silent fail - just set empty array
         setCrossSellItems([]);
       } finally {
         setLoadingCrossSell(false);

@@ -19,6 +19,7 @@ import { getCachedSiteSettings } from "@/lib/cached-data";
 import { CatalogSearchPrefetcher } from "@/components/catalog-search-prefetcher";
 import { DeploymentErrorHandler } from "@/components/deployment-error-handler";
 import { headers } from "next/headers";
+import Script from "next/script";
 
 // Validate environment variables on server startup (single evaluation)
 validateEnv();
@@ -133,17 +134,6 @@ export default async function RootLayout({
       <head>
         <meta name="color-scheme" content="light" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-1XLLS839FV"></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-1XLLS839FV');
-            `,
-          }}
-        />
         <JsonLd data={organizationSchema} id="organization" />
         <JsonLd data={websiteSchema} id="website" />
       </head>
@@ -154,6 +144,15 @@ export default async function RootLayout({
           "bg-[#FAF9F4] antialiased min-h-screen flex flex-col",
         )}
       >
+        <Script src="https://www.googletagmanager.com/gtag/js?id=G-1XLLS839FV" strategy="afterInteractive" />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-1XLLS839FV');
+          `}
+        </Script>
         <DeploymentErrorHandler />
         <Analytics cspNonce={nonce} />
         <CatalogSearchPrefetcher />

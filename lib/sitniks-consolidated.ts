@@ -227,8 +227,14 @@ export async function sitniksSafe<T>(
       return null;
     }
 
-    const data = await res.json();
-    return data;
+    const text = await res.text();
+    if (!text || !text.trim()) return null;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      console.error(`[sitniks] Invalid JSON response for ${path}:`, text.slice(0, 100));
+      return null;
+    }
   } catch (error: unknown) {
     clearTimeout(timeoutId);
     if (error instanceof Error) {
@@ -280,8 +286,14 @@ async function sitniksWithoutThrow<T>(
       return null;
     }
 
-    const data = await res.json();
-    return data;
+    const text = await res.text();
+    if (!text || !text.trim()) return null;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      console.error(`[sitniks] Invalid JSON response for ${path}:`, text.slice(0, 100));
+      return null;
+    }
   } catch (error) {
     console.error("[sitniks] Request failed:", error);
     return null;

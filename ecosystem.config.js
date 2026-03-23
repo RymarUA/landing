@@ -16,7 +16,8 @@ function loadEnvFile(filename) {
 
       const key = line.slice(0, delimiterIndex).trim();
       const rawValue = line.slice(delimiterIndex + 1).trim();
-      const cleanedValue = rawValue.replace(/^['"]|['"]$/g, '');
+      const withoutComment = rawValue.replace(/\s+#.*$/, '');
+      const cleanedValue = withoutComment.replace(/^['"]|['"]$/g, '');
 
       if (key) {
         acc[key] = cleanedValue;

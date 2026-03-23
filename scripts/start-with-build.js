@@ -37,9 +37,12 @@ function runNext(args, label) {
 function runNextLive(args) {
   const child = spawn(process.execPath, [nextCli, ...args], {
     cwd: projectRoot,
-    stdio: ["inherit", "inherit", "inherit"],
+    stdio: ["inherit", "pipe", "pipe"],
     env: process.env,
   });
+
+  child.stdout.pipe(process.stdout);
+  child.stderr.pipe(process.stderr);
 
   child.on("exit", (code) => {
     process.exit(code ?? 0);

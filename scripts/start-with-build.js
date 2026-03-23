@@ -14,7 +14,7 @@
 
 const path = require("path");
 const fs = require("fs");
-const { spawnSync } = require("child_process");
+const { spawnSync, spawn } = require("child_process");
 
 const projectRoot = path.resolve(__dirname, "..");
 const nextCli = require.resolve("next/dist/bin/next", { paths: [projectRoot] });
@@ -32,6 +32,18 @@ function runNext(args, label) {
     console.error(`\n[start-with-build] Failed during ${label}.`);
     process.exit(result.status ?? 1);
   }
+}
+
+function runNextLive(args) {
+  const child = spawn(process.execPath, [nextCli, ...args], {
+    cwd: projectRoot,
+    stdio: ["inherit", "inherit", "inherit"],
+    env: process.env,
+  });
+
+  child.on("exit", (code) => {
+    process.exit(code ?? 0);
+  });
 }
 
 function needsBuild() {
@@ -68,4 +80,4 @@ if (needsBuild()) {
 }
 
 console.log("[start-with-build] Starting Next.js server...\n");
-runNext(["start", ...startArgs], "start");
+runNextLive(["start", ...startArgs]);

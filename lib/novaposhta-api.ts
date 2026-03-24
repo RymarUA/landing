@@ -117,15 +117,18 @@ async function callNovaPoshtaAPI<T>(requestData: {
   }
 
   try {
-    // Server-side: call Nova Poshta API directly (cannot use internal /api/ routes)
-    const apiUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://api.novaposhta.ua/v2.0/json/'
-      : '/api/novaposhta'; // Development: use internal route
+    // CRITICAL: Always use direct Nova Poshta API to avoid internal route issues
+    const apiUrl = 'https://api.novaposhta.ua/v2.0/json/';
     
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestData),
+      body: JSON.stringify({
+        apiKey: process.env.NOVAPOSHTA_API_KEY,
+        modelName: requestData.modelName,
+        calledMethod: requestData.calledMethod,
+        methodProperties: requestData.methodProperties,
+      }),
     });
 
     if (!response.ok) {

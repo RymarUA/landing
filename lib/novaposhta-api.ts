@@ -14,9 +14,70 @@ export interface NPCity {
 
 export interface NPWarehouse {
   Ref: string;
+  SiteKey: string;
   Description: string;
+  DescriptionRu?: string;
+  ShortAddress?: string;
+  Phone?: string;
+  TypeOfWarehouse?: string;
   Number?: string;
-  CityRef?: string;
+  CityRef: string;
+  CityDescription?: string;
+  MaxWeightAllowed?: string;
+  Schedule?: Record<string, string>;
+  PostFinance?: string;
+  BicycleParking?: string;
+  PaymentAccess?: string;
+  POSTerminal?: string;
+  InternationalShipping?: string;
+  SelfServiceWorkplacesCount?: string;
+  DistrictCode?: string; // Added for proper WarehouseIndex format (e.g., "55/52")
+  TotalMaxWeightAllowed?: string;
+  PlaceMaxWeightAllowed?: string;
+  Dimensions?: {
+    width: string;
+    height: string;
+    length: string;
+  };
+  Reception?: Record<string, string>;
+  Delivery?: Record<string, string>;
+  WorkInMobileAwis?: string;
+  CategoryOfWarehouse?: string;
+  Direct?: string;
+  RegionCity?: string;
+  WarehouseForAgent?: string;
+  GeneratorEnabled?: string;
+  MaxDeclaredCost?: string;
+  CanGetMoneyTransfer?: string;
+  HasMirror?: string;
+  HasFittingRoom?: string;
+  OnlyReceivingParcel?: string;
+  PostMachineType?: string;
+  PostalCodeUA?: string;
+  WarehouseIndex?: string;
+  BeaconCode?: string;
+  Location?: string;
+  WarehouseStatus?: string;
+  WarehouseStatusDate?: string;
+  WarehouseIllusha?: string;
+  DenyToSelect?: string;
+  SettlementRef?: string;
+  SettlementDescription?: string;
+  SettlementAreaDescription?: string;
+  SettlementRegionsDescription?: string;
+  SettlementTypeDescription?: string;
+  Longitude?: string;
+  Latitude?: string;
+  SendingLimitationsOnDimensions?: {
+    Width: number;
+    Height: number;
+    Length: number;
+  };
+  ReceivingLimitationsOnDimensions?: {
+    Width: number;
+    Height: number;
+    Length: number;
+  };
 }
 
 export interface NPTrackingStatus {

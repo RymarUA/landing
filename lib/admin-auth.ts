@@ -103,7 +103,7 @@ export async function isAdmin(): Promise<boolean> {
     }
 
     return ADMIN_EMAILS.includes(String(payload.email));
-  } catch (_error) {
+  } catch {
     return false;
   }
 }

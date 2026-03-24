@@ -351,8 +351,10 @@ export function ProfileClient({ allProducts = [] }: { allProducts?: Array<{ id: 
 
   useEffect(() => {
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       const cityTimeout = citySearchTimeoutRef.current;
       if (cityTimeout) clearTimeout(cityTimeout);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       const warehouseTimeout = warehouseSearchTimeoutRef.current;
       if (warehouseTimeout) clearTimeout(warehouseTimeout);
     };

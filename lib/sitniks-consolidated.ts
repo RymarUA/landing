@@ -377,8 +377,8 @@ export async function getSitniksProducts(options: {
 
 export async function getAllSitniksProducts(): Promise<SitniksProduct[]> {
   const limit = 50;
-  const maxRetries = 3;
-  let consecutiveErrors = 0;
+  // const maxRetries = 3; // Unused variable
+  // let consecutiveErrors = 0; // Unused variable
 
   // Get first page to determine total
   const firstPage = await getSitniksProducts({ limit, skip: 0 });

@@ -133,7 +133,7 @@ export async function getReadyCarts(): Promise<AbandonedCartEntry[]> {
     
     for (let i = 0; i < timeSteps; i++) {
       const checkTime = now - (i * stepMs);
-      const timePrefix = `${SCHEDULED_CART_PREFIX}${checkTime}`;
+      // const timePrefix = `${SCHEDULED_CART_PREFIX}${checkTime}`; // Unused variable
       
       // Try to find keys around this timestamp
       // This is a simplified approach - in production with Redis SCAN you'd be more efficient
@@ -160,7 +160,7 @@ export async function getReadyCarts(): Promise<AbandonedCartEntry[]> {
               }
             }
           }
-        } catch (error) {
+        } catch {
           // Key might not exist or be expired, continue
           continue;
         }
@@ -316,7 +316,7 @@ export async function getAbandonedCartStats(): Promise<{
               scheduledInLast24Hours++;
             }
           }
-        } catch (error) {
+        } catch {
           // Key might not exist or be expired, continue
           continue;
         }

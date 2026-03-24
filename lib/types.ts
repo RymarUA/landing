@@ -242,6 +242,7 @@ export interface NPWarehouse {
   POSTerminal?: string;
   InternationalShipping?: string;
   SelfServiceWorkplacesCount?: string;
+  DistrictCode?: string; // Added for proper WarehouseIndex format (e.g., "55/52")
   TotalMaxWeightAllowed?: string;
   PlaceMaxWeightAllowed?: string;
   Dimensions?: {

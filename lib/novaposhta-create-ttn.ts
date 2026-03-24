@@ -5,7 +5,7 @@
  * Документація: https://developers.novaposhta.ua/view/model/a90d323c-8512-11ec-8ced-005056b2dbe1/method/a965630e-8512-11ec-8ced-005056b2dbe1
  */
 
-import { NPWarehouse, fetchNPWarehouses } from './novaposhta-api';
+import { fetchNPWarehouses } from './novaposhta-api';
 
 const NP_API_URL = 'https://api.novaposhta.ua/v2.0/json/';
 
@@ -107,7 +107,7 @@ async function createRecipientCounterparty(
   apiKey: string,
   recipientName: string,
   recipientPhone: string,
-  cityRef: string,
+  _cityRef: string,
 ): Promise<{ counterpartyRef: string; contactRef: string }> {
   // Спочатку перевіряємо, чи існує контрагент з таким телефоном
   console.log('[novaposhta-ttn] Пошук існуючого контрагента за телефоном:', recipientPhone);
@@ -211,10 +211,6 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
     const { counterpartyRef: recipientRef, contactRef: contactRecipientRef } =
       await createRecipientCounterparty(apiKey, params.recipientName, params.recipientPhone, params.recipientCityRef);
 
-    const effectivePaymentMethod = params.payerType === 'Recipient' && params.paymentMethod === 'NonCash'
-      ? 'Cash'
-      : params.paymentMethod;
-
     // According to Nova Poshta API documentation:
 // - SenderAddress/RecipientAddress: Ref склада (UUID)
 // - SenderWarehouseIndex/RecipientWarehouseIndex: Цифровой адрес склада (Number)
@@ -231,19 +227,38 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
       }
     };
 
-    // Get digital addresses for both sender and recipient
+    // Helper function to get warehouse DistrictCode for proper WarehouseIndex format
+    const getWarehouseDistrictCode = async (warehouseRef: string, cityRef: string): Promise<string> => {
+      try {
+        const warehouses = await fetchNPWarehouses(cityRef);
+        const warehouse = warehouses.find(w => w.Ref === warehouseRef);
+        return warehouse?.DistrictCode || ''; // Fallback to empty string
+      } catch (error) {
+        console.error(`[novaposhta-ttn] Failed to get warehouse DistrictCode for ${warehouseRef}:`, error);
+        return ''; // Fallback to empty string
+      }
+    };
+
+    // Get digital addresses and district codes for both sender and recipient
     const senderWarehouseNumber = await getWarehouseNumber(params.senderWarehouseRef, params.senderCityRef);
     const recipientWarehouseNumber = await getWarehouseNumber(params.recipientWarehouseRef, params.recipientCityRef);
+    const senderDistrictCode = await getWarehouseDistrictCode(params.senderWarehouseRef, params.senderCityRef);
+    const recipientDistrictCode = await getWarehouseDistrictCode(params.recipientWarehouseRef, params.recipientCityRef);
 
     // CRITICAL: According to successful API test, SenderWarehouseIndex/RecipientWarehouseIndex 
-    // need format "Number/1" (e.g., "52/1") not just "Number" (e.g., "52")
-    const senderWarehouseIndex = `${senderWarehouseNumber}/1`;
-    const recipientWarehouseIndex = `${recipientWarehouseNumber}/1`;
+    // need format "DistrictCode/Number" (e.g., "55/52") not just "Number/1" (e.g., "52/1")
+    const senderWarehouseIndex = senderDistrictCode ? `${senderDistrictCode}/${senderWarehouseNumber}` : `${senderWarehouseNumber}/1`;
+    const recipientWarehouseIndex = recipientDistrictCode ? `${recipientDistrictCode}/${recipientWarehouseNumber}` : `${recipientWarehouseNumber}/1`;
 
-    // Debug logging to identify the exact issue
-    console.log(`[novaposhta-ttn] Creating TTN with parameters:`);
-    console.log(`[novaposhta-ttn] Sender: CityRef=${params.senderCityRef}, WarehouseRef=${params.senderWarehouseRef}, WarehouseNumber=${senderWarehouseNumber}, WarehouseIndex=${senderWarehouseIndex}`);
-    console.log(`[novaposhta-ttn] Recipient: CityRef=${params.recipientCityRef}, WarehouseRef=${params.recipientWarehouseRef}, WarehouseNumber=${recipientWarehouseNumber}, WarehouseIndex=${recipientWarehouseIndex}`);
+    // Determine payment method based on payer type
+    // CRITICAL: For online payments, Nova Poshta requires PayerType="Sender" and PaymentMethod="Cash"
+    // "Cash" in Nova Poshta API means "paid" (not necessarily cash payment)
+    const effectivePaymentMethod = 'Cash'; // Always use Cash for online payments (pre-paid)
+    const effectivePayerType = 'Sender';   // Sender pays for pre-paid shipments
+
+    console.log(`[novaposhta-ttn] Payment configuration: PaymentMethod=${effectivePaymentMethod}, PayerType=${effectivePayerType}`);
+    console.log(`[novaposhta-ttn] Sender: CityRef=${params.senderCityRef}, WarehouseRef=${params.senderWarehouseRef}, DistrictCode=${senderDistrictCode}, Number=${senderWarehouseNumber}, WarehouseIndex=${senderWarehouseIndex}`);
+    console.log(`[novaposhta-ttn] Recipient: CityRef=${params.recipientCityRef}, WarehouseRef=${params.recipientWarehouseRef}, DistrictCode=${recipientDistrictCode}, Number=${recipientWarehouseNumber}, WarehouseIndex=${recipientWarehouseIndex}`);
     console.log(`[novaposhta-ttn] Sender: CounterpartyRef=${params.senderCounterpartyRef}, ContactRef=${params.senderContactRef}`);
     console.log(`[novaposhta-ttn] Recipient: Name=${params.recipientName}, Phone=${params.recipientPhone}`);
 
@@ -254,7 +269,7 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
       CitySender:     params.senderCityRef,
       Sender:         params.senderCounterpartyRef,
       SenderAddress:  params.senderWarehouseRef,        // ← Ref склада (UUID)
-      SenderWarehouseIndex: senderWarehouseIndex,        // ← Формат "Number/1" (e.g., "52/1")
+      SenderWarehouseIndex: senderWarehouseIndex,        // ← Формат "DistrictCode/Number" (e.g., "55/52")
       ContactSender:  params.senderContactRef,
       SendersPhone:   params.senderPhone,
 
@@ -262,13 +277,13 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
       CityRecipient:     params.recipientCityRef,
       Recipient:         recipientRef,
       RecipientAddress:  params.recipientWarehouseRef,     // ← Ref склада (UUID)
-      RecipientWarehouseIndex: recipientWarehouseIndex,   // ← Формат "Number/1" (e.g., "52/1")
+      RecipientWarehouseIndex: recipientWarehouseIndex,   // ← Формат "DistrictCode/Number" (e.g., "55/52")
       ContactRecipient:  contactRecipientRef,
       RecipientsPhone:   params.recipientPhone,
 
       // Посилка
       Description: params.description,
-      Weight:       String(Math.max(params.weight, 0.1)),
+      Weight:       String(Math.max(params.weight, 0.1)), // ← Правильный вес из Sitniks
       SeatsAmount:  String(params.seatsAmount),
       Cost:         String(Math.round(params.cost)),
       VolumeGeneral: "0.004", // ← Добавлено обязательное поле (min. 0.0004)
@@ -277,9 +292,9 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
       ServiceType: 'WarehouseWarehouse',
       CargoType:   'Parcel',
 
-      // Оплата
-      PaymentMethod: effectivePaymentMethod,
-      PayerType:     params.payerType,
+      // Оплата - исправлено для онлайн-оплаты
+      PaymentMethod: effectivePaymentMethod, // ← "Cash" для онлайн-оплаты (оплачено)
+      PayerType:     effectivePayerType,     // ← "Sender" для онлайн-оплаты
     };
 
     // Зворотна доставка (накладений платіж)

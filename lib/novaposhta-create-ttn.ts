@@ -5,7 +5,7 @@
  * Документація: https://developers.novaposhta.ua/view/model/a90d323c-8512-11ec-8ced-005056b2dbe1/method/a965630e-8512-11ec-8ced-005056b2dbe1
  */
 
-import { fetchNPWarehouses } from './novaposhta-api';
+import { fetchNPWarehouses, NPWarehouse } from './novaposhta-api';
 
 const NP_API_URL = 'https://api.novaposhta.ua/v2.0/json/';
 
@@ -250,13 +250,14 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
     const senderWarehouseIndex = senderDistrictCode ? `${senderDistrictCode}/${senderWarehouseNumber}` : `${senderWarehouseNumber}/1`;
     const recipientWarehouseIndex = recipientDistrictCode ? `${recipientDistrictCode}/${recipientWarehouseNumber}` : `${recipientWarehouseNumber}/1`;
 
-    // Determine payment method based on payer type
-    // CRITICAL: For online payments, Nova Poshta requires PayerType="Sender" and PaymentMethod="Cash"
-    // "Cash" in Nova Poshta API means "paid" (not necessarily cash payment)
-    const effectivePaymentMethod = 'Cash'; // Always use Cash for online payments (pre-paid)
-    const effectivePayerType = 'Sender';   // Sender pays for pre-paid shipments
+    // Determine payment method based on payment type
+    // CRITICAL: Nova Poshta payment logic:
+    // - Online payments (pre-paid): PayerType="Sender", PaymentMethod="Cash" 
+    // - COD (наложенный платеж): PayerType="Recipient", PaymentMethod="Cash"
+    const effectivePaymentMethod = 'Cash'; // Cash means "paid" in Nova Poshta API
+    const effectivePayerType = params.payerType === 'Sender' ? 'Sender' : 'Recipient'; // Use original payer type logic
 
-    console.log(`[novaposhta-ttn] Payment configuration: PaymentMethod=${effectivePaymentMethod}, PayerType=${effectivePayerType}`);
+    console.log(`[novaposhta-ttn] Payment configuration: PaymentMethod=${effectivePaymentMethod}, PayerType=${effectivePayerType}, OriginalPayerType=${params.payerType}`);
     console.log(`[novaposhta-ttn] Sender: CityRef=${params.senderCityRef}, WarehouseRef=${params.senderWarehouseRef}, DistrictCode=${senderDistrictCode}, Number=${senderWarehouseNumber}, WarehouseIndex=${senderWarehouseIndex}`);
     console.log(`[novaposhta-ttn] Recipient: CityRef=${params.recipientCityRef}, WarehouseRef=${params.recipientWarehouseRef}, DistrictCode=${recipientDistrictCode}, Number=${recipientWarehouseNumber}, WarehouseIndex=${recipientWarehouseIndex}`);
     console.log(`[novaposhta-ttn] Sender: CounterpartyRef=${params.senderCounterpartyRef}, ContactRef=${params.senderContactRef}`);

@@ -634,7 +634,7 @@ function validateCreateOrderDto(dto: CreateOrderDto): string | null {
       return "Не вказано місто доставки";
     }
     
-    if (!dto.npDelivery.department || dto.npDelivery.department.trim().length === 0) {
+    if ((!dto.npDelivery.department || dto.npDelivery.department.trim().length === 0) && !dto.npDelivery.departmentRef) {
       return "Не вказано відділення Нової Пошти";
     }
     

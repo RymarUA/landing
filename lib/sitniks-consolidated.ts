@@ -223,7 +223,9 @@ export async function sitniksSafe<T>(
     clearTimeout(timeoutId);
 
     if (!res.ok) {
+      const errText = await res.text().catch(() => '');
       console.error(`[sitniks] HTTP ${res.status} ${res.statusText} for ${path}`);
+      console.error(`[sitniks] Error response body:`, errText.slice(0, 500));
       return null;
     }
 
@@ -282,7 +284,9 @@ async function sitniksWithoutThrow<T>(
     });
 
     if (!res.ok) {
+      const errText = await res.text().catch(() => '');
       console.error(`[sitniks] HTTP ${res.status} ${res.statusText} for ${path}`);
+      console.error(`[sitniks] Error response body:`, errText.slice(0, 500));
       return null;
     }
 

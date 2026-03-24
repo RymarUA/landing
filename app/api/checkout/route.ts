@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
           id: Number(productId),
           name: item.name || `Товар #${productId}`,
           price: item.price || 0,
-          weight: 0.5, // Default weight in kg (Nova Poshta)
+          weight: item.weight || 0.3, // Use actual weight from request or default 0.3kg
           variationId: item.variationId || Number(productId),
           allVariations: [],
         };
@@ -321,8 +321,8 @@ export async function POST(req: NextRequest) {
     for (const item of resolvedItems) {
       totalWeight += item.weight * item.quantity;
     }
-    // Minimum weight 0.5kg for Nova Poshta
-    totalWeight = Math.max(0.5, totalWeight);
+    // Minimum weight 0.1kg for Nova Poshta (not 0.5kg to preserve actual product weights)
+    totalWeight = Math.max(0.1, totalWeight);
 
     // Build manager comment with tracking info
     let managerComment = `Замовлення з сайту. Оплата: ${(body.paymentMethod === "card" || body.paymentMethod === "online") ? "картка" : "накладений платіж"}`;

@@ -1,221 +1,338 @@
-# AI SaaS Template - COMPLETE & READY TO USE
+# 🛍️ FamilyHub Market - Сучасний E-commerce Platform
 
-🚨 **AI ASSISTANT**: This template is FULLY CONFIGURED. DO NOT recreate basic files!
+**FamilyHub Market** - це повнофункціональна платформа електронної комерції побудована на Next.js 15 з глибокою інтеграцією з Sitniks CRM, WayForPay та Новою Поштою. Платформа забезпечує безшовний досвід покупок з розширеними можливостями аналітики, управління замовленнями та маркетинговими інструментами.
 
-⚡ **STATUS**: All dependencies installed, all pages created, everything works out of the box.
+## 🎯 Ключові можливості
 
-## 🤖 AI Instructions - READ THIS FIRST
+### 🛒 E-commerce функціонал
+- **Каталог товарів** з динамічною фільтрацією та пошуком
+- **Корзина** з крос-сел рекомендаціями та збереженням стану
+- **Оформлення замовлення** з вибором доставки та оплати
+- **Особистий кабінет** з історією покупок та управлінням профілем
+- **Адміністративна панель** для управління сайтом
 
-### ✅ What EXISTS (Don't Create):
+### � Платіжні системи
+- **WayForPay** - прийом платежів карткою
+- **Наложений платіж** через Нову Пошту
+- **Безпечна обробка** даних карток (PCI DSS)
 
-- `package.json` with all dependencies
-- Authentication pages in `(auth)/`
-- Marketing pages in `app/blog/`, `app/pricing/`, `app/contact/`
-- All UI components in `components/`
-- Tailwind CSS configuration
-- TypeScript
+### 📦 Логістика
+- **Нова Пошта** - автоматичне створення ТТН
+- **Відстеження** замовлень в реальному часі
+- **Розрахунок** вартості доставки
 
-## 📚 Documentation
+### 📊 Аналітика та CRM
+- **Sitniks CRM** - повна інтеграція для управління клієнтами
+- **Google Analytics 4** - відстеження поведінки користувачів
+- **Meta Pixel** - ретаргетинг та аналітика
+- **Внутрішня аналітика** - звіти по продажах та конверсіях
 
-### 🎯 Analytics & CRM
-- [📊 Sitniks Analytics Complete Guide](./docs/SITNIKS_ANALYTICS_COMPLETE_GUIDE.md) - Полное руководство по аналитике
-- [🚀 Production Readiness Checklist](./docs/PRODUCTION_READINESS_CHECKLIST.md) - Чек-лист для продакшена
-- [🔧 Troubleshooting Guide](./docs/TROUBLESHOOTING_GUIDE.md) - Решение проблем
-- [📡 API Reference](./docs/API_REFERENCE.md) - Полная документация API
+### � Безпека та автентифікація
+- **JWT автентифікація** для адміністративної панелі
+- **OTP верифікація** через SMS/Email
+- **GDPR відповідність** з управлінням cookie
+- **Захист від CSRF** та XSS атак
 
-### 📱 Social & Marketing
-- [Facebook & Instagram Catalog Setup](./docs/FACEBOOK_INSTAGRAM_CATALOG.md)
-- [Email Auth Setup](./docs/EMAIL_AUTH_SETUP.md)
-- [SMS Setup](./docs/SMS_SETUP.md)
+## 🏗️ Технологічний стек
 
-### 🔐 Authentication
-- [Sitniks Auth Integration](./docs/SITNIKS_AUTH_INTEGRATION.md)
+### Frontend
+```
+📱 Next.js 15 (App Router)
+⚛️ React 18 (Server Components)
+🎨 TailwindCSS + shadcn/ui
+🎭 Framer Motion (анімації)
+📝 TypeScript (типізація)
+🍪 Zustand (state management)
+```
 
-### 📋 Project
-- [Project Usage](./docs/PROJECT_USAGE.md)
+### Backend
+```
+🔐 Next.js API Routes
+🗄️ Sitniks CRM API
+💳 WayForPay API
+📦 Nova Poshta API
+📧 Resend (email сервіс)
+📱 TurboSMS (SMS сервіс)
+```
 
-### ❌ Common MISTAKES to AVOID:
+### Інфраструктура
+```
+� Vercel (hosting)
+📊 Vercel Analytics
+🔍 Google Analytics
+📱 Meta Pixel
+💾 Vercel KV (Redis)
+```
 
-1. Creating `package.json` → IT EXISTS
-2. Installing packages → ALL INCLUDED
-3. Creating login/signup → USE `(auth)/login` and `(auth)/signup`
-4. Adding console.log → NOT ALLOWED
-5. Configuring Tailwind → ALREADY DONE
+## 📁 Структура проєкту
 
-## 🚀 Features
+```
+landing/
+├── app/                     # Next.js App Router
+│   ├── (auth)/             # Сторінки автентифікації
+│   ├── admin/              # Адміністративна панель
+│   ├── api/                # API маршрути
+│   ├── cart/               # Корзина
+│   ├── checkout/           # Оформлення замовлення
+│   ├── profile/            # Особистий кабінет
+│   └── globals.css         # Глобальні стилі
+├── components/             # React компоненти
+│   ├── ui/                 # Базові UI компоненти
+│   ├── icons/              # Іконки
+│   └── [features]/         # Функціональні компоненти
+├── lib/                    # Утиліти та API клієнти
+├── hooks/                  # Custom React hooks
+├── types/                  # TypeScript типи
+├── docs/                   # Документація
+└── public/                 # Статичні ресурси
+```
 
-- **Next.js 15** with App Router
-- **Turbopack** enabled for 10x faster HMR
-- **React 19** with Server Components
-- **TypeScript** for type safety
-- **Tailwind CSS** for styling
-- **Framer Motion** for animations
-- **MDX Blog** with syntax highlighting
-- **Authentication Pages** (Login/Signup)
-- **Marketing Pages** (Landing, Pricing, Contact)
-- **Dark Mode** support
-- **SEO Optimized**
-- **Performance First** - Lighthouse score 100
+## 🚀 Швидкий старт
 
-## ⚡ Performance
+### Вимоги
+- Node.js 18+
+- npm 9+ або pnpm
 
-- **Dev Server Startup**: <2 seconds
+### Встановлення
+```bash
+# Клонування репозиторію
+git clone <repository-url>
+cd landing
+
+# Встановлення залежностей
+npm install
+
+# Налаштування змінних середовища
+cp .env.local.example .env.local
+# Відредагуйте .env.local з вашими API ключами
+```
+
+### Запуск
+```bash
+# Розробка
+npm run dev
+
+# Швидка розробка (без перевірок)
+npm run dev:fast
+
+# Production збірка
+npm run build
+
+# Запуск production сервера
+npm run start
+```
+
+### Доступні скрипти
+```bash
+npm run dev              # Запуск dev сервера
+npm run build            # Production збірка
+npm run start            # Запуск production сервера
+npm run lint             # ESLint перевірка
+npm run type-check       # TypeScript перевірка
+npm run test             # Запуск тестів
+npm run clean            # Очистка кешу
+```
+
+## ⚡ Продуктивність
+
+- **Dev Server Startup**: <2 секунди
 - **Hot Module Replacement**: <100ms
-- **Production Build**: <30 seconds
+- **Production Build**: <30 секунд
 - **First Load JS**: ~75kB
+- **Lighthouse Score**: 95-100
 
-## 🏃‍♂️ Quick Start
+## 📚 Документація
+
+### � Основна документація
+- [📋 Технічна архітектура](./docs/TECHNICAL_ARCHITECTURE.md) - Детальний опис архітектури
+- [📡 API Reference](./docs/API_REFERENCE.md) - Повна документація API
+- [🔧 Troubleshooting Guide](./docs/TROUBLESHOOTING_GUIDE.md) - Рішення проблем
+
+### 🔌 Інтеграції
+- [🔗 Sitniks CRM Integration](./docs/SITNIKS_INTEGRATION_GUIDE.md) - Повна інтеграція з CRM
+- [💳 WayForPay Payment Guide](./docs/CHECKOUT_AUTH_INTEGRATION.md) - Налаштування платежів
+- [📦 Nova Poshta Integration](./docs/NOVAPOSHTA_AUTO_TTN.md) - Автоматичні ТТН
+
+### 📊 Аналітика та маркетинг
+- [📈 Sitniks Analytics](./docs/SITNIKS_ANALYTICS_COMPLETE_GUIDE.md) - Аналітика та звіти
+- [📱 Facebook & Instagram Catalog](./docs/FACEBOOK_INSTAGRAM_CATALOG.md) - Налаштування соцмереж
+- [🔗 Referral System](./docs/REFERRAL_SYSTEM_GUIDE.md) - Реферальна програма
+
+### 🛠️ Адміністрування
+- [👤 Admin Panel Guide](./docs/ADMIN_PANEL_GUIDE.md) - Керівництво адміністратора
+- [📋 Production Readiness](./docs/PRODUCTION_READINESS_CHECKLIST.md) - Чек-лист для продакшена
+- [🚀 Deployment Guide](./docs/DEPLOYMENT_GUIDE.md) - Інструкція з деплою
+
+## 🔧 Конфігурація
+
+### Environment Variables
+Створіть `.env.local` на основі `.env.local.example`:
 
 ```bash
-# Install dependencies (using pnpm for speed)
-pnpm install
+# Базова конфігурація
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_NAME=FamilyHub Market
 
-# Start development server with Turbopack
-pnpm dev
+# WayForPay платежі
+WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
+WAYFORPAY_SECRET_KEY=your_secret
 
-# Ultra-fast development mode
-pnpm dev:fast
+# Sitniks CRM
+SITNIKS_API_URL=https://your-store.sitniks.com/api/v1
+SITNIKS_API_KEY=your_bearer_token
+
+# Нова Пошта
+SITNIKS_NP_INTEGRATION_ID=your_integration_id
+
+# Email (Resend)
+RESEND_API_KEY=your_resend_key
+EMAIL_FROM=noreply@yourstore.com
+
+# SMS (TurboSMS)
+TURBOSMS_TOKEN=your_token
+TURBOSMS_SENDER=your_sender
+
+# Аналітика
+NEXT_PUBLIC_META_PIXEL_ID=your_pixel_id
+NEXT_PUBLIC_GA4_ID=your_ga4_id
 ```
 
-## 📁 Project Structure
+## 🎯 Особливості платформи
 
+### �️ E-commerce функціонал
+- **Інтерактивний каталог** з фільтрацією за категоріями, цінами, розмірами
+- **Розумна корзина** з збереженням стану та крос-сел рекомендаціями
+- **Просте оформлення** з вибором способів доставки та оплати
+- **Особистий кабінет** з історією замовлень та управлінням профілем
+- **Адміністративна панель** для управління товарами, замовленнями та клієнтами
+
+### 💳 Платіжна інтеграція
+- **WayForPay** - прийом платежів Visa/Mastercard з безпечною обробкою
+- **Наложений платіж** - оплата при отриманні через Нову Пошту
+- **Автоматична верифікація** платежів через webhooks
+- **Детальна аналітика** транзакцій та конверсій
+
+### 📦 Логістичні рішення
+- **Нова Пошта API** - автоматичне створення ТТН
+- **Відстеження статусів** замовлень в реальному часі
+- **Розрахунок вартості** доставки залежно від ваги та відстані
+- **Інтеграція зі складами** для управління запасами
+
+### 📊 Аналітика та CRM
+- **Sitniks CRM** - повна синхронізація клієнтів та замовлень
+- **Google Analytics 4** - детальна аналітика поведінки користувачів
+- **Meta Pixel** - ретаргетинг та відстеження конверсій
+- **Внутрішні звіти** по продажах, популярних товарах, конверсіях
+
+### 🔐 Безпека
+- **JWT токени** для захищеного доступу до адмінпанелі
+- **OTP верифікація** через SMS або Email
+- **GDPR відповідність** з управлінням згодами на cookie
+- **Захист від атак** CSRF, XSS, SQL Injection
+
+## 🚀 Деплоймент
+
+### Vercel (Рекомендовано)
+```bash
+# Встановлення Vercel CLI
+npm i -g vercel
+
+# Деплоймент
+vercel
+
+# Production деплоймент
+vercel --prod
 ```
-app/
-├── (auth)/          # Authentication pages
-│   ├── login/
-│   └── signup/
-├── blog/            # MDX blog posts
-├── contact/         # Contact page
-├── pricing/         # Pricing page
-├── page.tsx         # Landing page
-├── api/             # API routes
-├── layout.tsx       # Root layout
-└── globals.css      # Global styles
 
-components/
-├── ui/              # Reusable UI components
-├── navbar/          # Navigation components
-└── [features]/      # Feature-specific components
-```
+### Налаштування середовища
+1. Створіть проєкт на Vercel
+2. Додайте всі environment variables з `.env.local.example`
+3. Підключіть домен (за потреби)
+4. Налаштуйте custom domain SSL
 
-## 🛠️ Commands
+### Моніторинг
+- **Vercel Analytics** - моніторинг продуктивності
+- **Vercel Speed Insights** - аналіз швидкості завантаження
+- **Error Logging** - автоматичне збирання помилок
 
-- `pnpm dev` - Start development server with Turbopack
-- `pnpm dev:fast` - Ultra-fast dev mode (skips checks)
-- `pnpm build` - Production build
-- `pnpm build:fast` - Fast production build (skips linting/type checking)
-- `pnpm start` - Start production server
-- `pnpm lint` - Run ESLint
-- `pnpm type-check` - Run TypeScript compiler
-- `pnpm clean` - Clean build cache
+## 📈 Продуктивність та оптимізація
 
-## 🎨 Customization
+### Технічні оптимізації
+- **Server Components** за замовчуванням для кращої продуктивності
+- **Image Optimization** з AVIF/WebP форматами
+- **Code Splitting** для мінімізації розміру бандлу
+- **Edge Runtime** для швидких API endpoints
+- **Caching Strategy** з оптимальними TTL налаштуваннями
 
-### Adding New Pages
+### SEO оптимізація
+- **Meta tags** для всіх сторінок
+- **Structured Data** (JSON-LD) для продуктів
+- **Sitemap.xml** автоматична генерація
+- **Robots.txt** правильна конфігурація
+- **Open Graph** для соціальних мереж
 
-1. Create a new file in `app/` directory
-2. Export a default component
-3. Add metadata for SEO
+## 🔧 Розробка
 
+### Створення нових сторінок
 ```typescript
+// app/new-page/page.tsx
 export const metadata = {
-  title: 'Page Title',
-  description: 'Page description',
+  title: 'Нова сторінка',
+  description: 'Опис сторінки',
 };
 
-export default function Page() {
-  return <div>Your content</div>;
+export default function NewPage() {
+  return <div>Контент сторінки</div>;
 }
 ```
 
-### Adding Blog Posts
+### Додавання API endpoints
+```typescript
+// app/api/endpoint/route.ts
+import { NextResponse } from 'next/server';
 
-1. Create a new `.mdx` file in `app/blog/[slug]/`
-2. Add frontmatter metadata
-3. Write your content in MDX
-
-```mdx
----
-title: "Your Blog Post Title"
-publishedAt: "2024-01-01"
-summary: "Brief description"
-author: "Your Name"
----
-
-Your blog content here...
+export async function GET() {
+  return NextResponse.json({ message: 'Hello API' });
+}
 ```
 
-### Modifying Styles
+### Компоненти
+Використовуйте Server Components за замовчуванням:
+```typescript
+// Компонент за замовчуванням (Server)
+export default function ProductCard({ product }) {
+  return <div>{product.name}</div>;
+}
 
-- Global styles: `app/globals.css`
-- Component styles: Use Tailwind classes
-- Theme colors: Update `tailwind.config.ts`
+// Client компонент (тільки за потреби)
+'use client';
 
-## 🔧 Configuration
-
-### Environment Variables
-
-Create `.env.local`:
-
-```bash
-# Your environment variables
-NEXT_PUBLIC_API_URL=
-DATABASE_URL=
-# etc...
+export default function InteractiveButton() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(c + 1)}>{count}</button>;
+}
 ```
 
-### Performance Optimizations
+## 🤝 Внесок та підтримка
 
-The template is pre-configured with:
+### Як внести зміни
+1. Fork репозиторій
+2. Створіть feature branch
+3. Зробіть changes
+4. Створіть Pull Request
 
-- Turbopack for fastest builds
-- Image optimization with AVIF/WebP
-- Font optimization with `next/font`
-- Aggressive code splitting
-- Partial prerendering
-- Edge runtime support
+### Звіт про помилки
+- Використовуйте GitHub Issues
+- Додайте детальний опис проблеми
+- Вкажіть steps to reproduce
+- Додайте relevant logs/screenshots
 
-## 📦 Tech Stack
+## 📝 Ліцензія
 
-- **Framework**: Next.js 15
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Animations**: Framer Motion
-- **Forms**: React Hook Form + Zod
-- **Icons**: Lucide React, Tabler Icons
-- **Blog**: MDX with Prism.js
-- **Theme**: next-themes
-
-## 🤖 AI Development
-
-This template includes `AI_RULES.md` which provides guidance for AI assistants when modifying the codebase. It ensures consistent code quality and maintains performance standards.
-
-## 📈 Best Practices
-
-1. **Use Server Components by default** - Only use Client Components when needed
-2. **Lazy load heavy components** - Use `dynamic()` for code splitting
-3. **Optimize images** - Always use `next/image`
-4. **Minimize client JS** - Keep interactivity server-side when possible
-5. **Cache aggressively** - Use proper cache headers
-
-## 🚢 Deployment
-
-### Vercel (Recommended)
-
-```bash
-vercel
-```
-
-### Other Platforms
-
-1. Build the project: `pnpm build`
-2. Start the server: `pnpm start`
-3. Ensure Node.js 18+ is available
-
-## 📝 License
-
-MIT - Use this template for any project!
+MIT License - вільно використовувати для комерційних проєктів.
 
 ---
 
-Built with ❤️ for developers who value speed and performance.
+**Побудовано з ❤️ для сучасного e-commerce в Україні**
+
+🇺🇦 Optimized for Ukrainian market with local payment systems and logistics

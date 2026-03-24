@@ -1,32 +1,79 @@
-# Facebook & Instagram Catalog Integration
+# 🛍️ Facebook & Instagram Shopping Integration
 
-Ця документація описує, як налаштувати автоматичну синхронізацію товарів між Sitniks CRM, сайтом та Facebook/Instagram Shopping.
+## 📋 Огляд
 
-## 🎯 Що це дає?
+Система автоматичної синхронізації товарів з Sitniks CRM у Facebook Commerce Manager та Instagram Shopping.
 
-- **Автоматичні ціни:** Змінив ціну в Sitniks → вона змінилася на сайті, в Facebook та Instagram
-- **Наявність:** Товар закінчився → автоматично з'являється "Немає в наявності" та реклама зупиняється
-- **Теги товарів:** Клієнти можуть тапнути на товар в Instagram і купити на сайті
-- **Динамічна реклама:** Facebook знає, які товари дивляться на сайті, і показує релевантну рекламу
-
----
-
-## � Детальна документація
-
-Повна технічна документація доступна у файлі:
-**[FACEBOOK_SHOPPING_COMPLETE_GUIDE.md](./FACEBOOK_SHOPPING_COMPLETE_GUIDE.md)**
-
-### Що в детальній документації:
-- 🔧 **Технічні деталі** API routes та форматів
-- 🛠️ **Обробка помилок** та діагностика
-- 📊 **Моніторинг** та аналітика
-- 🔄 **Процес оновлення** товарів
-- 🎯 **Найкращі практики** та поради
-- 📈 **Майбутні розширення** системи
+### ✨ Що це дає:
+- **Автоматична синхронізація:** Додав товар в Sitniks → з'явився на сайті, в Facebook та Instagram
+- **Єдине джерело правди:** Sitniks CRM — всі оновлення звідти
+- **Динамічна реклама:** Facebook знає, які товари дивляться, і показує релевантну рекламу
+- **Shopping теги:** Клієнти можуть тапнути на товар в Instagram і купити на сайті
+- **Автоматична наявність:** Товар закінчився → автоматично з'являється "Немає в наявності"
 
 ---
 
-## �📋 Покрокова інструкція (швидка версія)
+## 🔄 Архітектура системи
+
+```
+Sitniks CRM → (1 хв) → Сайт → (1 год) → Facebook → (миттєво) → Instagram
+```
+
+### Компоненти:
+
+#### 1. **Sitniks CRM**
+- Основне джерело даних про товари
+- API для отримання товарів та категорій
+- Автоматичне оновлення кожну хвилину
+
+#### 2. **Next.js API Routes**
+```
+/api/fb-feed/products        - Основний фід товарів
+/api/fb-feed/inventory       - Фід наявності
+/api/fb-feed/categories      - Фід категорій
+/api/feed-test/validate      - Тестування фіду
+```
+
+#### 3. **Facebook Commerce Manager**
+- Отримує дані з API routes
+- Автоматично синхронізує з Instagram
+- Керує наявністю та цінами
+
+---
+
+## � Швидка настройка (5 хвилин)
+
+### Крок 1: Environment Variables
+```bash
+# Додайте в .env.local
+INSTAGRAM_ACCESS_TOKEN=your_long_lived_token
+INSTAGRAM_USER_ID=your_numeric_user_id
+```
+
+### Крок 2: Facebook Commerce Manager
+1. **Створіть Catalog** в Commerce Manager
+2. **Налаштуйте фід товарів:**
+   - URL: `https://your-site.com/api/fb-feed/products`
+   - Schedule: Every hour
+3. **Підключіть Instagram** до Catalog
+
+### Крок 3: Instagram Shopping
+1. **Налаштуйте Instagram Shopping** в Instagram App
+2. **Підключіть ваш Catalog**
+3. **Додайте shopping теги** до постів
+
+### Крок 4: Перевірка
+```bash
+# Тест фіду
+curl https://your-site.com/api/fb-feed/products
+
+# Валідація
+curl https://your-site.com/api/feed-test/validate
+```
+
+---
+
+## � Детальна технічна документація
 
 ### 1. Перевірка API-ендпоінтів
 

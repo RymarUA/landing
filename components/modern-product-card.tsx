@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Heart, Star, Truck } from "lucide-react";
@@ -69,13 +69,23 @@ export function ModernProductCard({
   const { trackClick } = useProductTracking();
   const inWishlist = hydrated && has(product.id);
   const [heartPulse, setHeartPulse] = useState(false);
+  const heartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     toggle(product.id);
     setHeartPulse(true);
-    setTimeout(() => setHeartPulse(false), 600);
+    
+    // Clear any existing timeout
+    if (heartTimeoutRef.current) {
+      clearTimeout(heartTimeoutRef.current);
+    }
+    
+    heartTimeoutRef.current = setTimeout(() => {
+      setHeartPulse(false);
+      heartTimeoutRef.current = null;
+    }, 600);
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -124,6 +134,15 @@ export function ModernProductCard({
       price: product.price,
     });
   };
+
+  // Cleanup heart timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (heartTimeoutRef.current) {
+        clearTimeout(heartTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Compact mode for carousel
   if (compact) {

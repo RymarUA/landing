@@ -10,14 +10,19 @@ import { useWindow } from "./use-isomorphic";
 export function useProductTracking() {
   const { isClient } = useWindow();
 
-  const trackView = useCallback(async (product: {
-    id: number;
-    name: string;
-    category: string;
-    price: number;
-    source?: string;
-  }) => {
-    if (!isClient) return;
+  const trackView = useCallback(async (
+    product: {
+      id: number;
+      name: string;
+      category: string;
+      price: number;
+      source?: string;
+    },
+    options?: { isClient?: boolean }
+  ) => {
+    // Check if we're in a client environment (passed as parameter or detected)
+    const clientSide = options?.isClient ?? typeof window !== 'undefined';
+    if (!clientSide) return;
 
     // Validate product data before sending
     if (!product.id || !product.name || !product.category || product.price === undefined) {
@@ -45,15 +50,20 @@ export function useProductTracking() {
     } catch (error) {
       console.error("[useProductTracking] Failed to track view:", error);
     }
-  }, [isClient]);
+  }, []);
 
-  const trackClick = useCallback(async (product: {
-    id: number;
-    name: string;
-    category: string;
-    price: number;
-  }) => {
-    if (!isClient) return;
+  const trackClick = useCallback(async (
+    product: {
+      id: number;
+      name: string;
+      category: string;
+      price: number;
+    },
+    options?: { isClient?: boolean }
+  ) => {
+    // Check if we're in a client environment (passed as parameter or detected)
+    const clientSide = options?.isClient ?? typeof window !== 'undefined';
+    if (!clientSide) return;
 
     console.log("[useProductTracking] Tracking click:", product.id, product.name);
 
@@ -85,7 +95,7 @@ export function useProductTracking() {
     } catch (error) {
       console.error("[useProductTracking] Failed to track click:", error);
     }
-  }, [isClient]);
+  }, []);
 
   return { trackView, trackClick };
 }
@@ -98,9 +108,12 @@ export function useWishlistSync() {
 
   const syncWishlist = useCallback(async (
     productIds: number[],
-    products?: Array<{ id: number; name: string; price: number; category: string }>
+    products?: Array<{ id: number; name: string; price: number; category: string }>,
+    options?: { isClient?: boolean }
   ) => {
-    if (!isClient || productIds.length === 0) return;
+    // Check if we're in a client environment (passed as parameter or detected)
+    const clientSide = options?.isClient ?? typeof window !== 'undefined';
+    if (!clientSide || productIds.length === 0) return;
 
     console.log("[useWishlistSync] Starting sync:", productIds.length, "items");
 
@@ -120,10 +133,12 @@ export function useWishlistSync() {
     } catch (error) {
       console.error("[useWishlistSync] Failed to sync:", error);
     }
-  }, [isClient]);
+  }, []);
 
-  const getAlerts = useCallback(async () => {
-    if (!isClient) return null;
+  const getAlerts = useCallback(async (options?: { isClient?: boolean }) => {
+    // Check if we're in a client environment (passed as parameter or detected)
+    const clientSide = options?.isClient ?? typeof window !== 'undefined';
+    if (!clientSide) return null;
 
     try {
       const response = await fetch("/api/wishlist/alerts");
@@ -134,7 +149,7 @@ export function useWishlistSync() {
       console.debug("[useWishlistSync] Failed to get alerts:", error);
     }
     return null;
-  }, [isClient]);
+  }, []);
 
   return { syncWishlist, getAlerts };
 }
@@ -147,9 +162,12 @@ export function useProductNotifications() {
 
   const subscribeToPriceDrop = useCallback(async (
     productId: number,
-    currentPrice: number
+    currentPrice: number,
+    options?: { isClient?: boolean }
   ) => {
-    if (!isClient) return false;
+    // Check if we're in a client environment (passed as parameter or detected)
+    const clientSide = options?.isClient ?? typeof window !== 'undefined';
+    if (!clientSide) return false;
 
     try {
       const response = await fetch("/api/notifications/subscribe", {
@@ -167,10 +185,15 @@ export function useProductNotifications() {
       console.debug("[useProductNotifications] Failed to subscribe:", error);
       return false;
     }
-  }, [isClient]);
+  }, []);
 
-  const subscribeToBackInStock = useCallback(async (productId: number) => {
-    if (!isClient) return false;
+  const subscribeToBackInStock = useCallback(async (
+    productId: number,
+    options?: { isClient?: boolean }
+  ) => {
+    // Check if we're in a client environment (passed as parameter or detected)
+    const clientSide = options?.isClient ?? typeof window !== 'undefined';
+    if (!clientSide) return false;
 
     try {
       const response = await fetch("/api/notifications/subscribe", {
@@ -187,10 +210,12 @@ export function useProductNotifications() {
       console.debug("[useProductNotifications] Failed to subscribe:", error);
       return false;
     }
-  }, [isClient]);
+  }, []);
 
-  const getAlerts = useCallback(async () => {
-    if (!isClient) return null;
+  const getAlerts = useCallback(async (options?: { isClient?: boolean }) => {
+    // Check if we're in a client environment (passed as parameter or detected)
+    const clientSide = options?.isClient ?? typeof window !== 'undefined';
+    if (!clientSide) return null;
 
     console.log("[useProductNotifications] Getting alerts...");
 
@@ -207,7 +232,7 @@ export function useProductNotifications() {
       console.error("[useProductNotifications] Failed to get alerts:", error);
     }
     return null;
-  }, [isClient]);
+  }, []);
 
   return { subscribeToPriceDrop, subscribeToBackInStock, getAlerts };
 }

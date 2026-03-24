@@ -48,38 +48,56 @@ const CartContext = createContext<CartContextType | null>(null);
 async function migrateLegacyCartItems(items: CartItem[]): Promise<CartItem[]> {
   let changed = false;
 
-  const migrated = await Promise.all(
-    items.map(async (item) => {
+  // Filter items that need migration (no productId)
+  const itemsToMigrate = items.filter(item => item.productId == null);
+  
+  if (itemsToMigrate.length === 0) {
+    return items;
+  }
+
+  try {
+    // Use batch endpoint to fetch all products in one request
+    const ids = itemsToMigrate.map(item => item.id).join(',');
+    const response = await fetch(`/api/catalog/products/batch?ids=${ids}`);
+    
+    if (!response.ok) {
+      console.error("[Cart] Failed to fetch batch products for migration");
+      return items;
+    }
+
+    const { products } = await response.json();
+    
+    // Create a map of product data for quick lookup
+    const productMap = new Map(
+      products.map((product: any) => [product.id, product])
+    );
+
+    // Migrate items using the fetched product data
+    const migrated = items.map(item => {
       if (item.productId != null) {
-        return item;
+        return item; // Already migrated
       }
 
-      try {
-        const response = await fetch(`/api/catalog/product/${item.id}`);
-        if (!response.ok) {
-          return item;
-        }
-
-        const product = await response.json();
-        if (!product?.id) {
-          return item;
-        }
-
-        changed = true;
-        return {
-          ...item,
-          id: product.id,
-          productId: product.id,
-          variationId: item.id !== product.id ? item.id : product.variationId,
-        };
-      } catch (error) {
-        console.error("[Cart] Failed to migrate legacy cart item:", error);
-        return item;
+      const product = productMap.get(item.id);
+      if (!product?.id) {
+        return item; // Product not found, keep original
       }
-    })
-  );
 
-  return changed ? migrated : items;
+      changed = true;
+      return {
+        ...item,
+        id: product.id,
+        productId: product.id,
+        variationId: item.id !== product.id ? item.id : product.variationId,
+      };
+    });
+
+    return changed ? migrated : items;
+
+  } catch (error) {
+    console.error("[Cart] Failed to migrate legacy cart items:", error);
+    return items;
+  }
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -193,28 +211,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const addItem = useCallback((item: Omit<CartItem, "quantity">, showToast: boolean = true): AddItemResult => {
-    // CRITICAL: Must calculate return values synchronously using a ref to capture them
-    // from inside the setItems callback
-    const resultRef = { wasExisting: false, finalQuantity: 1 };
-    
+    let finalQuantity = 1;
+    let wasExisting = false;
+
     setItems((prev) => {
       const existing = prev.find((i) => matchItem(i, item.id, item.size));
 
       if (existing) {
-        resultRef.wasExisting = true;
-        resultRef.finalQuantity = existing.quantity + 1;
+        wasExisting = true;
+        finalQuantity = existing.quantity + 1;
         if (showToast) {
-          setLastQuantityToast({ name: item.name, quantity: resultRef.finalQuantity });
+          setLastQuantityToast({ name: item.name, quantity: finalQuantity });
         }
         return prev.map((i) =>
-          matchItem(i, item.id, item.size) ? { ...i, quantity: resultRef.finalQuantity } : i
+          matchItem(i, item.id, item.size) ? { ...i, quantity: finalQuantity } : i
         );
       }
 
-      resultRef.wasExisting = false;
-      resultRef.finalQuantity = 1;
+      wasExisting = false;
+      finalQuantity = 1;
       if (showToast) {
-        setLastQuantityToast({ name: item.name, quantity: resultRef.finalQuantity });
+        setLastQuantityToast({ name: item.name, quantity: finalQuantity });
       }
       return [...prev, { ...item, quantity: 1 }];
     });
@@ -231,7 +248,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }, 2000);
     }
 
-    return { wasExisting: resultRef.wasExisting, quantity: resultRef.finalQuantity };
+    return { wasExisting, quantity: finalQuantity };
   }, [matchItem]);
 
   const removeItem = useCallback(

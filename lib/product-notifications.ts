@@ -7,7 +7,7 @@
  */
 
 import { sitniksSafe } from "./sitniks-consolidated";
-import { sendTelegramNotification } from "./telegram";
+import { sendTelegramNotification, escapeTgHtml } from "./telegram";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -264,8 +264,8 @@ export async function sendPriceDropTelegram(
   const message = `
 🔔 <b>Знижка на товар!</b>
 
-👤 Клієнт: ${customerName}
-📦 Товар: ${productName}
+👤 Клієнт: ${escapeTgHtml(customerName)}
+📦 Товар: ${escapeTgHtml(productName)}
 
 💰 Стара ціна: ${oldPrice.toLocaleString('uk-UA')} грн
 ✨ Нова ціна: ${newPrice.toLocaleString('uk-UA')} грн
@@ -293,8 +293,8 @@ export async function sendBackInStockTelegram(
   const message = `
 🔔 <b>Товар знову в наявності!</b>
 
-👤 Клієнт: ${customerName}
-📦 Товар: ${productName}
+👤 Клієнт: ${escapeTgHtml(customerName)}
+📦 Товар: ${escapeTgHtml(productName)}
 
 💰 Ціна: ${price.toLocaleString('uk-UA')} грн
 📊 Залишок: ${stock} шт

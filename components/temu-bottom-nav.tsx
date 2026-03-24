@@ -3,7 +3,7 @@
 import { Home, Grid3x3, User, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useCart } from "./cart-context";
 
 interface NavItem {
@@ -20,6 +20,7 @@ export function TemuBottomNav() {
   const pathname = usePathname();
   const [hash, setHash] = useState("");
   const { totalCount } = useCart();
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const updateHash = () => {
@@ -63,9 +64,14 @@ export function TemuBottomNav() {
       const success = scrollCatalogIntoView();
       if (!success && attempts < maxAttempts) {
         attempts++;
-        setTimeout(tryScroll, 150);
+        scrollTimeoutRef.current = setTimeout(tryScroll, 150);
       }
     };
+
+    // Clear any existing timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
 
     tryScroll();
   }, []);
@@ -91,6 +97,15 @@ export function TemuBottomNav() {
     const timer = setTimeout(attemptCatalogScroll, 80);
     return () => clearTimeout(timer);
   }, [hash, attemptCatalogScroll]);
+
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const shouldShow = pathname === "/";
   

@@ -53,6 +53,51 @@ async function createRecipientCounterparty(
   recipientPhone: string,
   cityRef: string,
 ): Promise<{ counterpartyRef: string; contactRef: string }> {
+  // Спочатку перевіряємо, чи існує контрагент з таким телефоном
+  console.log('[novaposhta-ttn] Пошук існуючого контрагента за телефоном:', recipientPhone);
+  
+  const existingResult = await npRequest({
+    apiKey,
+    modelName: 'Counterparty',
+    calledMethod: 'getCounterparties',
+    methodProperties: {
+      FindByString: recipientPhone,
+      CounterpartyProperty: 'Recipient',
+    },
+  });
+
+  console.log('[novaposhta-ttn] Результат пошуку контрагента:', JSON.stringify(existingResult, null, 2));
+
+  // Якщо контрагент вже існує, використовуємо його
+  if (existingResult.success && existingResult.data?.length > 0) {
+    const existingCounterparty = existingResult.data[0];
+    console.log('[novaposhta-ttn] Знайдено існуючого контрагента:', existingCounterparty.Ref);
+    
+    // Отримуємо контактну особу для існуючого контрагента
+    const contactResult = await npRequest({
+      apiKey,
+      modelName: 'Counterparty',
+      calledMethod: 'getCounterpartyContactPersons',
+      methodProperties: {
+        Ref: existingCounterparty.Ref,
+      },
+    });
+
+    let contactRef = existingCounterparty.Ref; // fallback до Ref контрагента
+    if (contactResult.success && contactResult.data?.length > 0) {
+      contactRef = contactResult.data[0].Ref;
+      console.log('[novaposhta-ttn] Знайдено контактну особу:', contactRef);
+    }
+
+    return {
+      counterpartyRef: existingCounterparty.Ref,
+      contactRef: contactRef,
+    };
+  }
+
+  // Якщо контрагент не знайдений, створюємо нового
+  console.log('[novaposhta-ttn] Створення нового контрагента...');
+  
   // Розбиваємо ПІБ на частини
   const parts = recipientName.trim().split(/\s+/);
   const lastName  = parts[0] ?? '';
@@ -74,7 +119,7 @@ async function createRecipientCounterparty(
     },
   });
 
-  console.log('[novaposhta-ttn] Counterparty response:', JSON.stringify(result, null, 2));
+  console.log('[novaposhta-ttn] Результат створення контрагента:', JSON.stringify(result, null, 2));
 
   if (!result.success || !result.data?.[0]) {
     throw new Error(`Не вдалося створити контрагента: ${result.errors?.join(', ')}`);

@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
     console.log("  warehouse:", body.warehouse);
 
     // Server-side price: get products from catalog by ID, ignore frontend totalPrice
-    let serverTotal = 0;
+    let serverTotalCents = 0;
     const resolvedItems: Array<{ variationId: number; price: number; quantity: number; name: string; size?: string; weight: number }> = [];
 
     for (const item of body.items) {
@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
       }
       
       const qty = Math.max(1, Number(item.quantity) || 1);
-      serverTotal += price * qty;
+      serverTotalCents += Math.round(price * 100) * qty;
       resolvedItems.push({
         variationId,
         price,
@@ -252,51 +252,56 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate and recalculate promo code discount on server side
-    let serverDiscountAmount = 0;
+    let serverDiscountAmountCents = 0;
     
     if (body.promoCode) {
       const promoResult = applyPromoCode(body.promoCode);
       if (promoResult) {
-        // Calculate discount based on server total
-        serverDiscountAmount = Math.round(serverTotal * promoResult.discountPct / 100);
-        console.log(`[checkout] Promo code ${body.promoCode} applied: ${promoResult.discountPct}% = ${serverDiscountAmount} UAH`);
+        // Calculate discount based on server total (in cents)
+        serverDiscountAmountCents = Math.round(serverTotalCents * promoResult.discountPct / 100);
+        console.log(`[checkout] Promo code ${body.promoCode} applied: ${promoResult.discountPct}% = ${serverDiscountAmountCents / 100} UAH`);
       } else {
         console.warn(`[checkout] Invalid promo code: ${body.promoCode}`);
       }
     }
     
     // Add online payment discount if applicable
-    let onlinePaymentDiscount = 0;
+    let onlinePaymentDiscountCents = 0;
     if (body.paymentMethod === "online" || body.paymentMethod === "card") {
-      onlinePaymentDiscount = Math.round((serverTotal - serverDiscountAmount) * 0.05);
+      onlinePaymentDiscountCents = Math.round((serverTotalCents - serverDiscountAmountCents) * 0.05);
     }
     
     // Total discount is promo discount + online payment discount
-    const totalServerDiscount = serverDiscountAmount + onlinePaymentDiscount;
+    const totalServerDiscountCents = serverDiscountAmountCents + onlinePaymentDiscountCents;
     
     // SECURITY: Always use server-calculated discount, ignore client-requested amount
     // Client could manipulate discountAmount to reduce their discount
-    const discountAmount = Math.min(totalServerDiscount, serverTotal);
+    const discountAmountCents = Math.min(totalServerDiscountCents, serverTotalCents);
+    const discountAmount = discountAmountCents / 100;
     
     // Log if client sent different discount (for debugging)
     const requestedDiscount = Math.max(0, Number(body.discountAmount) || 0);
-    if (requestedDiscount !== totalServerDiscount) {
-      console.warn(`[checkout] Client discount ignored: client=${requestedDiscount}, server=${totalServerDiscount}, applied=${discountAmount}`);
+    if (Math.round(requestedDiscount * 100) !== totalServerDiscountCents) {
+      console.warn(`[checkout] Client discount ignored: client=${requestedDiscount}, server=${totalServerDiscountCents / 100}, applied=${discountAmount}`);
     }
 
     const paymentItems = buildPaymentItemsForWayForPay(resolvedItems, discountAmount);
-    const finalAmount = Number(
-      paymentItems.reduce((sum, item) => sum + item.lineTotal, 0).toFixed(2)
-    );
+    // Calculate final amount in cents to avoid floating point precision issues
+    const finalAmountCents = paymentItems.reduce((sum, item) => {
+      const itemCents = Math.round(item.lineTotal * 100);
+      return sum + itemCents;
+    }, 0);
+    const finalAmount = finalAmountCents / 100;
 
     // Calculate discounted price per product for Sitniks CRM
     // Distribute discount proportionally across all items
     const productsWithDiscount = resolvedItems.map((item, index) => {
       // const originalLineTotal = item.price * item.quantity;
       const discountedLineTotal = paymentItems[index].lineTotal;
-      const discountedPrice = item.quantity > 0 
-        ? Number((discountedLineTotal / item.quantity).toFixed(2))
-        : item.price;
+      const discountedPriceCents = item.quantity > 0 
+        ? Math.round((discountedLineTotal / item.quantity) * 100)
+        : Math.round(item.price * 100);
+      const discountedPrice = discountedPriceCents / 100;
       
       return {
         ...item,
@@ -330,11 +335,11 @@ export async function POST(req: NextRequest) {
     }
     if (discountAmount > 0) {
       const discountParts = [];
-      if (serverDiscountAmount > 0) {
-        discountParts.push(`Промокод: ${serverDiscountAmount} грн`);
+      if (serverDiscountAmountCents > 0) {
+        discountParts.push(`Промокод: ${serverDiscountAmountCents / 100} грн`);
       }
-      if (onlinePaymentDiscount > 0) {
-        discountParts.push(`Онлайн-оплата: ${onlinePaymentDiscount} грн`);
+      if (onlinePaymentDiscountCents > 0) {
+        discountParts.push(`Онлайн-оплата: ${onlinePaymentDiscountCents / 100} грн`);
       }
       managerComment += `. Знижка: ${discountParts.join(", ")} (всього: ${discountAmount} грн)`;
     }
@@ -417,7 +422,10 @@ export async function POST(req: NextRequest) {
             const label = item.quantity > 1 ? `${item.name} x${item.quantity}` : item.name;
             return sanitizeProductName(label);
           }),
-          productPrice: paymentItems.map((item) => Number(item.lineTotal.toFixed(2))),
+          productPrice: paymentItems.map((item) => {
+            const priceCents = Math.round(item.lineTotal * 100);
+            return (priceCents / 100).toFixed(2);
+          }),
           productCount: paymentItems.map(() => 1),
           returnUrl: `${wfpConfig.siteUrl}/api/payment/return`,
           serviceUrl: `${wfpConfig.siteUrl}/api/webhooks/wayforpay`,

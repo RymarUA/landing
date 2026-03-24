@@ -5,10 +5,11 @@ import { isValidUkrainianPhone, normalizePhone } from "@/lib/phone-utils";
 
 interface PhoneInputProps extends InputHTMLAttributes<HTMLInputElement> {
   onPhoneChange?: (phone: string, isValid: boolean) => void;
+  onValueChange?: (value: string) => void;
 }
 
 export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
-  ({ onChange, onBlur, value, onPhoneChange, ...props }, ref) => {
+  ({ onChange, onBlur, value, onPhoneChange, onValueChange, ...props }, ref) => {
     const [displayValue, setDisplayValue] = useState("");
     const [isValid, setIsValid] = useState(false);
 
@@ -70,16 +71,18 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
         normalizedPhone = digits;
       }
       
-      // Call original onChange if provided
+      // Call original onChange if provided - pass normalized value directly
       if (onChange) {
-        const syntheticEvent = {
-          ...e,
-          target: {
-            ...e.target,
-            value: normalizedPhone,
-          },
-        };
-        onChange(syntheticEvent);
+        // Create a simple event-like object for compatibility
+        const event = {
+          target: { value: normalizedPhone }
+        } as React.ChangeEvent<HTMLInputElement>;
+        onChange(event);
+      }
+      
+      // Call custom value change callback
+      if (onValueChange) {
+        onValueChange(normalizedPhone);
       }
       
       // Call custom callback
@@ -106,14 +109,15 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
         
         // Trigger onChange with normalized value on blur
         if (onChange) {
-          const syntheticEvent = {
-            ...e,
-            target: {
-              ...e.target,
-              value: normalizedPhone,
-            },
-          };
-          onChange(syntheticEvent);
+          const event = {
+            target: { value: normalizedPhone }
+          } as React.ChangeEvent<HTMLInputElement>;
+          onChange(event);
+        }
+        
+        // Call custom value change callback
+        if (onValueChange) {
+          onValueChange(normalizedPhone);
         }
       }
       

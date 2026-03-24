@@ -56,7 +56,10 @@ export const checkoutSchema = z.object({
   paymentMethod: z.enum(PAYMENT_METHODS),
 
   /** Email - required only for COD payment */
-  email: z.string().email("Невірний формат email").optional(),
+  email: z.literal("")
+    .or(z.string().email("Невірний формат email"))
+    .optional()
+    .transform(e => e === "" ? undefined : e),
 }).refine((data) => {
   // Email is required only for COD payment
   if (data.paymentMethod === "cod") {

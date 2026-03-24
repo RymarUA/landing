@@ -14,6 +14,14 @@
 
 const SEND_TIMEOUT_MS = 5000;
 
+/**
+ * Escape HTML entities for Telegram messages with parse_mode: "HTML"
+ * Telegram API is strict about HTML parsing - special characters must be escaped
+ */
+export function escapeTgHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export async function sendTelegramNotification(message: string): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -50,4 +58,3 @@ export async function sendTelegramNotification(message: string): Promise<void> {
     clearTimeout(timeout);
   }
 }
-

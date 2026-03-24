@@ -28,6 +28,7 @@ export function CartWidget() {
   const [animate, setAnimate] = useState(false);
   const [lastQuantityToast, setLastQuantityToast] = useState<{ name: string; quantity: number } | null>(null);
   const prevCount = useRef(totalCount);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Create a stable key for cart items to prevent infinite re-renders
   const cartItemsKey = useMemo(() => {
@@ -48,9 +49,15 @@ export function CartWidget() {
         quantity: qty
       });
       
+      // Clear any existing toast timeout
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+      
       // Clear toast after 2 seconds
-      setTimeout(() => {
+      toastTimeoutRef.current = setTimeout(() => {
         setLastQuantityToast(null);
+        toastTimeoutRef.current = null;
       }, 2000);
     }
   }, [items, updateQuantity]);
@@ -103,6 +110,15 @@ export function CartWidget() {
     }
     prevCount.current = totalCount;
   }, [totalCount, hydrated]);
+
+  // Cleanup toast timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const showBadge = hydrated && totalCount > 0;
 

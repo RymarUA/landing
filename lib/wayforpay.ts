@@ -94,18 +94,20 @@ export function buildWfpSignature(
   params: WayForPayPaymentParams,
   secret: string
 ): string {
-  // 1. Format amount: always 2 decimal places (e.g., 1500.00)
-  const formattedAmount = Number(params.amount).toFixed(2);
+  // 1. Format amount: work with cents to avoid floating point precision issues
+  const amountCents = Math.round(Number(params.amount) * 100);
+  const formattedAmount = (amountCents / 100).toFixed(2);
   
   // 2. Sanitize product names: remove semicolons and trim
   const sanitizedNames = params.productName.map((name: string) => 
     name.replace(/;/g, ' ').trim()
   );
 
-  // 3. Format prices: always 2 decimal places
-  const formattedPrices = params.productPrice.map((p: number) => 
-    Number(p).toFixed(2)
-  );
+  // 3. Format prices: work with cents to avoid floating point precision issues
+  const formattedPrices = params.productPrice.map((p: number) => {
+    const priceCents = Math.round(Number(p) * 100);
+    return (priceCents / 100).toFixed(2);
+  });
 
   // CORRECT ORDER: productName → productCount → productPrice
   const parts: (string | number)[] = [
@@ -164,11 +166,12 @@ export function verifyWfpWebhookSignature(
   },
   secret: string
 ): boolean {
+  // CRITICAL: Use original amount value from payload as string
+  // WayForPay signs exactly what they send - don't modify the value
   const parts = [
     payload.merchantAccount,
     payload.orderReference,
-    // CRITICAL: Format amount with 2 decimal places for signature consistency
-    Number(payload.amount).toFixed(2),
+    String(payload.amount),
     payload.currency,
     payload.authCode,
     payload.cardPan,
@@ -209,7 +212,10 @@ export function buildWfpFormParams(
     merchantDomainName: params.merchantDomainName,
     orderReference: params.orderReference,
     orderDate: String(params.orderDate),
-    amount: Number(params.amount).toFixed(2), // CRITICAL: toFixed(2) for consistency
+    amount: (() => {
+      const amountCents = Math.round(Number(params.amount) * 100);
+      return (amountCents / 100).toFixed(2);
+    })(), // CRITICAL: use cents precision for consistency
     currency: params.currency,
     returnUrl: params.returnUrl,
     serviceUrl: params.serviceUrl,
@@ -222,7 +228,8 @@ export function buildWfpFormParams(
     formParams[`productName[${i}]`] = n.replace(/;/g, ' ').trim();
   });
   params.productPrice.forEach((p, i) => {
-    formParams[`productPrice[${i}]`] = Number(p).toFixed(2); // CRITICAL: toFixed(2)
+    const priceCents = Math.round(Number(p) * 100);
+    formParams[`productPrice[${i}]`] = (priceCents / 100).toFixed(2); // CRITICAL: use cents precision
   });
   params.productCount.forEach((c, i) => {
     formParams[`productCount[${i}]`] = String(c);
@@ -255,7 +262,10 @@ export function buildWfpPaymentUrl(
   query.set("merchantDomainName", params.merchantDomainName);
   query.set("orderReference", params.orderReference);
   query.set("orderDate", String(params.orderDate));
-  query.set("amount", Number(params.amount).toFixed(2)); // CRITICAL: toFixed(2)
+  query.set("amount", (() => {
+    const amountCents = Math.round(Number(params.amount) * 100);
+    return (amountCents / 100).toFixed(2);
+  })()); // CRITICAL: use cents precision
   query.set("currency", params.currency);
   query.set("returnUrl", params.returnUrl);
   query.set("serviceUrl", params.serviceUrl);
@@ -266,9 +276,10 @@ export function buildWfpPaymentUrl(
   params.productName.forEach((n, i) => 
     query.append(`productName[${i}]`, n.replace(/;/g, ' ').trim())
   );
-  params.productPrice.forEach((p, i) => 
-    query.append(`productPrice[${i}]`, Number(p).toFixed(2)) // CRITICAL: toFixed(2)
-  );
+  params.productPrice.forEach((p, i) => {
+    const priceCents = Math.round(Number(p) * 100);
+    query.append(`productPrice[${i}]`, (priceCents / 100).toFixed(2)) // CRITICAL: use cents precision
+  });
   params.productCount.forEach((c, i) => 
     query.append(`productCount[${i}]`, String(c))
   );

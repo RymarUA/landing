@@ -127,14 +127,9 @@ export class RateLimiter {
       return this.config.keyGenerator(req);
     }
 
-    // Default key based on IP
-    const ip = req.headers?.['x-forwarded-for']?.split(',')[0] || 
-               req.headers?.['x-real-ip'] || 
-               req.ip || 
-               req.connection?.remoteAddress || 
-               'unknown';
-    
-    return `rate_limit:${ip}`;
+    // Default key based on IP - use Headers API for Next.js
+    const ip = req.headers?.get ? (req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip')) : 'unknown';
+    return `rate_limit:${ip || req.ip || 'unknown'}`;
   }
 }
 

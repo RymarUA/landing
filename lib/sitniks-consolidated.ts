@@ -376,67 +376,67 @@ export async function getSitniksProducts(options: {
 }
 
 export async function getAllSitniksProducts(): Promise<SitniksProduct[]> {
-  const all: SitniksProduct[] = [];
-  let skip = 0;
   const limit = 50;
   const maxRetries = 3;
   let consecutiveErrors = 0;
 
-  while (true) {
-    const page = await getSitniksProducts({ limit, skip });
-    
-    // Debug: log what we get
-    console.log(`[sitniks] Page ${skip}-${skip + limit}:`, page ? `${page.data.length} products, total ${page.total}` : 'null');
-    
-    // If API fails completely (null), retry up to maxRetries times
-    if (!page) {
-      consecutiveErrors++;
-      console.error(`[sitniks] API request failed (attempt ${consecutiveErrors}/${maxRetries})`);
-      
-      if (consecutiveErrors >= maxRetries) {
-        console.error(`[sitniks] Failed after ${maxRetries} consecutive errors. Stopping pagination to prevent data loss.`);
-        console.error(`[sitniks] Current progress: ${all.length} products loaded. Last successful skip: ${skip - limit}`);
-        throw new Error(`Sitniks API failed after ${maxRetries} consecutive attempts. Catalog update aborted to prevent data loss.`);
-      }
-      
-      // Wait before retry (exponential backoff)
-      const delay = Math.min(1000 * Math.pow(2, consecutiveErrors - 1), 5000);
-      console.log(`[sitniks] Retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      continue;
-    }
-    
-    // Reset error counter on successful request
-    consecutiveErrors = 0;
-    
-    // If we get empty data but expected products, this might be an API issue
-    if (page.data.length === 0) {
-      if (skip === 0) {
-        // First page is empty - likely no products at all
-        console.warn(`[sitniks] First page returned no products. Catalog might be empty.`);
-        break;
-      } else {
-        // Middle page is empty - this is suspicious, might be API issue
-        console.warn(`[sitniks] Page ${skip} returned empty data but we have ${all.length} products already. This might indicate API issues.`);
-        console.warn(`[sitniks] Expected total: ${page.total}, but got 0 products on page ${skip}.`);
-        
-        // If we have some products and total > 0, this is likely an API error
-        if (all.length > 0 && page.total > all.length) {
-          throw new Error(`Sitniks API returned empty page ${skip} but expected more products (total: ${page.total}, loaded: ${all.length}). Stopping to prevent data loss.`);
-        }
-        
-        // Otherwise, this might be legitimate end of pagination
-        break;
-      }
-    }
-    
-    all.push(...page.data);
-    if (all.length >= page.total || page.data.length < limit) break;
-    skip += limit;
+  // Get first page to determine total
+  const firstPage = await getSitniksProducts({ limit, skip: 0 });
+  
+  if (!firstPage) {
+    console.error('[sitniks] Failed to fetch first page of products');
+    throw new Error('Sitniks API failed to fetch first page of products');
   }
 
-  console.log(`[sitniks] Total products loaded: ${all.length}`);
-  return all;
+  console.log(`[sitniks] First page: ${firstPage.data.length} products, total ${firstPage.total}`);
+  
+  // If no products or only one page needed, return immediately
+  if (firstPage.data.length === 0 || firstPage.total <= limit) {
+    console.log(`[sitniks] Total products loaded: ${firstPage.data.length}`);
+    return firstPage.data;
+  }
+
+  // Calculate remaining pages
+  const remainingPagesCount = Math.ceil((firstPage.total - limit) / limit);
+  console.log(`[sitniks] Fetching ${remainingPagesCount} remaining pages in parallel...`);
+
+  // Create promises for all remaining pages
+  const pagePromises = [];
+  for (let i = 1; i <= remainingPagesCount; i++) {
+    pagePromises.push(getSitniksProducts({ limit, skip: i * limit }));
+  }
+
+  // Execute all remaining pages in parallel
+  const results = await Promise.allSettled(pagePromises);
+  
+  // Process results and collect all products
+  const allProducts = [...firstPage.data];
+  let failedPages = 0;
+
+  results.forEach((result, index) => {
+    const pageNumber = index + 1; // +1 because we started from page 1 (second page)
+    
+    if (result.status === 'fulfilled' && result.value) {
+      const page = result.value;
+      
+      if (page.data.length === 0) {
+        console.warn(`[sitniks] Page ${pageNumber} returned empty data but expected products`);
+      } else {
+        allProducts.push(...page.data);
+        console.log(`[sitniks] Page ${pageNumber}: ${page.data.length} products`);
+      }
+    } else {
+      failedPages++;
+      console.error(`[sitniks] Page ${pageNumber} failed:`, result.status === 'rejected' ? result.reason : 'null response');
+    }
+  });
+
+  if (failedPages > 0) {
+    console.warn(`[sitniks] ${failedPages} pages failed to load. Total loaded: ${allProducts.length}/${firstPage.total}`);
+  }
+
+  console.log(`[sitniks] Total products loaded: ${allProducts.length}`);
+  return allProducts;
 }
 
 export async function getSitniksProductById(productId: number): Promise<SitniksProduct | null> {
@@ -736,14 +736,53 @@ export async function updateSitniksOrder(
     return false;
   }
 
-  const STATUS_MAP: Record<string, string> = {
-    paid: "Оплачено",
-    shipped: "Відправлено",
-    delivered: "Доставлено",
-    cancelled: "Скасовано",
+  // Use status IDs from environment variables for robust status mapping
+  // This prevents issues when CRM language changes or status names are renamed
+  const getStatusId = (statusType: string): number | null => {
+    switch (statusType) {
+      case "paid":
+        return process.env.SITNIKS_PAID_STATUS_ID ? parseInt(process.env.SITNIKS_PAID_STATUS_ID, 10) : null;
+      case "shipped":
+        return process.env.SITNIKS_SHIPPED_STATUS_ID ? parseInt(process.env.SITNIKS_SHIPPED_STATUS_ID, 10) : null;
+      case "delivered":
+        return process.env.SITNIKS_DELIVERED_STATUS_ID ? parseInt(process.env.SITNIKS_DELIVERED_STATUS_ID, 10) : null;
+      case "cancelled":
+        return process.env.SITNIKS_CANCELLED_STATUS_ID ? parseInt(process.env.SITNIKS_CANCELLED_STATUS_ID, 10) : null;
+      default:
+        return null;
+    }
   };
+
+  // Use provided statusId, or get from environment, or fallback to hardcoded status name
+  let payload: Record<string, any>;
   
-  const crmStatus = STATUS_MAP[status] ?? "Оплачено";
+  if (statusId) {
+    // Use explicitly provided statusId
+    payload = { statusId };
+    console.log(`[sitniks] Using provided statusId: ${statusId}`);
+  } else {
+    // Try to get statusId from environment variables
+    const envStatusId = getStatusId(status);
+    if (envStatusId) {
+      payload = { statusId: envStatusId };
+      console.log(`[sitniks] Using environment statusId for ${status}: ${envStatusId}`);
+    } else {
+      // Fallback to hardcoded status names (not recommended for production)
+      console.warn(`[sitniks] No statusId found in environment for ${status}, falling back to hardcoded status name`);
+      console.warn(`[sitniks] Please set SITNIKS_${status.toUpperCase()}_STATUS_ID environment variable`);
+      
+      const STATUS_MAP: Record<string, string> = {
+        paid: "Оплачено",
+        shipped: "Відправлено",
+        delivered: "Доставлено",
+        cancelled: "Скасовано",
+      };
+      
+      const crmStatus = STATUS_MAP[status] ?? "Оплачено";
+      payload = { status: crmStatus };
+      console.log(`[sitniks] Using fallback status name: ${crmStatus}`);
+    }
+  }
   
   // Try to find order by orderNumber or externalId
   // NOTE: no-cache is critical here - searching for a newly created order
@@ -771,9 +810,6 @@ export async function updateSitniksOrder(
   }
   
   console.log(`[sitniks] Found order ID: ${targetId}, updating status...`);
-  
-  // Use statusId if provided, otherwise use status name
-  const payload = statusId ? { statusId } : { status: crmStatus };
   console.log(`[sitniks] Update payload:`, JSON.stringify(payload, null, 2));
   
   const res = await sitniksSafe<unknown>("PATCH", `/open-api/orders/${targetId}`, payload);

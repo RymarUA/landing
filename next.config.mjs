@@ -227,6 +227,22 @@ const nextConfig = {
       },
     ];
   },
+
+  // Edge-level redirects for WayForPay webhook compatibility
+  async redirects() {
+    return [
+      {
+        source: '/api/checkout/callback-temp',
+        destination: '/api/webhooks/wayforpay',
+        permanent: true, // 301 redirect - old endpoint moved permanently
+      },
+      {
+        source: '/api/checkout/redirect-to-webhook',
+        destination: '/api/webhooks/wayforpay',
+        permanent: true, // 301 redirect - old endpoint moved permanently
+      },
+    ];
+  },
 };
 
 const withMDX = nextMDX({

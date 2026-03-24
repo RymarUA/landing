@@ -112,7 +112,7 @@ export function VirtualizedProductGrid({
               product={product}
               onAddToCart={onAddToCart}
               searchQuery={searchQuery}
-              priority={index < 6} // Перші 6 зображень з високим пріоритетом для LCP
+              priority={index < 6 && visibleCount <= 12} // Priority only for first 6 items in initial load
               compact={false}
             />
           </motion.div>

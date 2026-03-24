@@ -220,11 +220,29 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
       try {
         const warehouses = await fetchNPWarehouses(cityRef);
         const warehouse = warehouses.find(w => w.Ref === warehouseRef);
-        return warehouse?.Number || warehouseRef; // Fallback to Ref if Number not found
+        
+        if (warehouse?.Number) {
+          return warehouse.Number;
+        }
+        
+        // CRITICAL: Hardcoded fallback for known warehouses when API returns empty or incomplete data
+        const hardcodedWarehouses: Record<string, { number: string; districtCode: string }> = {
+          // Sender warehouse (known from testing)
+          'ed25ae13-9bfd-11e4-acce-0050568002cf': { number: '52', districtCode: '55' },
+        };
+        
+        const fallback = hardcodedWarehouses[warehouseRef];
+        if (fallback) {
+          console.log(`[novaposhta-ttn] Using hardcoded fallback for warehouse ${warehouseRef}: Number=${fallback.number}, DistrictCode=${fallback.districtCode}`);
+          return fallback.number;
+        }
+        
+        console.warn(`[novaposhta-ttn] No warehouse found for ${warehouseRef}, using Ref as fallback`);
+        return warehouseRef; // Last resort fallback
       } catch (error) {
         console.error(`[novaposhta-ttn] Failed to get warehouse Number for ${warehouseRef}:`, error);
         
-        // CRITICAL: Hardcoded fallback for known warehouses when API is unavailable
+        // CRITICAL: Hardcoded fallback for known warehouses when API throws exception
         const hardcodedWarehouses: Record<string, { number: string; districtCode: string }> = {
           // Sender warehouse (known from testing)
           'ed25ae13-9bfd-11e4-acce-0050568002cf': { number: '52', districtCode: '55' },
@@ -245,11 +263,29 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
       try {
         const warehouses = await fetchNPWarehouses(cityRef);
         const warehouse = warehouses.find(w => w.Ref === warehouseRef);
-        return warehouse?.DistrictCode || ''; // Fallback to empty string
+        
+        if (warehouse?.DistrictCode) {
+          return warehouse.DistrictCode;
+        }
+        
+        // CRITICAL: Hardcoded fallback for known warehouses when API returns empty or incomplete data
+        const hardcodedWarehouses: Record<string, { number: string; districtCode: string }> = {
+          // Sender warehouse (known from testing)
+          'ed25ae13-9bfd-11e4-acce-0050568002cf': { number: '52', districtCode: '55' },
+        };
+        
+        const fallback = hardcodedWarehouses[warehouseRef];
+        if (fallback) {
+          console.log(`[novaposhta-ttn] Using hardcoded fallback for warehouse ${warehouseRef}: DistrictCode=${fallback.districtCode}`);
+          return fallback.districtCode;
+        }
+        
+        console.warn(`[novaposhta-ttn] No DistrictCode found for warehouse ${warehouseRef}, using empty string`);
+        return ''; // Last resort fallback
       } catch (error) {
         console.error(`[novaposhta-ttn] Failed to get warehouse DistrictCode for ${warehouseRef}:`, error);
         
-        // CRITICAL: Hardcoded fallback for known warehouses when API is unavailable
+        // CRITICAL: Hardcoded fallback for known warehouses when API throws exception
         const hardcodedWarehouses: Record<string, { number: string; districtCode: string }> = {
           // Sender warehouse (known from testing)
           'ed25ae13-9bfd-11e4-acce-0050568002cf': { number: '52', districtCode: '55' },

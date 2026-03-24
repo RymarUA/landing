@@ -226,7 +226,8 @@ export async function POST(req: NextRequest) {
       const explicitVariationId = item.variationId ?? (item.productId != null ? undefined : item.id);
       let variationId = explicitVariationId ?? catalogProduct.variationId ?? productId;
       let price = catalogProduct.price;
-      let weight = catalogProduct.weight ?? 0.5;
+      // Sitniks stores weight in grams, Nova Poshta expects kilograms
+      let weight = catalogProduct.weight ? catalogProduct.weight / 1000 : 0.5;
       
       if (item.size && catalogProduct.allVariations?.length) {
         const matchingVariation = catalogProduct.allVariations.find(v => 

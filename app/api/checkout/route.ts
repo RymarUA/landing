@@ -195,6 +195,7 @@ export async function POST(req: NextRequest) {
 
     // Server-side price: get products from catalog by ID, ignore frontend totalPrice
     let serverTotalCents = 0;
+    let sitnicsAvailable = true; // track if Sitniks API responded
     const resolvedItems: Array<{ variationId: number; price: number; quantity: number; name: string; size?: string; weight: number }> = [];
 
     for (const item of body.items) {
@@ -206,20 +207,25 @@ export async function POST(req: NextRequest) {
         );
       }
       
-      const catalogProduct = await getCatalogProductById(Number(productId));
+      let catalogProduct = await getCatalogProductById(Number(productId));
       
       if (!catalogProduct) {
-        logger.warn("[checkout] Product not found", {
+        sitnicsAvailable = false;
+        console.warn(`[checkout] Product lookup timed out or failed, using fallback data for productId=${Number(productId)}`);
+        logger.warn("[checkout] Product not found in Sitniks (timeout?), using fallback data from request", {
           requestProductId: Number(productId),
           itemSize: item.size,
         });
-        return NextResponse.json(
-          {
-            error: `Товар з ID ${productId} не знайдено в каталозі. Можливо товар був видалений. Будь ласка, оновіть сторінку та спробуйте ще раз.`,
-            missingProductId: Number(productId),
-          },
-          { status: 404 }
-        );
+        
+        // Fallback: use request data when Sitniks is unavailable
+        catalogProduct = {
+          id: Number(productId),
+          name: item.name || `Товар #${productId}`,
+          price: item.price || 0,
+          weight: 0.5, // Default weight in kg (Nova Poshta)
+          variationId: item.variationId || Number(productId),
+          allVariations: [],
+        };
       }
       
       // Find variation by size if specified
@@ -374,10 +380,11 @@ export async function POST(req: NextRequest) {
           serviceType: "WarehouseWarehouse",
           payerType: "Recipient",
           cargoType: "Parcel",
-          // Если оплачено онлайн - NonCash, иначе - Cash (наложенный платеж)
-          paymentMethod: isOnlinePayment ? "NonCash" : "Cash",
+          // Nova Poshta rule: NonCash only available when payerType is Sender
+          // For online payment (already paid by card), recipient pays delivery in cash at warehouse
+          paymentMethod: "Cash",
           // Если оплачено онлайн - без доплаты, иначе - с доплатой при получении
-          productPaymentMethod: isOnlinePayment ? "without-backward-delivery" : "postpaid",
+          productPaymentMethod: isOnlinePayment ? "payment-control" : "postpaid",
           weight: totalWeight,
           description: resolvedItems.map((i) => `${i.name} x${i.quantity}`).join(", "),
         }
@@ -395,13 +402,21 @@ export async function POST(req: NextRequest) {
 
     // ── Online payments: save order data to pending store, create Sitniks order AFTER payment ──
     if (isOnlinePayment) {
+      let onlineStep = "start";
+      let orderRef = "";
       try {
+        onlineStep = "getWfpConfig";
+        console.warn(`[/api/checkout] Online payment flow started. amount=${finalAmount}`);
         const wfpConfig = getWfpConfig();
         // CRITICAL: Use crypto.randomUUID() to prevent collisions when multiple users checkout simultaneously
         // Format: op_{uuid} - guaranteed unique even with concurrent requests
-        const orderRef = `op_${crypto.randomUUID()}`;
+        onlineStep = "createOrderRef";
+        orderRef = `op_${crypto.randomUUID()}`;
+        console.warn(`[/api/checkout] Online payment orderRef created: ${orderRef}`);
 
         // Store full order DTO for later creation in Sitniks after payment confirmed
+        onlineStep = "savePendingOrder";
+        console.warn(`[/api/checkout] Saving pending order: ${orderRef}`);
         await savePendingOrder(orderRef, {
           orderRef,
           dto: dto as unknown as Record<string, unknown>,
@@ -409,8 +424,22 @@ export async function POST(req: NextRequest) {
           customerName: body.name,
           customerPhone: phone,
           createdAt: Date.now(),
+          // Save NP delivery data for TTN creation after payment confirmed
+          ...(body.cityRef && body.departmentRef ? {
+            npDelivery: {
+              cityRef: body.cityRef,
+              departmentRef: body.departmentRef,
+              recipientName: body.name,
+              recipientPhone: phone,
+              description: resolvedItems.map((i) => `${i.name} x${i.quantity}`).join(", "),
+              weight: totalWeight,
+              cost: finalAmount,
+            }
+          } : {}),
         });
+        console.warn(`[/api/checkout] Pending order saved successfully: ${orderRef}`);
 
+        onlineStep = "buildPaymentParams";
         const paymentParams = {
           merchantAccount: wfpConfig.merchantAccount,
           merchantDomainName: wfpConfig.merchantDomainName,
@@ -430,9 +459,10 @@ export async function POST(req: NextRequest) {
           returnUrl: `${wfpConfig.siteUrl}/api/payment/return`,
           serviceUrl: `${wfpConfig.siteUrl}/api/webhooks/wayforpay`,
         };
+        onlineStep = "buildWfpFormParams";
         const paymentFormParams = buildWfpFormParams(paymentParams, wfpConfig.secretKey);
 
-        console.log(`[/api/checkout] Online payment pending, orderRef=${orderRef}, amount=${finalAmount}`);
+        console.warn(`[/api/checkout] Online payment pending, orderRef=${orderRef}, amount=${finalAmount}`);
 
         return NextResponse.json({
           success: true,
@@ -441,6 +471,7 @@ export async function POST(req: NextRequest) {
           paymentFormParams,
         });
       } catch (error) {
+        console.error(`[/api/checkout] Online payment flow failed at step=${onlineStep} orderRef=${orderRef || "n/a"}`, error);
         logger.error("[/api/checkout] Failed to prepare online payment:", error);
         return NextResponse.json(
           { error: "Не вдалося створити посилання для оплати. Спробуйте пізніше або оберіть накладений платіж." },
@@ -462,7 +493,13 @@ export async function POST(req: NextRequest) {
 
     // Автоматичне створення ТТН, якщо є дані Нової Пошти
     let ttnNumber: string | undefined;
+    
+    if (!sitnicsAvailable) {
+      console.warn(`[/api/checkout] Sitniks недоступний — використано fallback. ТТН буде створено з даними з форми.`);
+    }
+    
     if (body.cityRef && body.departmentRef) {
+      console.log(`[/api/checkout] Створення ТТН для замовлення ${order.orderNumber}`);
       const senderCityRef = process.env.NOVAPOSHTA_SENDER_CITY_REF;
       const senderWarehouseRef = process.env.NOVAPOSHTA_SENDER_WAREHOUSE_REF;
       const senderCounterpartyRef = process.env.NOVAPOSHTA_SENDER_COUNTERPARTY_REF;

@@ -5,6 +5,8 @@
  * Документація: https://developers.novaposhta.ua/view/model/a90d323c-8512-11ec-8ced-005056b2dbe1/method/a965630e-8512-11ec-8ced-005056b2dbe1
  */
 
+import { NPWarehouse, fetchNPWarehouses } from './novaposhta-api';
+
 const NP_API_URL = 'https://api.novaposhta.ua/v2.0/json/';
 
 interface CreateTTNParams {
@@ -31,6 +33,60 @@ interface CreateTTNParams {
   paymentMethod: 'Cash' | 'NonCash';
   payerType: 'Sender' | 'Recipient';
   backwardDeliveryMoney?: number; // Сума накладеного платежу
+}
+
+function transliterateToUkrainian(value: string): string {
+  const digraphs: Array<[string, string]> = [
+    ['shch', 'щ'],
+    ['zh', 'ж'],
+    ['kh', 'х'],
+    ['ts', 'ц'],
+    ['ch', 'ч'],
+    ['sh', 'ш'],
+    ['yu', 'ю'],
+    ['ya', 'я'],
+    ['yi', 'ї'],
+    ['ye', 'є'],
+    ['yo', 'йо'],
+  ];
+
+  const singles: Record<string, string> = {
+    a: 'а', b: 'б', c: 'к', d: 'д', e: 'е', f: 'ф', g: 'г', h: 'х', i: 'і',
+    j: 'й', k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п', q: 'к', r: 'р',
+    s: 'с', t: 'т', u: 'у', v: 'в', w: 'в', x: 'кс', y: 'и', z: 'з',
+  };
+
+  let result = value.trim().toLowerCase();
+  for (const [from, to] of digraphs) {
+    result = result.replaceAll(from, to);
+  }
+
+  result = result.replace(/[a-z]/g, (char) => singles[char] ?? char);
+  result = result.replace(/[^\p{Script=Cyrillic}'’\-\s]/gu, ' ');
+  result = result.replace(/\s+/g, ' ').trim();
+
+  return result.replace(/(^|\s|['’\-])(\p{Script=Cyrillic})/gu, (_, prefix: string, char: string) => `${prefix}${char.toUpperCase()}`);
+}
+
+function normalizeRecipientName(recipientName: string): { firstName: string; lastName: string; middleName: string } {
+  const normalized = transliterateToUkrainian(recipientName);
+  // Final cleanup: strip non-Cyrillic chars (keep only Cyrillic, spaces, apostrophes, hyphens)
+  const cleaned = normalized.replace(/[^\u0400-\u04FF\u0027\s\-]/g, ' ').replace(/\s+/g, ' ').trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return { firstName: 'Клієнт', lastName: 'Клієнт', middleName: '' };
+  }
+
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: 'Клієнт', middleName: '' };
+  }
+
+  return {
+    lastName: parts[0],
+    firstName: parts[1],
+    middleName: parts.slice(2).join(' '),
+  };
 }
 
 async function npRequest(body: object): Promise<any> {
@@ -99,10 +155,7 @@ async function createRecipientCounterparty(
   console.log('[novaposhta-ttn] Створення нового контрагента...');
   
   // Розбиваємо ПІБ на частини
-  const parts = recipientName.trim().split(/\s+/);
-  const lastName  = parts[0] ?? '';
-  const firstName = parts[1] ?? parts[0] ?? '';
-  const middleName = parts[2] ?? '';
+  const { firstName, lastName, middleName } = normalizeRecipientName(recipientName);
 
   const result = await npRequest({
     apiKey,
@@ -158,20 +211,58 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
     const { counterpartyRef: recipientRef, contactRef: contactRecipientRef } =
       await createRecipientCounterparty(apiKey, params.recipientName, params.recipientPhone, params.recipientCityRef);
 
+    const effectivePaymentMethod = params.payerType === 'Recipient' && params.paymentMethod === 'NonCash'
+      ? 'Cash'
+      : params.paymentMethod;
+
+    // According to Nova Poshta API documentation:
+// - SenderAddress/RecipientAddress: Ref склада (UUID)
+// - SenderWarehouseIndex/RecipientWarehouseIndex: Цифровой адрес склада (Number)
+    
+    // Helper function to get warehouse Number (digital address)
+    const getWarehouseNumber = async (warehouseRef: string, cityRef: string): Promise<string> => {
+      try {
+        const warehouses = await fetchNPWarehouses(cityRef);
+        const warehouse = warehouses.find(w => w.Ref === warehouseRef);
+        return warehouse?.Number || warehouseRef; // Fallback to Ref if Number not found
+      } catch (error) {
+        console.error(`[novaposhta-ttn] Failed to get warehouse Number for ${warehouseRef}:`, error);
+        return warehouseRef; // Fallback to Ref
+      }
+    };
+
+    // Get digital addresses for both sender and recipient
+    const senderWarehouseNumber = await getWarehouseNumber(params.senderWarehouseRef, params.senderCityRef);
+    const recipientWarehouseNumber = await getWarehouseNumber(params.recipientWarehouseRef, params.recipientCityRef);
+
+    // CRITICAL: According to successful API test, SenderWarehouseIndex/RecipientWarehouseIndex 
+    // need format "Number/1" (e.g., "52/1") not just "Number" (e.g., "52")
+    const senderWarehouseIndex = `${senderWarehouseNumber}/1`;
+    const recipientWarehouseIndex = `${recipientWarehouseNumber}/1`;
+
+    // Debug logging to identify the exact issue
+    console.log(`[novaposhta-ttn] Creating TTN with parameters:`);
+    console.log(`[novaposhta-ttn] Sender: CityRef=${params.senderCityRef}, WarehouseRef=${params.senderWarehouseRef}, WarehouseNumber=${senderWarehouseNumber}, WarehouseIndex=${senderWarehouseIndex}`);
+    console.log(`[novaposhta-ttn] Recipient: CityRef=${params.recipientCityRef}, WarehouseRef=${params.recipientWarehouseRef}, WarehouseNumber=${recipientWarehouseNumber}, WarehouseIndex=${recipientWarehouseIndex}`);
+    console.log(`[novaposhta-ttn] Sender: CounterpartyRef=${params.senderCounterpartyRef}, ContactRef=${params.senderContactRef}`);
+    console.log(`[novaposhta-ttn] Recipient: Name=${params.recipientName}, Phone=${params.recipientPhone}`);
+
     const methodProperties: Record<string, any> = {
       DateTime: dateStr,
 
-      // Відправник
+      // Відправник - правильная структура согласно документации
       CitySender:     params.senderCityRef,
       Sender:         params.senderCounterpartyRef,
-      SenderAddress:  params.senderWarehouseRef,
+      SenderAddress:  params.senderWarehouseRef,        // ← Ref склада (UUID)
+      SenderWarehouseIndex: senderWarehouseIndex,        // ← Формат "Number/1" (e.g., "52/1")
       ContactSender:  params.senderContactRef,
       SendersPhone:   params.senderPhone,
 
-      // Отримувач
+      // Отримувач - правильная структура согласно документации
       CityRecipient:     params.recipientCityRef,
       Recipient:         recipientRef,
-      RecipientAddress:  params.recipientWarehouseRef,
+      RecipientAddress:  params.recipientWarehouseRef,     // ← Ref склада (UUID)
+      RecipientWarehouseIndex: recipientWarehouseIndex,   // ← Формат "Number/1" (e.g., "52/1")
       ContactRecipient:  contactRecipientRef,
       RecipientsPhone:   params.recipientPhone,
 
@@ -180,13 +271,14 @@ export async function createNovaPoshtaTTN(params: CreateTTNParams): Promise<{
       Weight:       String(Math.max(params.weight, 0.1)),
       SeatsAmount:  String(params.seatsAmount),
       Cost:         String(Math.round(params.cost)),
+      VolumeGeneral: "0.004", // ← Добавлено обязательное поле (min. 0.0004)
 
       // Тип
       ServiceType: 'WarehouseWarehouse',
       CargoType:   'Parcel',
 
       // Оплата
-      PaymentMethod: params.paymentMethod,
+      PaymentMethod: effectivePaymentMethod,
       PayerType:     params.payerType,
     };
 

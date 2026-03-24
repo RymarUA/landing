@@ -14,6 +14,7 @@ import { checkWayForPayStatus } from "@/lib/wayforpay-status-check";
 import { updateSitniksOrder, createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
 import { getPendingOrder, deletePendingOrder } from "@/lib/pending-orders-store";
 import { acquireOrderLock, releaseOrderLock, markOrderProcessed } from "@/lib/order-processing-lock";
+import { createNovaPoshtaTTN } from "@/lib/novaposhta-create-ttn";
 
 const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
 
@@ -74,6 +75,50 @@ export async function POST(req: NextRequest) {
           const sitniksOrder = await createSitniksOrder(paidDto);
 
           if (sitniksOrder) {
+            let ttnNumber: string | undefined;
+
+            if (pending.npDelivery) {
+              const senderCityRef = process.env.NOVAPOSHTA_SENDER_CITY_REF;
+              const senderWarehouseRef = process.env.NOVAPOSHTA_SENDER_WAREHOUSE_REF;
+              const senderCounterpartyRef = process.env.NOVAPOSHTA_SENDER_COUNTERPARTY_REF;
+              const senderContactRef = process.env.NOVAPOSHTA_SENDER_CONTACT_REF;
+              const senderPhone = process.env.NOVAPOSHTA_SENDER_PHONE;
+
+              if (senderCityRef && senderWarehouseRef && senderCounterpartyRef && senderContactRef && senderPhone) {
+                try {
+                  const ttnResult = await createNovaPoshtaTTN({
+                    senderCityRef,
+                    senderWarehouseRef,
+                    senderCounterpartyRef,
+                    senderContactRef,
+                    senderPhone,
+                    recipientCityRef: pending.npDelivery.cityRef,
+                    recipientWarehouseRef: pending.npDelivery.departmentRef,
+                    recipientName: pending.npDelivery.recipientName,
+                    recipientPhone: pending.npDelivery.recipientPhone,
+                    description: pending.npDelivery.description,
+                    weight: pending.npDelivery.weight,
+                    cost: pending.npDelivery.cost,
+                    seatsAmount: 1,
+                    paymentMethod: "NonCash",
+                    payerType: "Recipient",
+                    backwardDeliveryMoney: undefined,
+                  });
+
+                  if (ttnResult.success && ttnResult.ttn) {
+                    ttnNumber = ttnResult.ttn;
+                    console.log(`[payment-verify] ✅ ТТН створено: ${ttnNumber} для замовлення #${sitniksOrder.orderNumber}`);
+                  } else {
+                    console.warn(`[payment-verify] ТТН не створено: ${ttnResult.error}`);
+                  }
+                } catch (ttnError) {
+                  console.error("[payment-verify] Помилка створення ТТН:", ttnError);
+                }
+              } else {
+                console.warn("[payment-verify] Не задані змінні відправника НП — ТТН не створено");
+              }
+            }
+
             await deletePendingOrder(orderReference);
             await markOrderProcessed(orderReference);
             await releaseOrderLock(orderReference);
@@ -82,6 +127,7 @@ export async function POST(req: NextRequest) {
               success: true,
               updated: true,
               orderNumber: sitniksOrder.orderNumber,
+              ttn: ttnNumber,
               status: "Approved",
             });
           } else {

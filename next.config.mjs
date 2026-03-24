@@ -234,12 +234,14 @@ const nextConfig = {
       {
         source: '/api/checkout/callback-temp',
         destination: '/api/webhooks/wayforpay',
-        permanent: true, // 301 redirect - old endpoint moved permanently
+        permanent: false,
+        statusCode: 302, // Explicit 302 for WayForPay compatibility
       },
       {
         source: '/api/checkout/redirect-to-webhook',
         destination: '/api/webhooks/wayforpay',
-        permanent: true, // 301 redirect - old endpoint moved permanently
+        permanent: false,
+        statusCode: 302, // Explicit 302 for WayForPay compatibility
       },
     ];
   },

@@ -347,7 +347,7 @@ function mapSitniksProduct(p: SitniksProduct): CatalogProduct {
  * Якщо API недоступний, повертає порожній масив для розробки.
  */
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
-  const TIMEOUT_MS = 12000;
+  const TIMEOUT_MS = 30000;
   const timeoutPromise = new Promise<CatalogProduct[]>((resolve) =>
     setTimeout(() => {
       console.error(`[getCatalogProducts] Timed out after ${TIMEOUT_MS}ms`);
@@ -391,7 +391,7 @@ async function _getCatalogProducts(): Promise<CatalogProduct[]> {
  * Спочатку пробує знайти як productId, якщо не знайдено - шукає як variationId (для старих товарів у кошику)
  */
 export async function getCatalogProductById(id: number): Promise<CatalogProduct | null> {
-  const TIMEOUT_MS = 9000;
+  const TIMEOUT_MS = 30000;
   const timeoutPromise = new Promise<null>((resolve) =>
     setTimeout(() => {
       console.error(`[getCatalogProductById] Timed out after ${TIMEOUT_MS}ms for id=${id}`);

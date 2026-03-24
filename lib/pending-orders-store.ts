@@ -26,6 +26,16 @@ export interface PendingOrderData {
   customerName: string;
   customerPhone: string;
   createdAt: number;
+  // Nova Poshta delivery data for TTN creation after payment
+  npDelivery?: {
+    cityRef: string;
+    departmentRef: string;
+    recipientName: string;
+    recipientPhone: string;
+    description: string;
+    weight: number;
+    cost: number;
+  };
 }
 
 export async function savePendingOrder(
@@ -34,8 +44,10 @@ export async function savePendingOrder(
 ): Promise<void> {
   await ensureDir();
   const filePath = path.join(STORE_DIR, `${sanitizeRef(orderRef)}.json`);
+  console.warn(`[pending-store] Saving orderRef=${orderRef} cwd=${process.cwd()} dir=${STORE_DIR} path=${filePath}`);
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
-  console.log(`[pending-store] Saved pending order: ${orderRef}`);
+  await fs.access(filePath);
+  console.warn(`[pending-store] Saved pending order: ${orderRef} path=${filePath}`);
 }
 
 export async function getPendingOrder(
@@ -43,9 +55,12 @@ export async function getPendingOrder(
 ): Promise<PendingOrderData | null> {
   try {
     const filePath = path.join(STORE_DIR, `${sanitizeRef(orderRef)}.json`);
+    console.warn(`[pending-store] Reading orderRef=${orderRef} cwd=${process.cwd()} dir=${STORE_DIR} path=${filePath}`);
     const content = await fs.readFile(filePath, "utf-8");
+    console.warn(`[pending-store] Read pending order: ${orderRef} path=${filePath}`);
     return JSON.parse(content) as PendingOrderData;
-  } catch {
+  } catch (error) {
+    console.warn(`[pending-store] Pending order not found: ${orderRef} dir=${STORE_DIR}`, error);
     return null;
   }
 }
@@ -53,9 +68,11 @@ export async function getPendingOrder(
 export async function deletePendingOrder(orderRef: string): Promise<void> {
   try {
     const filePath = path.join(STORE_DIR, `${sanitizeRef(orderRef)}.json`);
+    console.warn(`[pending-store] Deleting orderRef=${orderRef} cwd=${process.cwd()} dir=${STORE_DIR} path=${filePath}`);
     await fs.unlink(filePath);
-    console.log(`[pending-store] Deleted pending order: ${orderRef}`);
-  } catch {
+    console.warn(`[pending-store] Deleted pending order: ${orderRef} path=${filePath}`);
+  } catch (error) {
+    console.warn(`[pending-store] Delete skipped or failed for ${orderRef} dir=${STORE_DIR}`, error);
     // File may not exist, ignore
   }
 }

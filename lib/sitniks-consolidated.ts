@@ -188,7 +188,7 @@ function getSitniksConfigOrThrow(): SitniksConfig {
   return config;
 }
 
-/** Safe fetch: timeout 8000ms, on error log and return null. */
+/** Safe fetch: timeout 30000ms for payment processing reliability, on error log and return null. */
 export async function sitniksSafe<T>(
   method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
@@ -208,7 +208,7 @@ export async function sitniksSafe<T>(
   };
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
     const res = await fetch(`${config.apiUrl}${path}`, {
@@ -654,16 +654,29 @@ function validateCreateOrderDto(dto: CreateOrderDto): string | null {
  * Create a new order (safe version - returns null on error).
  */
 export async function createSitniksOrder(dto: CreateOrderDto): Promise<SitniksOrder | null> {
+  const normalizedDto: CreateOrderDto = dto.npDelivery
+    ? {
+        ...dto,
+        npDelivery: {
+          ...dto.npDelivery,
+          productPaymentMethod:
+            dto.npDelivery.productPaymentMethod === "without-backward-delivery"
+              ? "payment-control"
+              : dto.npDelivery.productPaymentMethod,
+        },
+      }
+    : dto;
+
   // Validate DTO before sending to CRM
-  const validationError = validateCreateOrderDto(dto);
+  const validationError = validateCreateOrderDto(normalizedDto);
   if (validationError) {
     console.error("[sitniks] Order validation failed:", validationError);
-    console.error("[sitniks] Invalid DTO:", JSON.stringify(dto, null, 2));
+    console.error("[sitniks] Invalid DTO:", JSON.stringify(normalizedDto, null, 2));
     return null;
   }
 
-  console.log("[sitniks] Creating order with validated DTO:", JSON.stringify(dto, null, 2));
-  const result = await sitniksSafe<SitniksOrder>("POST", "/open-api/orders", dto);
+  console.log("[sitniks] Creating order with validated DTO:", JSON.stringify(normalizedDto, null, 2));
+  const result = await sitniksSafe<SitniksOrder>("POST", "/open-api/orders", normalizedDto);
   
   if (!result) {
     console.error("[sitniks] Order creation failed - CRM returned null/error");

@@ -29,6 +29,7 @@ import { updateSitniksOrder, createSitniksOrder, type CreateOrderDto } from "@/l
 import { sendTelegramNotification } from "@/lib/telegram";
 import { getPendingOrder, deletePendingOrder } from "@/lib/pending-orders-store";
 import { acquireOrderLock, releaseOrderLock, markOrderProcessed } from "@/lib/order-processing-lock";
+import { createNovaPoshtaTTN } from "@/lib/novaposhta-create-ttn";
 
 // Load status IDs from environment
 const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
@@ -38,6 +39,11 @@ const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.S
    ───────────────────────────────────────────────────────────────────────── */
 
 export async function POST(req: NextRequest) {
+  console.info("[wfp-webhook] === WEBHOOK CALLED ===");
+  console.info("[wfp-webhook] Request headers:", Object.fromEntries(req.headers.entries()));
+  console.info("[wfp-webhook] Request method:", req.method);
+  console.info("[wfp-webhook] Request URL:", req.url);
+  
   /* ── 1. Parse payload ── */
   let payload: any;
   try {
@@ -72,10 +78,13 @@ export async function POST(req: NextRequest) {
     return buildAcceptanceResponse(orderReference, secret ?? "");
   }
 
+  console.info("[wfp-webhook] Verifying signature with secret...");
   const signatureValid = verifyWfpWebhookSignature(
     { merchantAccount, orderReference, amount, currency, authCode, cardPan, transactionStatus, reasonCode, merchantSignature },
     secret
   );
+
+  console.info(`[wfp-webhook] Signature verification result: ${signatureValid ? "✅ VALID" : "❌ INVALID"}`);
 
   if (!signatureValid) {
     console.error(
@@ -107,18 +116,65 @@ export async function POST(req: NextRequest) {
 
         try {
           console.log(`[wfp-webhook] Found pending order, creating in Sitniks with PAID status`);
+          console.log(`[wfp-webhook] Pending order DTO keys:`, Object.keys(pending.dto));
+          
           const paidDto = {
             ...pending.dto,
             ...(PAID_STATUS_ID > 0 ? { statusId: PAID_STATUS_ID } : {}),
           } as CreateOrderDto;
 
+          console.log(`[wfp-webhook] Calling createSitniksOrder...`);
           const sitniksOrder = await createSitniksOrder(paidDto);
+          console.log(`[wfp-webhook] createSitniksOrder result:`, sitniksOrder ? "SUCCESS" : "FAILED");
 
           if (sitniksOrder) {
             console.info(`[wfp-webhook] ✅ Created Sitniks order #${sitniksOrder.orderNumber} as Оплачено`);
             await deletePendingOrder(orderReference);
             await markOrderProcessed(orderReference);
             await releaseOrderLock(orderReference);
+
+            // Create TTN if NP delivery data was saved
+            let ttnNumber: string | undefined;
+            if (pending.npDelivery) {
+              const senderCityRef = process.env.NOVAPOSHTA_SENDER_CITY_REF;
+              const senderWarehouseRef = process.env.NOVAPOSHTA_SENDER_WAREHOUSE_REF;
+              const senderCounterpartyRef = process.env.NOVAPOSHTA_SENDER_COUNTERPARTY_REF;
+              const senderContactRef = process.env.NOVAPOSHTA_SENDER_CONTACT_REF;
+              const senderPhone = process.env.NOVAPOSHTA_SENDER_PHONE;
+
+              if (senderCityRef && senderWarehouseRef && senderCounterpartyRef && senderContactRef && senderPhone) {
+                try {
+                  const ttnResult = await createNovaPoshtaTTN({
+                    senderCityRef,
+                    senderWarehouseRef,
+                    senderCounterpartyRef,
+                    senderContactRef,
+                    senderPhone,
+                    recipientCityRef: pending.npDelivery.cityRef,
+                    recipientWarehouseRef: pending.npDelivery.departmentRef,
+                    recipientName: pending.npDelivery.recipientName,
+                    recipientPhone: pending.npDelivery.recipientPhone,
+                    description: pending.npDelivery.description,
+                    weight: pending.npDelivery.weight,
+                    cost: pending.npDelivery.cost,
+                    seatsAmount: 1,
+                    paymentMethod: 'NonCash',
+                    payerType: 'Recipient',
+                    backwardDeliveryMoney: undefined,
+                  });
+                  if (ttnResult.success && ttnResult.ttn) {
+                    ttnNumber = ttnResult.ttn;
+                    console.info(`[wfp-webhook] ✅ ТТН створено: ${ttnNumber} для замовлення #${sitniksOrder.orderNumber}`);
+                  } else {
+                    console.warn(`[wfp-webhook] ТТН не створено: ${ttnResult.error}`);
+                  }
+                } catch (ttnError) {
+                  console.error(`[wfp-webhook] Помилка створення ТТН:`, ttnError);
+                }
+              } else {
+                console.warn(`[wfp-webhook] Не задані змінні відправника НП — ТТН не створено`);
+              }
+            }
 
           const msg = [
             "✅ Оплата підтверджена!",
@@ -128,10 +184,12 @@ export async function POST(req: NextRequest) {
             `📞 Телефон: ${pending.customerPhone}`,
             `💰 Сума: ${amount} грн`,
             `💳 Картка: ${cardMask}`,
+            ...(ttnNumber ? [`📦 ТТН: ${ttnNumber}`] : []),
           ].join("\n");
           sendTelegramNotification(msg).catch((e) => console.error("[wfp-webhook] Telegram failed:", e));
           } else {
             console.error(`[wfp-webhook] ❌ Failed to create Sitniks order for pending ${orderReference}`);
+            console.error(`[wfp-webhook] NOT deleting pending order - will retry on next webhook call`);
             await releaseOrderLock(orderReference);
           }
         } catch (createError) {

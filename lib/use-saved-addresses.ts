@@ -14,6 +14,7 @@ export interface SavedAddress {
   city: string;
   warehouse: string;
   cityRef?: string;
+  warehouseRef?: string;
 }
 
 export function useSavedAddresses() {

@@ -473,6 +473,7 @@ export default function CheckoutPage() {
       const referrer = document.referrer || undefined;
       
       console.log("[checkout] Sending to API...");
+      console.log("[checkout] cityRef:", selectedCityRef, "departmentRef:", selectedWarehouseRef);
       console.log("[checkout] Request body:", {
         ...data,
         paymentMethod,
@@ -521,7 +522,12 @@ export default function CheckoutPage() {
       
       if (!res.ok) throw new Error(json.error || "Помилка");
 
-      saveAddress({ city: data.city, warehouse: data.warehouse, cityRef: selectedCityRef });
+      saveAddress({
+        city: data.city,
+        warehouse: data.warehouse,
+        cityRef: selectedCityRef,
+        warehouseRef: selectedWarehouseRef,
+      });
 
       // Store order data for potential account creation
       setOrderData({
@@ -737,6 +743,10 @@ export default function CheckoutPage() {
                         setLoadingWarehouses(true);
                         const list = await cachedFetchNPWarehouses(savedAddress.cityRef, "");
                         setWarehouses(list);
+                        const matchedWarehouse = savedAddress.warehouseRef
+                          ? list.find((warehouse: NPWarehouse) => warehouse.Ref === savedAddress.warehouseRef)
+                          : list.find((warehouse: NPWarehouse) => warehouse.Description === savedAddress.warehouse);
+                        setSelectedWarehouseRef(matchedWarehouse?.Ref ?? savedAddress.warehouseRef ?? "");
                         setLoadingWarehouses(false);
                       }
                     }}

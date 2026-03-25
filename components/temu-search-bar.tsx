@@ -55,6 +55,7 @@ import { TelegramIcon } from "@/components/icons/telegram-icon";
 import { ViberIcon } from "@/components/icons/viber-icon";
 import { TikTokIcon } from "@/components/icons/tiktok-icon";
 import { CategoryIconsSlider } from "@/components/category-icons-slider";
+import { ProductPageHeader } from "@/components/product-page-header";
 
 const CATALOG_SYNC_EVENT = "catalogparamschange";
 
@@ -80,6 +81,7 @@ export function TemuSearchBar() {
   const [searchProducts, setSearchProducts] = useState<CatalogSearchProduct[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState<{name: string, id: string} | null>(null);
   const isMountedRef = useRef(true);
 
   // Prevent hydration mismatch
@@ -130,6 +132,62 @@ export function TemuSearchBar() {
     loadCategories();
   }, []);
 
+  // Preload product data immediately if on product page
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    if (pathname.startsWith("/product/")) {
+      const productId = pathname.split("/")[2];
+      
+      if (productId) {
+        // Try to get cached product name first for immediate display
+        const cachedProduct = localStorage.getItem(`product_${productId}`);
+        
+        if (cachedProduct) {
+          try {
+            const parsed = JSON.parse(cachedProduct);
+            setCurrentProduct({
+              name: parsed.name,
+              id: productId
+            });
+          } catch (e) {
+            console.error("Failed to parse cached product:", e);
+          }
+        }
+        
+        // Always load fresh data in background
+        fetch(`/api/catalog/product/${productId}`, {
+          cache: 'force-cache',
+          headers: {
+            'Cache-Control': 'max-age=300'
+          }
+        })
+          .then(res => res.json())
+          .then(data => {
+            // API returns product data directly, not wrapped in {success, product}
+            if (data && data.id && data.name) {
+              const productData = {
+                name: data.name,
+                id: data.id.toString()
+              };
+              
+              // Update state
+              setCurrentProduct(productData);
+              
+              // Cache in localStorage
+              localStorage.setItem(`product_${productId}`, JSON.stringify(productData));
+            }
+          })
+          .catch(error => {
+            console.error("Failed to load product data:", error);
+          });
+      }
+    } else {
+      setCurrentProduct(null);
+    }
+  }, [pathname]);
+
+  
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -413,7 +471,7 @@ export function TemuSearchBar() {
       className="text-white"
       style={{ backgroundColor: '#2E7D32' }}
     >
-      <div className="border-b border-[#065F46]/10">
+      <div className="border-b border-[#065F46]/10 bg-[#065F46]">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-1.5 flex items-center gap-2 sm:gap-3">
           {/* Logo */}
           <Link
@@ -574,6 +632,14 @@ export function TemuSearchBar() {
         <CategoryIconsSlider
           onCategoryChange={handleCategoryChange}
           initialCategory={activeCategory}
+        />
+      )}
+      
+      {/* Product Page Header - only on product pages */}
+      {pathname.startsWith("/product/") && currentProduct && (
+        <ProductPageHeader 
+          productName={currentProduct.name}
+          productId={currentProduct.id}
         />
       )}
       

@@ -236,8 +236,28 @@ export async function POST(req: NextRequest) {
       let weight = catalogProduct.weight ? catalogProduct.weight / 1000 : 0.5;
       
       if (item.size && catalogProduct.allVariations?.length) {
+        // Reverse mapping: Latin size -> Numeric size for Sitniks
+        const reverseSizeMapping: Record<string, string> = {
+          "S": "36",
+          "M": "38", 
+          "L": "40",
+          "XL": "42",
+          "XXL": "44",
+          "XXXL": "46"
+        };
+        
+        // Try both original size and mapped size
+        const sizesToTry = [item.size];
+        const mappedSize = reverseSizeMapping[item.size];
+        if (mappedSize) {
+          sizesToTry.push(mappedSize);
+        }
+        
         const matchingVariation = catalogProduct.allVariations.find(v => 
-          v.properties.some(p => p.name === "Розмір" && p.value === item.size)
+          v.properties.some(p => 
+            (p.name === "Розмір" || p.name === "size") && 
+            sizesToTry.includes(p.value)
+          )
         );
         if (matchingVariation) {
           variationId = matchingVariation.id;

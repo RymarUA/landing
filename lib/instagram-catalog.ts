@@ -14,10 +14,23 @@
  *  - badgeColor: "bg-amber-400 text-gray-900" (опціонально)
  *  - isHit: "Так" | "True" | "1"
  *  - isNew: "Так" | "True" | "1"
- *  - freeShipping: "Так" | "True" | "1"
+ *  - freeShipping: "Так" | "True" | "1" (для безкоштовної доставки)
  *  - oldPrice: "1800" (число)
  *  - rating: "4.8" (число 0-5)
  *  - reviews: "48" (число)
+ *  - Розмір/size: "36,38,40,42" (для варіацій за розміром через запятую)
+ *  - Розмір/size: "S,M,L,XL" (або латинські розміри через запятую)
+ *  
+ *  Примітка: Система підтримує як українські ("Розмір"), так і англійські ("size") 
+ *  назви характеристик. Розміри можна вказувати через запятую в одному полі.
+ *  
+ *  Якщо розміри не вказані в Sitniks, система покаже розміри за замовчуванням:
+ *  - Компресійна білизна/білизна: "S, M, L, XL"
+ *  - Бандажі/налокотники: "One Size"
+ *  - Масажери: "One Size"
+ *  - Інші товари: "S, M, L"
+ *  
+ *  Маппинг розмірів для замовлення: S↔36, M↔38, L↔40, XL↔42, XXL↔44, XXXL↔46
  */
 
 import {
@@ -239,15 +252,96 @@ function buildGalleryImages(primary: string, extras: string[]): string[] {
 
 function getSizes(product: SitniksProduct): string[] {
   const sizes = new Set<string>();
+  const numericSizes = new Set<string>();
+  
+  // First, collect all sizes from Sitniks properties
   for (const v of product.variations ?? []) {
     if (!v.isActive) continue;
     for (const p of v.properties ?? []) {
       if (p.name?.toLowerCase().includes("розмір") || p.name?.toLowerCase() === "size") {
-        sizes.add(p.value);
+        // Support comma-separated sizes: "36,38,40,42"
+        const sizeValues = p.value.split(',').map(s => s.trim()).filter(s => s);
+        sizeValues.forEach(size => {
+          sizes.add(size);
+          numericSizes.add(size);
+        });
       }
     }
   }
-  return Array.from(sizes);
+  
+  // If no sizes found in properties, add default sizes based on category/name
+  if (sizes.size === 0) {
+    const productName = (product.title || "").toLowerCase();
+    const categoryName = (product.category?.title || "").toLowerCase();
+    
+    // Default sizes for different product types (show Latin to users)
+    if (categoryName.includes("компресійна білизна") || 
+        categoryName.includes("білизна") ||
+        productName.includes("комплект") || 
+        productName.includes("одежда") ||
+        productName.includes("білизна")) {
+      sizes.add("S");
+      sizes.add("M"); 
+      sizes.add("L");
+      sizes.add("XL");
+    } else if (categoryName.includes("бандажі") || categoryName.includes("налокотники")) {
+      sizes.add("One Size");
+    } else if (categoryName.includes("масажери")) {
+      sizes.add("One Size");
+    } else {
+      // Default to common sizes for other products
+      sizes.add("S");
+      sizes.add("M");
+      sizes.add("L");
+    }
+  } else {
+    // If we have numeric sizes from Sitniks, map them to Latin for display
+    const sizeMapping: Record<string, string> = {
+      "36": "S",
+      "38": "M", 
+      "40": "L",
+      "42": "XL",
+      "44": "XXL",
+      "46": "XXXL"
+    };
+    
+    const mappedSizes = new Set<string>();
+    for (const numericSize of numericSizes) {
+      const mappedSize = sizeMapping[numericSize];
+      if (mappedSize) {
+        mappedSizes.add(mappedSize);
+      } else {
+        // If no mapping found, use original value
+        mappedSizes.add(numericSize);
+      }
+    }
+    
+    // Replace sizes with mapped versions
+    sizes.clear();
+    mappedSizes.forEach(size => sizes.add(size));
+  }
+  
+  return Array.from(sizes).sort((a, b) => {
+    // Sort sizes in logical order
+    const sizeOrder = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "One Size"];
+    const numericSizes = ["36", "38", "40", "42", "44", "46"];
+    
+    // Handle standard sizes
+    const aIndex = sizeOrder.indexOf(a);
+    const bIndex = sizeOrder.indexOf(b);
+    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+    if (aIndex !== -1) return -1;
+    if (bIndex !== -1) return 1;
+    
+    // Handle numeric sizes (if any remain)
+    if (numericSizes.includes(a) && numericSizes.includes(b)) {
+      return numericSizes.indexOf(a) - numericSizes.indexOf(b);
+    }
+    if (numericSizes.includes(a)) return -1;
+    if (numericSizes.includes(b)) return 1;
+    
+    return a.localeCompare(b);
+  });
 }
 
 function getTotalStock(product: SitniksProduct): number {

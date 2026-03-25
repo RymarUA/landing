@@ -25,11 +25,15 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWfpWebhookSignature, buildWfpResponseSignature } from "@/lib/wayforpay";
-import { updateSitniksOrder, createSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
+import { updateSitniksOrder, type CreateOrderDto } from "@/lib/sitniks-consolidated";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { getPendingOrder, deletePendingOrder } from "@/lib/pending-orders-store";
 import { acquireOrderLock, releaseOrderLock, markOrderProcessed } from "@/lib/order-processing-lock";
-import { createNovaPoshtaTTN } from "@/lib/novaposhta-create-ttn";
+import { addToOutbox } from "@/lib/transactional-outbox";
+import { 
+  validateWebhookReplayProtection, 
+  markWebhookAsProcessed 
+} from "@/lib/webhook-replay-protection";
 
 // Load status IDs from environment
 const PAID_STATUS_ID = process.env.SITNIKS_PAID_STATUS_ID ? Number(process.env.SITNIKS_PAID_STATUS_ID) : 0;
@@ -64,6 +68,9 @@ export async function POST(req: NextRequest) {
     transactionStatus,
     reasonCode,
     merchantSignature,
+    // WayForPay may send these (check docs)
+    timestamp,
+    nonce,
   } = payload;
 
   console.info(
@@ -94,6 +101,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
   }
 
+  /* ── 2.1. Replay attack protection ── */
+  console.info("[wfp-webhook] Checking for replay attacks...");
+  
+  const replayValidation = await validateWebhookReplayProtection({
+    orderReference,
+    merchantSignature,
+    timestamp: timestamp ? Number(timestamp) : undefined,
+    nonce,
+  });
+
+  if (!replayValidation.valid) {
+    console.warn(
+      `[wfp-webhook] ❌ REPLAY ATTACK DETECTED: ${replayValidation.reason} for order=${orderReference}`
+    );
+    
+    // Return success to prevent WayForPay retries, but log the attack
+    const response = buildAcceptanceResponse(orderReference, secret);
+    console.log(`[wfp-webhook] Returned acceptance response for replay attack`);
+    return response;
+  }
+
+  console.info(`[wfp-webhook] ✅ Replay protection passed: ${replayValidation.requestId}`);
+
   /* ── 3. Process payment result ── */
   if (transactionStatus === "Approved") {
     console.log(`[wfp-webhook] Payment APPROVED for order ${orderReference}`);
@@ -105,7 +135,7 @@ export async function POST(req: NextRequest) {
       const pending = await getPendingOrder(orderReference);
 
       if (pending) {
-        // ── New flow: create Sitniks order now with "Оплачено" status ──
+        // ── New flow: add to outbox for reliable processing ──
         // CRITICAL: Acquire lock to prevent race condition with /verify endpoint
         const lockAcquired = await acquireOrderLock(orderReference);
         
@@ -115,7 +145,7 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-          console.log(`[wfp-webhook] Found pending order, creating in Sitniks with PAID status`);
+          console.log(`[wfp-webhook] Found pending order, adding to outbox for processing`);
           console.log(`[wfp-webhook] Pending order DTO keys:`, Object.keys(pending.dto));
           
           const paidDto = {
@@ -123,77 +153,49 @@ export async function POST(req: NextRequest) {
             ...(PAID_STATUS_ID > 0 ? { statusId: PAID_STATUS_ID } : {}),
           } as CreateOrderDto;
 
-          console.log(`[wfp-webhook] Calling createSitniksOrder...`);
-          const sitniksOrder = await createSitniksOrder(paidDto);
-          console.log(`[wfp-webhook] createSitniksOrder result:`, sitniksOrder ? "SUCCESS" : "FAILED");
+          console.log(`[wfp-webhook] Adding to outbox...`);
+          const outboxId = await addToOutbox({
+            type: "create_order",
+            data: {
+              orderDto: paidDto,
+              customerName: pending.customerName,
+              customerPhone: pending.customerPhone,
+              amount: pending.amount,
+              cardMask: cardMask || undefined,
+              npDelivery: pending.npDelivery,
+            },
+          });
+          
+          console.log(`[wfp-webhook] ✅ Added to outbox with ID: ${outboxId}`);
+          
+          // Clean up pending order and mark as processed
+          await deletePendingOrder(orderReference);
+          await markOrderProcessed(orderReference);
+          await releaseOrderLock(orderReference);
 
-          if (sitniksOrder) {
-            console.info(`[wfp-webhook] ✅ Created Sitniks order #${sitniksOrder.orderNumber} as Оплачено`);
-            await deletePendingOrder(orderReference);
-            await markOrderProcessed(orderReference);
-            await releaseOrderLock(orderReference);
-
-            // Create TTN if NP delivery data was saved
-            let ttnNumber: string | undefined;
-            if (pending.npDelivery) {
-              const senderCityRef = process.env.NOVAPOSHTA_SENDER_CITY_REF;
-              const senderWarehouseRef = process.env.NOVAPOSHTA_SENDER_WAREHOUSE_REF;
-              const senderCounterpartyRef = process.env.NOVAPOSHTA_SENDER_COUNTERPARTY_REF;
-              const senderContactRef = process.env.NOVAPOSHTA_SENDER_CONTACT_REF;
-              const senderPhone = process.env.NOVAPOSHTA_SENDER_PHONE;
-
-              if (senderCityRef && senderWarehouseRef && senderCounterpartyRef && senderContactRef && senderPhone) {
-                try {
-                  const ttnResult = await createNovaPoshtaTTN({
-                    senderCityRef,
-                    senderWarehouseRef,
-                    senderCounterpartyRef,
-                    senderContactRef,
-                    senderPhone,
-                    recipientCityRef: pending.npDelivery.cityRef,
-                    recipientWarehouseRef: pending.npDelivery.departmentRef,
-                    recipientName: pending.npDelivery.recipientName,
-                    recipientPhone: pending.npDelivery.recipientPhone,
-                    description: pending.npDelivery.description,
-                    weight: pending.npDelivery.weight,
-                    cost: pending.npDelivery.cost,
-                    seatsAmount: 1,
-                    paymentMethod: 'NonCash',
-                    payerType: 'Recipient',
-                    backwardDeliveryMoney: undefined,
-                  });
-                  if (ttnResult.success && ttnResult.ttn) {
-                    ttnNumber = ttnResult.ttn;
-                    console.info(`[wfp-webhook] ✅ ТТН створено: ${ttnNumber} для замовлення #${sitniksOrder.orderNumber}`);
-                  } else {
-                    console.warn(`[wfp-webhook] ТТН не створено: ${ttnResult.error}`);
-                  }
-                } catch (ttnError) {
-                  console.error(`[wfp-webhook] Помилка створення ТТН:`, ttnError);
-                }
-              } else {
-                console.warn(`[wfp-webhook] Не задані змінні відправника НП — ТТН не створено`);
-              }
-            }
-
+          // Send immediate notification that payment is being processed
           const msg = [
-            "✅ Оплата підтверджена!",
+            "✅ Оплата отримана! Обробка...",
             "",
-            `📋 Замовлення: #${sitniksOrder.orderNumber}`,
+            `📋 Замовлення: ${orderReference}`,
             `👤 Клієнт: ${pending.customerName}`,
             `📞 Телефон: ${pending.customerPhone}`,
             `💰 Сума: ${amount} грн`,
             `💳 Картка: ${cardMask}`,
-            ...(ttnNumber ? [`📦 ТТН: ${ttnNumber}`] : []),
+            `🔄 Статус: Додано в чергу обробки`,
           ].join("\n");
           sendTelegramNotification(msg).catch((e) => console.error("[wfp-webhook] Telegram failed:", e));
-          } else {
-            console.error(`[wfp-webhook] ❌ Failed to create Sitniks order for pending ${orderReference}`);
-            console.error(`[wfp-webhook] NOT deleting pending order - will retry on next webhook call`);
-            await releaseOrderLock(orderReference);
-          }
+          
+          // Mark webhook as processed to prevent replay attacks
+          await markWebhookAsProcessed({
+            orderReference,
+            merchantSignature,
+            timestamp: timestamp ? Number(timestamp) : undefined,
+            nonce,
+          }, replayValidation.requestId);
+          
         } catch (createError) {
-          console.error(`[wfp-webhook] Exception during order creation:`, createError);
+          console.error(`[wfp-webhook] Exception during outbox creation:`, createError);
           await releaseOrderLock(orderReference);
           throw createError;
         }
@@ -220,6 +222,14 @@ export async function POST(req: NextRequest) {
           `💳 Картка: ${cardMask}`,
         ].join("\n");
         sendTelegramNotification(msg).catch((e) => console.error("[wfp-webhook] Telegram failed:", e));
+        
+        // Mark webhook as processed to prevent replay attacks
+        await markWebhookAsProcessed({
+          orderReference,
+          merchantSignature,
+          timestamp: timestamp ? Number(timestamp) : undefined,
+          nonce,
+        }, replayValidation.requestId);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

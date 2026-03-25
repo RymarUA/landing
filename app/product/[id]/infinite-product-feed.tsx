@@ -1,13 +1,14 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Star, Flame, Sparkles } from "lucide-react";
 import type { CatalogProduct } from "@/lib/types";
 
 const PAGE_SIZE = 8;
+const MAX_PRODUCTS = 32;
 
 interface InfiniteProductFeedProps {
   category: string;
@@ -51,56 +52,53 @@ export function InfiniteProductFeed({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
 
-  const relatedSet = useMemo(() => new Set(relatedIds), [relatedIds]);
+  const feedProducts = (() => {
+    // Сначала пробуем товары из той же категории
+    const sameCategoryProducts = allProducts.filter(
+      (p) => {
+        const isSameCategory = p.category?.trim().toLowerCase() === category?.trim().toLowerCase();
+        const isNotCurrent = p.id !== currentProductId;
+        const inStock = p.stock > 0;
+        return isSameCategory && isNotCurrent && inStock;
+      }
+    ).slice(0, MAX_PRODUCTS);
 
-  const feedProducts = allProducts.filter(
-    (p) =>
-      p.category === category &&
-      p.id !== currentProductId &&
-      !relatedSet.has(p.id)
-  );
+    // Если в той же категории мало товаров (меньше 4), показываем товары из всех категорий
+    if (sameCategoryProducts.length < 4) {
+      const allCategoryProducts = allProducts.filter(
+        (p) => {
+          const isNotCurrent = p.id !== currentProductId;
+          const inStock = p.stock > 0;
+          return isNotCurrent && inStock;
+        }
+      ).slice(0, MAX_PRODUCTS);
+      
+      return allCategoryProducts;
+    }
+
+    return sameCategoryProducts;
+  })();
 
   const visible = feedProducts.slice(0, visibleCount);
   const hasMore = visibleCount < feedProducts.length;
 
-  const rafIdRef = useRef<number | null>(null);
+  // Убираем бесконечную прокрутку - используем только кнопку
 
   const loadMore = useCallback(() => {
     if (loadingRef.current || !hasMore) return;
     loadingRef.current = true;
     setVisibleCount((c) => c + PAGE_SIZE);
-    rafIdRef.current = requestAnimationFrame(() => {
+    setTimeout(() => {
       loadingRef.current = false;
-    });
+    }, 300);
   }, [hasMore]);
-
-  useEffect(() => {
-    if (!hasMore || !sentinelRef.current) return;
-    const el = sentinelRef.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) loadMore();
-      },
-      { rootMargin: "200px", threshold: 0 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasMore, loadMore]);
-
-  useEffect(() => () => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
-    loadingRef.current = false;
-  }, []);
 
   if (feedProducts.length === 0) return null;
 
   return (
     <div className="mt-14">
       <h2 className="text-2xl font-black text-stone-900 mb-6">
-        Більше з категорії «{category}»
+        Рекомендовані товари
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {visible.map((product) => {
@@ -129,7 +127,7 @@ export function InfiniteProductFeed({
                   </span>
                 )}
                 {discount && (
-                  <span className="absolute bottom-2 left-2 bg-rose-100 text-rose-600 text-xs font-black px-2 py-0.5 rounded-full">
+                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-black px-2 py-0.5 rounded-full">
                     −{discount}%
                   </span>
                 )}
@@ -155,7 +153,19 @@ export function InfiniteProductFeed({
           );
         })}
       </div>
-      <div ref={sentinelRef} className="h-4 mt-4" aria-hidden />
+      
+      {/* Кнопка "Показати ще" */}
+      {hasMore && (
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={loadMore}
+            disabled={loadingRef.current}
+            className="px-8 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white font-semibold rounded-xl transition-colors duration-200 shadow-sm hover:shadow-lg"
+          >
+            {loadingRef.current ? 'Завантаження...' : 'Показати ще'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

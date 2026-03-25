@@ -156,7 +156,7 @@ export function AddToCartButton({
   return (
     <div className="flex flex-col gap-4">
       {/* Size selector — hidden in sticky bar to avoid duplication */}
-      {!hideSizeSelector && product.sizes.length > 0 && (
+      {!hideSizeSelector && product.sizes && product.sizes.length > 0 && (
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
             Розмір

@@ -114,74 +114,76 @@ export function ProductImageLightbox({ src, alt, images = [], children, priority
             </>
           )}
 
-          <div className="relative aspect-square w-full sm:rounded-2xl rounded-xl bg-stone-50">
-            <motion.button
-              key={currentImage + currentIndex}
-              type="button"
-              onClick={() => setOpen(true)}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.2}
-              onDragEnd={handleDragEnd}
-              className="relative block h-full w-full cursor-zoom-in text-left overflow-hidden"
-              aria-label="Збільшити зображення"
+          <div className="relative aspect-square w-full sm:rounded-2xl rounded-xl bg-stone-50 overflow-hidden">
+            <motion.div
+              className="relative h-full w-full"
+              key={currentIndex}
+              initial={{ x: 300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 30
+              }}
             >
-              <Image
-                src={currentImage}
-                alt={alt}
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-contain"
-                priority={priority}
-              />
-              {children}
-            </motion.button>
-          </div>
-        </div>
-
-        {showControls && (
-          <div className="flex justify-center gap-2">
-            {allImages.map((_, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => handleSelectIndex(index)}
-                aria-label={`Перейти до зображення ${index + 1}`}
-                className={`h-2.5 w-2.5 rounded-full transition-all ${
-                  index === currentIndex
-                    ? "bg-stone-900 scale-110"
-                    : "bg-stone-300 hover:bg-stone-400"
-                }`}
-              />
-            ))}
-          </div>
-        )}
-
-        {showControls && (
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {allImages.map((image, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => handleSelectIndex(index)}
-                className={`relative flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all ${
-                  index === currentIndex
-                    ? "border-orange-500 shadow-[0_8px_20px_rgba(249,115,22,0.25)]"
-                    : "border-transparent hover:border-stone-200"
-                }`}
-                aria-label={`Перейти до зображення ${index + 1}`}
+              <motion.div
+                onClick={() => setOpen(true)}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.2}
+                dragTransition={{ 
+                  bounceStiffness: 300, 
+                  bounceDamping: 30 
+                }}
+                onDragEnd={handleDragEnd}
+                className="relative block h-full w-full cursor-zoom-in text-left overflow-hidden"
+                aria-label="Збільшити зображення"
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                role="button"
+                tabIndex={0}
               >
                 <Image
-                  src={image}
-                  alt={`${alt} - зображення ${index + 1}`}
+                  src={currentImage}
+                  alt={alt}
                   fill
-                  sizes="80px"
-                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-contain"
+                  priority={priority}
                 />
-              </button>
-            ))}
+                {children}
+                
+                {/* Кнопка "Більше фото" поверх изображения */}
+                {showControls && (
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Предотвратить открытие lightbox
+                        // Перейти к секции с фото с таким же offset как у табов
+                        const section = document.getElementById('photos');
+                        if (section) {
+                          const offset = 128; // Высота search bar + breadcrumbs + tabs header + tabs navigation
+                          const elementPosition = section.getBoundingClientRect().top;
+                          const offsetPosition = elementPosition + window.pageYOffset - offset;
+                          
+                          window.scrollTo({
+                            top: offsetPosition,
+                            behavior: 'smooth'
+                          });
+                        }
+                      }}
+                      className="px-4 py-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-colors text-xs shadow-lg"
+                    >
+                      Більше фото
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Lightbox Modal */}
@@ -238,19 +240,31 @@ export function ProductImageLightbox({ src, alt, images = [], children, priority
           <div className="relative w-full h-full max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <div className="relative w-full h-full">
               <motion.div
-                key={currentImage + currentIndex}
+                key={currentIndex}
                 className="absolute inset-0"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 30
+                }}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.15}
+                dragTransition={{ 
+                  bounceStiffness: 400, 
+                  bounceDamping: 25 
+                }}
                 onDragEnd={handleDragEnd}
               >
                 <Image
                   src={currentImage}
                   alt={alt}
                   fill
-                  sizes="100vw"
                   className="object-contain"
+                  priority
                 />
               </motion.div>
             </div>

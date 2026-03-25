@@ -23,6 +23,7 @@
 
 ### 📊 Аналітика та CRM
 - **Sitniks CRM** - повна інтеграція для управління клієнтами
+- **Transactional Outbox** - надійна доставка заказів з retry логікою
 - **Google Analytics 4** - відстеження поведінки користувачів
 - **Meta Pixel** - ретаргетинг та аналітика
 - **Внутрішня аналітика** - звіти по продажах та конверсіях
@@ -84,6 +85,8 @@ landing/
 ├── hooks/                  # Custom React hooks
 ├── types/                  # TypeScript типи
 ├── docs/                   # Документація
+│   ├── TRANSACTIONAL_OUTBOX.md  # Outbox система
+│   └── [features]/         # Документація функцій
 └── public/                 # Статичні ресурси
 ```
 

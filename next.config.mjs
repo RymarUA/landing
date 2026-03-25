@@ -74,6 +74,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "cdn.sitniks.com",
       },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
     ],
     // Use sharp for better performance
     loader: "default",

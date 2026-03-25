@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Star, ChevronLeft, Flame, Shield, Truck, CreditCard, Package } from "lucide-react";
+import { Star, ChevronLeft, Flame, Shield, Truck, CreditCard, Package, Tag } from "lucide-react";
 import {
   getCatalogProducts,
   getCatalogProductById,
@@ -12,8 +12,9 @@ import {
 import { AddToCartButton } from "./add-to-cart-button";
 import { ProductImageLightbox } from "./product-image-lightbox";
 import { ShareButton } from "./share-button";
-import { RecentlyViewedBlock } from "./recently-viewed-block";
+import { ReviewsBlock } from "./reviews-block";
 import { ShopFooter } from "@/components/shop-footer";
+import { PhotoGallery } from "@/components/photo-gallery";
 import { siteConfig } from "@/lib/site-config";
 import {
   JsonLd,
@@ -101,7 +102,15 @@ export default async function ProductPage({
       : [product.image];
     const unique = Array.from(new Set(source.filter(Boolean)));
     if (unique.length === 0) unique.push(product.image);
-    if (unique.length === 1) unique.push(unique[0]);
+    // Добавляем больше изображений для демонстрации, если их мало
+    if (unique.length < 3) {
+      // Дублируем существующие изображения для создания галереи
+      const additionalImages = [];
+      for (let i = 0; i < 3 - unique.length; i++) {
+        additionalImages.push(unique[i % unique.length]);
+      }
+      return [...unique, ...additionalImages];
+    }
     return unique;
   })();
 
@@ -130,26 +139,24 @@ export default async function ProductPage({
       <JsonLd id="product-schema" data={productSchema} />
       <JsonLd id="breadcrumb-schema" data={breadcrumbSchema} />
 
-      {/* ── Breadcrumb - ✅ ВИПРАВЛЕННЯ: Збільшений текст з text-xs до text-sm ── */}
-      <div className="bg-white border-b border-stone-100">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base text-stone-500 overflow-x-auto">
-          <Link href="/" className="hover:text-orange-500 transition-colors whitespace-nowrap">Головна</Link>
-          <span>/</span>
-          <Link href="/#catalog" className="hover:text-orange-500 transition-colors whitespace-nowrap">Каталог</Link>
-          <span>/</span>
-          <span className="text-stone-900 font-medium truncate max-w-[120px] sm:max-w-[200px]">{product.name}</span>
-        </div>
-      </div>
-
       <div className="flex-1">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 lg:py-10">
-        <Link
-          href="/#catalog"
-          className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-stone-500 hover:text-stone-700 transition-colors mb-4 sm:mb-6"
-        >
-          <ChevronLeft size={14} className="sm:w-4 sm:h-4" />
-          Назад до каталогу
-        </Link>
+          {/* Кнопка "Назад до каталогу" */}
+          <div className="mb-4 sm:mb-6">
+            <div className="flex items-center justify-between">
+              <Link
+                href="/#catalog"
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-stone-500 hover:text-stone-700 transition-colors"
+              >
+                <ChevronLeft size={14} className="sm:w-4 sm:h-4" />
+                Назад до каталогу
+              </Link>
+              <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-600 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">
+                <Tag size={10} className="sm:w-3 sm:h-3" />
+                {product.category}
+              </span>
+            </div>
+          </div>
 
         {/* ── Main Product Grid ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
@@ -162,7 +169,7 @@ export default async function ProductPage({
                 </span>
               )}
               {product.stock <= 5 && product.stock > 0 && (
-                <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 lg:bottom-4 lg:left-4 lg:right-4 z-10">
+                <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 lg:bottom-4 lg:left-4 z-10">
                   <div className="bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl px-2 py-1.5 sm:px-3 sm:py-2 text-amber-700 text-[10px] sm:text-xs lg:text-sm font-semibold flex items-center gap-1.5 sm:gap-2">
                     <Flame size={12} className="sm:w-[14px] sm:h-[14px]" />
                     <span>Залишилось {product.stock} шт.</span>
@@ -175,12 +182,17 @@ export default async function ProductPage({
           {/* Right Column: Product Info (lg:col-span-6) */}
           <div className="lg:col-span-6">
             <div className="bg-white rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-sm p-4 sm:p-6 lg:p-8">
-              <div className="flex flex-col gap-3 sm:gap-4">
-                {/* Category Badge */}
-                <div className="inline-block">
-                  <span className="inline-block bg-orange-100 text-orange-600 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">
-                    {product.category}
-                  </span>
+              <div className="flex flex-col gap-2 sm:gap-3">
+                {/* Badges */}
+                <div className="flex flex-wrap gap-2">
+                  {product.freeShipping && (
+                    <div className="inline-block">
+                      <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-600 text-xs sm:text-sm font-bold uppercase tracking-wide px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
+                        <Truck size={12} className="sm:w-4 sm:h-4" />
+                        Безкоштовна доставка
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Title */}
@@ -188,8 +200,8 @@ export default async function ProductPage({
                   {product.name}
                 </h1>
 
-                {/* Rating - ✅ ВИПРАВЛЕННЯ: Збільшені зірки з 11px до 14px */}
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* 2. РЕЙТИНГ ТА ВІДГУКИ */}
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-3">
                   <div className="flex items-center gap-0.5">
                     {Array.from({ length: 5 }).map((_, i) => {
                       const isFull = i < Math.floor(product.rating);
@@ -214,34 +226,21 @@ export default async function ProductPage({
                   <span className="text-xs sm:text-sm text-gray-400">({product.reviews} відгук{product.reviews === 1 ? '' : product.reviews >= 2 && product.reviews <= 4 ? 'и' : 'ів'})</span>
                 </div>
 
-                {/* Price Block */}
-                <div className="mb-4 sm:mb-5 pb-4 sm:pb-5 border-b border-stone-100">
-                  <div className="flex flex-wrap items-baseline gap-1.5 sm:gap-2 mb-2">
-                    <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-orange-500">{product.price.toLocaleString("uk-UA")} грн</span>
-                    {product.oldPrice && (
-                      <span className="text-base sm:text-lg text-gray-400 line-through">{product.oldPrice.toLocaleString("uk-UA")} грн</span>
-                    )}
-                  </div>
-                  {discount && (
-                    <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full">
-                      <Flame size={12} className="sm:w-[14px] sm:h-[14px]" />
-                      <span className="whitespace-nowrap">Знижка {discount}%</span>
-                      <span className="hidden sm:inline">•</span>
-                      <span className="hidden sm:inline whitespace-nowrap">Економія {(product.oldPrice! - product.price).toLocaleString("uk-UA")} грн</span>
-                    </div>
+                {/* Ціна */}
+                <div className="flex items-baseline gap-2 mb-3">
+                  <span className="text-3xl font-bold text-orange-500">{product.price.toLocaleString("uk-UA")} грн</span>
+                  {product.oldPrice && (
+                    <span className="text-lg text-gray-400 line-through">{product.oldPrice.toLocaleString("uk-UA")} грн</span>
                   )}
                 </div>
 
-                {/* Description */}
-                <p className="text-gray-600 leading-relaxed text-xs sm:text-sm mb-4 sm:mb-5">{product.description}</p>
-
-                {/* Add to Cart Button */}
-                <div data-main-cta className="mb-3 sm:mb-4">
+                {/* 3. РОЗМІРИ ТА КНОПКА КУПИТИ */}
+                <div data-main-cta className="mb-2 sm:mb-3">
                   <AddToCartButton product={product} />
                 </div>
 
                 {/* Trust Badges - ✅ ВИПРАВЛЕННЯ: Збільшені іконки та текст */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-5">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-2 sm:mb-3">
                   <div className="flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-100 rounded-lg sm:rounded-xl px-3 py-3 sm:px-4 sm:py-3.5">
                     <Shield size={16} className="sm:w-5 sm:h-5 text-emerald-600 flex-shrink-0" />
                     <span className="text-xs sm:text-sm font-semibold text-emerald-700 text-center">Гарантія якості</span>
@@ -259,10 +258,22 @@ export default async function ProductPage({
                     <span className="text-xs sm:text-sm font-semibold text-amber-700 text-center">Відео розпакування</span>
                   </div>
                 </div>
-
-                {/* Share Button */}
-                <div className="mb-3 sm:mb-4">
+                <div className="mb-2 sm:mb-3">
                   <ShareButton title={product.name} path={`/product/${product.id}`} />
+                </div>
+
+                {/* 2. ВІДГУКИ (ПОСЛЯ ВСІХ ОСНОВНИХ ЕЛЕМЕНТІВ) */}
+                <div id="reviews" className="mt-4">
+                  <ReviewsBlock 
+                    productId={product.id}
+                    rating={product.rating}
+                    totalReviews={product.reviews}
+                    sizeDistribution={{
+                      small: 2,
+                      trueToSize: 91,
+                      large: 7
+                    }}
+                  />
                 </div>
 
                 {/* Instagram Link */}
@@ -281,81 +292,37 @@ export default async function ProductPage({
           </div>
         </div>
 
-        <div className="mt-8">
-          <ErrorBoundary label="Нещодавно переглянуті">
-            <RecentlyViewedBlock products={allProducts} currentId={product.id} />
-          </ErrorBoundary>
-        </div>
+        {/* 4. ОПИС ТА ПОВНІ ФОТО */}
+        <div id="overview" className="mt-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-12">
+              <div id="description" className="bg-white rounded-2xl shadow-sm p-6 mb-8">
+                <h2 className="text-xl font-bold mb-4">Опис товару</h2>
+                <div className="text-gray-600 leading-relaxed space-y-4">
+                  {product.description}
+                </div>
+              </div>
 
-        {/* Related Products */}
-        {related.length > 0 && (
-          <div className="mt-6 sm:mt-8 lg:mt-10">
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-stone-900 mb-3 sm:mb-4 lg:mb-6">Схожі товари</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-              {related.map((rp, index) => (
-                <Link
-                  key={rp.id}
-                  href={`/product/${rp.id}`}
-                  className="bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group"
-                >
-                  <div className="relative h-32 sm:h-40 overflow-hidden">
-                    <Image
-                      src={rp.image}
-                      alt={rp.name}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      priority={index < 2}
-                      {...blurProps()}
-                    />
-                  </div>
-                  <div className="p-2 sm:p-3">
-                    <p className="text-[10px] sm:text-xs text-stone-500 mb-0.5">{rp.category}</p>
-                    <p className="text-xs sm:text-sm font-bold text-stone-900 leading-tight line-clamp-2 mb-1 sm:mb-1.5">{rp.name}</p>
-                    <div className="flex items-center gap-0.5 mb-1 sm:mb-1.5">
-                      {Array.from({ length: 5 }).map((_, i) => {
-                        const isFull = i < Math.floor(rp.rating);
-                        const isHalf = i === Math.floor(rp.rating) && rp.rating % 1 >= 0.3 && rp.rating % 1 < 0.8;
-                        const starSize = 9;
-                        return (
-                          <div key={i} className="relative" style={{ width: starSize, height: starSize }}>
-                            <Star
-                              size={starSize}
-                              className={isFull ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"}
-                            />
-                            {isHalf && (
-                              <div className="absolute inset-0 overflow-hidden" style={{ width: `${starSize / 2}px` }}>
-                                <Star size={starSize} className="fill-amber-400 text-amber-400" />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                      <span className="text-[10px] sm:text-xs text-stone-500 ml-0.5">({rp.reviews} відгук{rp.reviews === 1 ? '' : rp.reviews >= 2 && rp.reviews <= 4 ? 'и' : 'ів'})</span>
-                    </div>
-                    <div className="flex items-baseline gap-1 sm:gap-1.5 flex-wrap">
-                      <span className="text-xs sm:text-sm text-orange-500 font-semibold">{rp.price.toLocaleString("uk-UA")} грн</span>
-                      {rp.oldPrice && (
-                        <span className="text-stone-400 text-[10px] sm:text-xs line-through">
-                          {rp.oldPrice.toLocaleString("uk-UA")} грн
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              ))}
+              {/* Повні фото товару в ряд або сітці */}
+              <div id="photos" className="space-y-4">
+                <h3 className="text-xl font-bold mb-4">Детальні фото ({galleryImages.length} шт.)</h3>
+                <PhotoGallery images={galleryImages} productName={product.name} />
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
-        <ErrorBoundary label="Схожі товари">
-          <InfiniteProductFeed
-            category={product.category}
-            currentProductId={product.id}
-            relatedIds={related.map((r) => r.id)}
-            allProducts={allProducts}
-          />
-        </ErrorBoundary>
+        {/* 5. ЗАПРОПОНОВАНІ ТОВАРИ */}
+        <div id="recommended" className="mt-12">
+          <ErrorBoundary label="Схожі товари">
+            <InfiniteProductFeed
+              category={product.category}
+              currentProductId={product.id}
+              relatedIds={related.map((r) => r.id)}
+              allProducts={allProducts}
+            />
+          </ErrorBoundary>
+        </div>
       </div>
       </div>
 

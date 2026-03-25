@@ -497,17 +497,21 @@ export function setupGlobalErrorHandling(): void {
     window.addEventListener('unhandledrejection', (event) => {
       // Validate rejection reason before processing
       const reasonMessage = event.reason?.message || String(event.reason);
+      
+      // Skip empty rejection reasons
       if (!reasonMessage || reasonMessage.trim() === '') {
         return;
       }
       
-      logClientError({
+      const errorData = {
         label: 'Unhandled Promise Rejection',
         message: reasonMessage,
         url: window.location.href,
         timestamp: new Date().toISOString(),
         stack: event.reason?.stack,
-      });
+      };
+      
+      logClientError(errorData);
     });
   }
 }

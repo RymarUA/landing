@@ -20,9 +20,18 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
   const { addItem } = useCart();
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Filter out invalid products
+  const validProducts = products.filter(product => 
+    product && 
+    product.id && 
+    product.name && 
+    product.category && 
+    product.price !== undefined
+  );
+
   useEffect(() => {
     const container = scrollRef.current;
-    if (!container || products.length <= 3) return;
+    if (!container || validProducts.length <= 3) return;
 
     const interval = setInterval(() => {
       const scrollWidth = container.scrollWidth;
@@ -37,9 +46,9 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [products.length]);
+  }, [validProducts.length]);
 
-  if (products.length === 0) return null;
+  if (validProducts.length === 0) return null;
 
   const title = type === "hits" ? "Хіти продажів" : "Новинки";
   const bgGradient = type === "hits"
@@ -137,7 +146,7 @@ export function FeaturedProducts({ products, type }: FeaturedProductsProps) {
             ref={scrollRef}
             className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth"
           >
-            {products.map((product, index) => (
+            {validProducts.map((product, index) => (
               <motion.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}

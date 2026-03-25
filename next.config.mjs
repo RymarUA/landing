@@ -193,7 +193,7 @@ const nextConfig = {
       {
         source: "/api/fb-feed/:path*",
         headers: [
-          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Origin", value: "https://familyhub.com.ua" },
           { key: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
           { key: "Access-Control-Allow-Headers", value: "Content-Type" },
           { key: "Cache-Control", value: "public, max-age=3600" },
@@ -202,7 +202,7 @@ const nextConfig = {
       {
         source: "/api/feed-test/:path*",
         headers: [
-          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Origin", value: "https://familyhub.com.ua" },
           { key: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
           { key: "Access-Control-Allow-Headers", value: "Content-Type" },
         ],

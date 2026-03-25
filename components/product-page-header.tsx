@@ -1,8 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { ChevronLeft } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 
 interface ProductPageHeaderProps {
@@ -10,18 +9,18 @@ interface ProductPageHeaderProps {
   productId: string;
 }
 
-export function ProductPageHeader({ productName, productId }: ProductPageHeaderProps) {
+export function ProductPageHeader({ productName: _productName, productId: _productId }: ProductPageHeaderProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const desktopScrollRef = useRef<HTMLDivElement>(null);
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { id: "overview", label: "Огляд" },
     { id: "reviews", label: "Відгуки" },
     { id: "description", label: "Опис" },
     { id: "photos", label: "Фото" },
     { id: "recommended", label: "Рекомендації" },
-  ];
+  ], []);
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
@@ -132,7 +131,7 @@ export function ProductPageHeader({ productName, productId }: ProductPageHeaderP
           <span>/</span>
           <Link href="/#catalog" className="hover:text-orange-500 transition-colors whitespace-nowrap">Каталог</Link>
           <span>/</span>
-          <span className="text-stone-900 font-medium truncate max-w-[120px] sm:max-w-[200px]">{productName}</span>
+          <span className="text-stone-900 font-medium truncate max-w-[120px] sm:max-w-[200px]">{_productName}</span>
         </div>
       </div>
 

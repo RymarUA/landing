@@ -124,40 +124,46 @@ export function CartWidget() {
 
   return (
     <>
-      {/* Fixed cart button */}
-      <motion.button
-        onClick={toggleCart}
-        className={`fixed right-6 bottom-24 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-[110]
-          bg-gradient-to-br from-[#2E7D32] to-[#1B5E20] text-white`}
-        aria-label="Відкрити кошик"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        animate={animate ? { 
-          scale: [1, 1.2, 1.1, 1.2, 1], 
-          boxShadow: [
-            "0 0 0 0 rgba(27, 94, 32, 0.4)",
-            "0 0 0 8px rgba(27, 94, 32, 0.2)",
-            "0 0 0 16px rgba(27, 94, 32, 0.1)",
-            "0 0 0 8px rgba(27, 94, 32, 0.2)",
-            "0 0 0 0 rgba(27, 94, 32, 0)"
-          ]
-        } : { scale: 1, boxShadow: "0 0 0 0 rgba(27, 94, 32, 0)" }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-      >
-        <ShoppingCart size={26} />
-        <AnimatePresence>
-          {showBadge && (
-            <motion.span
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              className="absolute -top-1 -right-1 bg-[#FF4444] text-white text-xs font-black rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 shadow"
-            >
-              {totalCount}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </motion.button>
+      {/* ── Floating Cart Button ───────────────────── */}
+      <AnimatePresence>
+        {!isCartOpen && (
+          <motion.button
+            onClick={toggleCart}
+            className={`fixed right-6 bottom-24 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-[110]
+              bg-gradient-to-br from-[#2E7D32] to-[#1B5E20] text-white`}
+            aria-label="Відкрити кошик"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            animate={animate ? { 
+              scale: [1, 1.2, 1.1, 1.2, 1], 
+              boxShadow: [
+                "0 0 0 0 rgba(27, 94, 32, 0.4)",
+                "0 0 0 8px rgba(27, 94, 32, 0.2)",
+                "0 0 0 16px rgba(27, 94, 32, 0.1)",
+                "0 0 0 8px rgba(27, 94, 32, 0.2)",
+                "0 0 0 0 rgba(27, 94, 32, 0)"
+              ]
+            } : { scale: 1, boxShadow: "0 0 0 0 rgba(27, 94, 32, 0)" }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
+            initial={{ opacity: 0, scale: 0 }}
+            exit={{ opacity: 0, scale: 0 }}
+          >
+            <ShoppingCart size={26} />
+            <AnimatePresence>
+              {showBadge && (
+                <motion.span
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  className="absolute -top-1 -right-1 bg-[#FF4444] text-white text-xs font-black rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 shadow"
+                >
+                  {totalCount}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* ── Drawer ──────────────────────────────────── */}
       <div className={`fixed inset-0 z-[105] ${isCartOpen ? "pointer-events-auto" : "pointer-events-none"}`}>

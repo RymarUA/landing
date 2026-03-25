@@ -1,6 +1,5 @@
 // @ts-nocheck
 import type { Metadata } from "next/types";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -12,7 +11,7 @@ import {
 import { AddToCartButton } from "./add-to-cart-button";
 import { ProductImageLightbox } from "./product-image-lightbox";
 import { ShareButton } from "./share-button";
-import { ReviewsBlock } from "./reviews-block";
+import ReviewsBlock from "./reviews-block";
 import { ShopFooter } from "@/components/shop-footer";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { siteConfig } from "@/lib/site-config";
@@ -21,7 +20,6 @@ import {
   generateProductSchema,
   generateBreadcrumbSchema,
 } from "@/components/seo/JsonLd";
-import { blurProps } from "@/lib/utils";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ProductFeedSkeleton } from "@/components/product-feed-skeleton";
 
@@ -265,14 +263,10 @@ export default async function ProductPage({
                 {/* 2. ВІДГУКИ (ПОСЛЯ ВСІХ ОСНОВНИХ ЕЛЕМЕНТІВ) */}
                 <div id="reviews" className="mt-4">
                   <ReviewsBlock 
-                    productId={product.id}
-                    rating={product.rating}
+                    productName={product.name}
+                    category={product.category}
+                    productRating={product.rating}
                     totalReviews={product.reviews}
-                    sizeDistribution={{
-                      small: 2,
-                      trueToSize: 91,
-                      large: 7
-                    }}
                   />
                 </div>
 

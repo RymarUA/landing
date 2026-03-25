@@ -70,10 +70,14 @@ export function Analytics({ cspNonce }: AnalyticsProps) {
   const allowAnalytics = consent?.analytics ?? false;
   const allowMarketing = consent?.marketing ?? false;
 
+  // Prevent double-firing by ensuring scripts only load once
+  const metaPixelLoaded = typeof window !== 'undefined' && window.fbq;
+  const ga4Loaded = typeof window !== 'undefined' && window.dataLayer?.length > 0;
+
   return (
     <>
       {/* ── Meta Pixel (Marketing) ── */}
-      {PIXEL_ID && allowMarketing && (
+      {PIXEL_ID && allowMarketing && !metaPixelLoaded && (
         <>
           <Script id="meta-pixel" strategy="afterInteractive" nonce={cspNonce}>{`
             !function(f,b,e,v,n,t,s)
@@ -102,7 +106,7 @@ export function Analytics({ cspNonce }: AnalyticsProps) {
       )}
 
       {/* ── Google Analytics 4 (Analytics) ── */}
-      {GA4_ID && allowAnalytics && (
+      {GA4_ID && allowAnalytics && !ga4Loaded && (
         <>
           <Script
             id="ga4-loader"
@@ -375,6 +379,11 @@ export function trackInitiateCheckout(params: { value: number; numItems: number 
    Logs JavaScript errors to console and optionally to Telegram
    ────────────────────────────────────────────────────────────────────── */
 
+// Rate limiting for error logging to prevent spam
+const ERROR_LOG_LIMIT = 5; // Max 5 errors per session
+const ERROR_LOG_KEY = 'fhm_error_log_count';
+const ERROR_LOG_TIMESTAMP_KEY = 'fhm_error_log_timestamp';
+
 /** Log client-side JavaScript errors */
 export const logClientError = async function(errorData: {
   label?: string;
@@ -384,6 +393,29 @@ export const logClientError = async function(errorData: {
   stack?: string;
 }) {
   try {
+    // Rate limiting check
+    if (typeof window !== 'undefined') {
+      const errorCount = parseInt(localStorage.getItem(ERROR_LOG_KEY) || '0');
+      const lastLogTime = parseInt(localStorage.getItem(ERROR_LOG_TIMESTAMP_KEY) || '0');
+      const now = Date.now();
+      
+      // Reset count if it's been more than an hour
+      if (now - lastLogTime > 3600000) { // 1 hour
+        localStorage.setItem(ERROR_LOG_KEY, '0');
+        localStorage.setItem(ERROR_LOG_TIMESTAMP_KEY, now.toString());
+      }
+      
+      // Skip if we've exceeded the limit
+      if (errorCount >= ERROR_LOG_LIMIT) {
+        console.warn(`[Analytics] Error logging limit reached (${ERROR_LOG_LIMIT} errors/hour), skipping`);
+        return;
+      }
+      
+      // Increment counter
+      localStorage.setItem(ERROR_LOG_KEY, (errorCount + 1).toString());
+      localStorage.setItem(ERROR_LOG_TIMESTAMP_KEY, now.toString());
+    }
+    
     // Validate input parameter
     if (!errorData || typeof errorData !== 'object') {
       console.warn('[Analytics] Invalid error data received, skipping');
@@ -434,6 +466,10 @@ export const logClientError = async function(errorData: {
       `.trim();
       
       try {
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
         await fetch(
           `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
           {
@@ -444,8 +480,11 @@ export const logClientError = async function(errorData: {
               text: message,
               parse_mode: 'HTML',
             }),
+            signal: controller.signal,
           }
         );
+        
+        clearTimeout(timeoutId);
       } catch (telegramError) {
         console.error('Failed to send error to Telegram:', telegramError);
       }
@@ -469,6 +508,33 @@ export function setupGlobalErrorHandling(): void {
       if (event.message.includes("Cannot read properties of null (reading 'removeChild')")) {
         // This is a common React cleanup error, log at warning level instead of error
         console.warn('[React DOM Cleanup Warning]', {
+          message: event.message,
+          url: event.filename || window.location.href,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+      
+      // Filter out common browser extension errors
+      if (event.filename && (
+        event.filename.includes('extension://') ||
+        event.filename.includes('chrome-extension://') ||
+        event.filename.includes('moz-extension://')
+      )) {
+        // Skip browser extension errors
+        return;
+      }
+      
+      // Filter out common non-critical errors
+      const nonCriticalErrors = [
+        'Script error',
+        'Non-Error promise rejection captured',
+        'ResizeObserver loop limit exceeded',
+        'Network request failed'
+      ];
+      
+      if (nonCriticalErrors.some(pattern => event.message.includes(pattern))) {
+        console.warn('[Non-critical Error]', {
           message: event.message,
           url: event.filename || window.location.href,
           timestamp: new Date().toISOString(),
@@ -500,6 +566,23 @@ export function setupGlobalErrorHandling(): void {
       
       // Skip empty rejection reasons
       if (!reasonMessage || reasonMessage.trim() === '') {
+        return;
+      }
+      
+      // Filter out common non-critical promise rejections
+      const nonCriticalRejections = [
+        'Non-Error promise rejection captured',
+        'Network request failed',
+        'AbortError',
+        'ResizeObserver loop limit exceeded'
+      ];
+      
+      if (nonCriticalRejections.some(pattern => reasonMessage.includes(pattern))) {
+        console.warn('[Non-critical Promise Rejection]', {
+          message: reasonMessage,
+          url: window.location.href,
+          timestamp: new Date().toISOString(),
+        });
         return;
       }
       

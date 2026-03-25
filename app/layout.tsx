@@ -144,15 +144,6 @@ export default async function RootLayout({
           "bg-[#FAF9F4] antialiased min-h-screen flex flex-col",
         )}
       >
-        <Script src="https://www.googletagmanager.com/gtag/js?id=G-1XLLS839FV" strategy="afterInteractive" />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-1XLLS839FV');
-          `}
-        </Script>
         <DeploymentErrorHandler />
         <Analytics cspNonce={nonce} />
         <CatalogSearchPrefetcher />

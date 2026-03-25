@@ -5,7 +5,7 @@
  * Документація: https://developers.novaposhta.ua/view/model/a90d323c-8512-11ec-8ced-005056b2dbe1/method/a965630e-8512-11ec-8ced-005056b2dbe1
  */
 
-import { fetchNPWarehouses, NPWarehouse } from './novaposhta-api';
+import { fetchNPWarehouses } from './novaposhta-api';
 
 const NP_API_URL = 'https://api.novaposhta.ua/v2.0/json/';
 

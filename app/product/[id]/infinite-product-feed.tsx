@@ -45,11 +45,10 @@ function StarRow({ rating, count }: { rating: number; count: number }) {
 export function InfiniteProductFeed({
   category,
   currentProductId,
-  relatedIds,
+  relatedIds: _relatedIds,
   allProducts,
 }: InfiniteProductFeedProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
 
   const feedProducts = (() => {

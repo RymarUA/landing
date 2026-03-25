@@ -17,7 +17,7 @@ const tabs = [
   { id: "recommended", label: "Рекомендації" }
 ];
 
-export function ProductTabs({ productName, productId }: ProductTabsProps) {
+export function ProductTabs({ productName: _productName, productId: _productId }: ProductTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
 
   const handleTabChange = (tab: string) => {

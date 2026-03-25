@@ -18,10 +18,18 @@ export function SimpleProductCard({
   product, 
   priority 
 }: SimpleProductCardProps) {
+  // Move all hooks to top before early return
   const { has, toggle, hydrated } = useWishlist();
   const { trackClick } = useProductTracking();
-  const inWishlist = hydrated && has(product.id);
   const [heartPulse, setHeartPulse] = React.useState(false);
+
+  // Validate product data
+  if (!product || !product.id || !product.name || !product.category || product.price === undefined) {
+    console.error("[SimpleProductCard] Invalid product data:", product);
+    return null;
+  }
+
+  const inWishlist = hydrated && has(product.id);
 
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.preventDefault();
